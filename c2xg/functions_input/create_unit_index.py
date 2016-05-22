@@ -1,0 +1,109 @@
+#---------------------------------------------------------------------------------------------#
+#INPUT: List of files containing formatted corpus, max_sentences, unit frequency threshold ---#
+#OUTPUT: Lists of frequency reduced unit labels ----------------------------------------------#
+#Open files, loop through lines, send lines to other functions, write list of sentences ------#
+#---------------------------------------------------------------------------------------------#
+def create_unit_index(input_files, 
+						frequency_threshold_individual, 
+						encoding_type, 
+						semantic_category_dictionary, 
+						illegal_pos
+						):
+
+	import csv
+	import cytoolz as ct
+	
+	from functions_input.process_line_ingest import process_line_ingest
+	
+	sentence_list = []
+	sentence_counter = 0
+	word_counter = 0
+	
+	pos_dictionary = {}
+	lemma_dictionary = {}
+	word_dictionary = {}
+	category_dictionary = {}
+	
+	full_dictionary = {}
+
+	#Loop through input files#
+	for file in input_files:
+
+		print("\tOpening ", end="")
+		print(file)
+		print("Current total sentences: " + str(sentence_counter))
+		
+		fo = open(file, "r", newline="", encoding=encoding_type)
+		ingest_file = csv.reader(fo, delimiter="\t", quoting=csv.QUOTE_NONE)
+		
+		# #Loop through lines in current file#
+		for line in ingest_file:
+			
+			if len(line) < 5:
+				if len(line) == 1:
+					if line[0] == "<s>":
+				
+						sentence_counter += 1
+						if sentence_counter % 10000 == 0:
+					
+							print("Processing sentence number ", end="")
+							print(str(sentence_counter))
+					
+			else:
+				
+				#Get line information as a list#
+				word_counter += 1
+				line = process_line_ingest(line, semantic_category_dictionary)
+				#0:Word, 1:Lemma, 2:POS, 3: Index#, 4: Category#
+
+				#Add word information#
+				if line[2] not in illegal_pos:
+					try:
+						word_dictionary[line[0].lower()] += 1
+					except: 
+						word_dictionary[line[0].lower()] = 1
+				
+				#Add lemma information#
+				if line[2] not in illegal_pos:
+					try:
+						lemma_dictionary[line[1].lower()] += 1
+					except: 
+						lemma_dictionary[line[1].lower()] = 1
+				
+				#Add pos information#
+				if line[2] not in illegal_pos:
+					try:
+						pos_dictionary[line[2].lower()] += 1
+					except:
+						pos_dictionary[line[2].lower()] = 1
+				
+				#Add category information#
+				if line[2] not in illegal_pos:
+					try:
+						category_dictionary[line[4].lower()] += 1
+					except:
+						category_dictionary[line[4].lower()] = 1
+		
+		#End loop through lines in current file#
+		fo.close()
+		
+	#End loop through input files#
+	
+	print("")
+	print("Removing infrequent labels and creating label indexes")
+	
+	#Reduce unit inventories by removing infrequent labels#
+	above_threshold = lambda x: x > frequency_threshold_individual
+	
+	lemma_dictionary = ct.valfilter(above_threshold, lemma_dictionary)
+	pos_dictionary = ct.valfilter(above_threshold, pos_dictionary)
+	word_dictionary = ct.valfilter(above_threshold, word_dictionary)
+	category_dictionary = ct.valfilter(above_threshold, category_dictionary)
+	
+	full_dictionary['lemma'] = lemma_dictionary
+	full_dictionary['pos'] = pos_dictionary
+	full_dictionary['word'] = word_dictionary
+	full_dictionary['category'] = category_dictionary
+	
+	return full_dictionary
+#---------------------------------------------------------------------------------------------#
