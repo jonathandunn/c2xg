@@ -5,40 +5,16 @@
 def get_candidate_count(current_df, frequency_threshold_constructions_perfile):
 	
 	import pandas as pd
+	import cytoolz as ct
+
+	tuple_list = [tuple(x) for x in current_df.values]
+	pair_frequency = ct.frequencies(tuple_list)
 	
-	current_count = 1
-	count = 0
+	above_threshold = lambda x: x > frequency_threshold_constructions_perfile
+	pair_frequency = ct.valfilter(above_threshold, pair_frequency)
 	
-	previous_row_list = []
-	candidate = []
-	row_list = []
 	
-	count_dictionary = {}
 	
-	for row in current_df.itertuples():
-		
-		row_list = row[1:]
-		
-		if row_list == previous_row_list:
-			current_count += 1
-			
-		else:
-			
-			if current_count >= frequency_threshold_constructions_perfile:
-				
-				candidate = previous_row_list
-				count = current_count
-				count_dictionary[candidate] = count
-			
-			previous_row_list = row_list
-			current_count = 1
-	
-	del current_count
-	del count
-	del previous_row_list
-	del candidate
-	del row_list	
-	
-	return count_dictionary
+	return pair_frequency	
 #---------------------------------------------------------------------------------------------#
 #---------------------------------------------------------------------------------------------#

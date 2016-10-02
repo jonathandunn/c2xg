@@ -28,6 +28,7 @@ def annotate_files(input_folder,
 		from functions_annotate.write_conll import write_conll
 		from functions_annotate.process_lines import process_lines
 		from functions_annotate.rdrpos_run import rdrpos_run
+		from functions_annotate.get_write_list import get_write_list
 		import time
 		
 		import multiprocessing as mp
@@ -90,6 +91,7 @@ def annotate_files(input_folder,
 				
 			import os
 			import codecs
+			import platform
 	
 			if language == "English":
 				from functions_annotate.rdrpos_tagger.pSCRDRtagger.RDRPOSTagger4En import RDRPOSTagger4En
@@ -111,7 +113,13 @@ def annotate_files(input_folder,
 			
 			#Check and Change directory if necessary; only once if multi-processing#
 			current_dir = os.getcwd()
-			slash_index = current_dir.rfind("\\")
+
+			if platform.system() == "Windows":
+				slash_index = current_dir.rfind("\\")
+				
+			else:
+				slash_index = current_dir.rfind("/")
+				
 			current_dir = current_dir[slash_index+1:]
 			
 			if current_dir == "Utility":
@@ -129,7 +137,7 @@ def annotate_files(input_folder,
 			text_dictionary = pool_instance.map(partial(rdrpos_run, encoding_type=encoding_type, r=r, DICT=DICT, language=language), tokenized_line_list, chunksize = 1000)
 			pool_instance.close()
 			pool_instance.join()
-			#End multi-processing for tagging with Stanford CoreNLP#
+			#End multi-processing for tagging#
 			
 		time_end = time.time()
 		print("Time to pos-tag: " + str(time_end - time_start))
@@ -137,9 +145,22 @@ def annotate_files(input_folder,
 		
 		del tokenized_line_list
 	
+		#Make a list of tuples for multi-processing writing CONLL files:#
+		#--- (Doc Number, Start Index, End Index) ----------------------#
+		text_dictionary = get_write_list(text_dictionary, docs_per_file)
+	
 		time_start = time.time()
 		print("Now reformatting files for ingest.")
-		conll_files = write_conll(text_dictionary, input_file, encoding_type, docs_per_file)
+		
+		#Multi-process write results#
+		pool_instance=mp.Pool(processes = number_processes, maxtasksperchild = None)
+		conll_files = pool_instance.map(partial(write_conll, 
+													input_file = input_file, 
+													encoding_type = encoding_type
+													), text_dictionary, chunksize = 1)
+		pool_instance.close()
+		pool_instance.join()
+		#End multi-processing #
 		
 		time_end = time.time()
 		print("Time to write CoNLL format files: " + str(time_end - time_start))

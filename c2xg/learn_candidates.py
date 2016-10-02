@@ -89,7 +89,6 @@ def process_learn_candidates(filename,
 	print("")
 	print("Expanding sentences to reduce recursive structures")
 	print("")
-	
 	current_df = expand_sentences(current_df, 
 									lemma_list, 
 									pos_list, 
@@ -98,7 +97,6 @@ def process_learn_candidates(filename,
 									write_output = False, 
 									phrase_constituent_list = phrase_constituent_list
 									)
-	
 	#Get frequency of reduced phrases#
 	return_dictionary = get_phrase_count(lemma_list, lemma_frequency, pos_list, pos_frequency, current_df)
 	

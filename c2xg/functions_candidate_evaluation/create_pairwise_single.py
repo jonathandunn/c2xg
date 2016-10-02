@@ -5,7 +5,8 @@
 #---------------------------------------------------------------------------------------------#
 def create_pairwise_single(candidate_id, 
 							candidate_frequency, 
-							pairwise_dictionary
+							pairwise_dictionary,
+							freq_weighted
 							):
 	
 	import pandas as pd
@@ -52,16 +53,16 @@ def create_pairwise_single(candidate_id,
 		co_occurrence_list = [[a, b, c, d]]
 
 		#Second, calculate Delta P's for pairwise measures#
-		lr_tuple = calculate_summed_lr(co_occurrence_list)
+		lr_tuple = calculate_summed_lr(co_occurrence_list, freq_weighted)
 		summed_lr = lr_tuple[0]
 		smallest_lr = lr_tuple[1]
 		
-		rl_tuple = calculate_summed_rl(co_occurrence_list)
+		rl_tuple = calculate_summed_rl(co_occurrence_list, freq_weighted)
 		summed_rl = rl_tuple[0]
 		smallest_rl = rl_tuple[1]
 	
-		normalized_summed_lr = calculate_normalized_summed_lr(co_occurrence_list, summed_lr)
-		normalized_summed_rl = calculate_normalized_summed_rl(co_occurrence_list, summed_rl)
+		normalized_summed_lr = calculate_normalized_summed_lr(co_occurrence_list, summed_lr, freq_weighted)
+		normalized_summed_rl = calculate_normalized_summed_rl(co_occurrence_list, summed_rl, freq_weighted)
 	
 		end_reduced_lr = 0
 		end_reduced_rl = 0

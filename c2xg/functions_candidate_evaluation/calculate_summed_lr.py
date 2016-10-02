@@ -3,7 +3,7 @@
 #INPUT: DataFrame with pairwise co-occurrence frequencies ------------------------------------#
 #OUTPUT: Given Delta-P measure ---------------------------------------------------------------#
 #---------------------------------------------------------------------------------------------#
-def calculate_summed_lr(co_occurrence_list):
+def calculate_summed_lr(co_occurrence_list, freq_weighted):
 	
 	summed_lr = 0.0
 	lowest_pairwise = ''
@@ -16,6 +16,9 @@ def calculate_summed_lr(co_occurrence_list):
 		d = float(co_occurrence_list[i][3])
 		
 		pair_lr = float(a / (a + c)) - float(b / (b + d))
+		
+		if freq_weighted == True:
+			pair_lr = pair_lr * a
 		
 		#If threshold, then add or flag accordingly#
 		if lowest_pairwise == '':

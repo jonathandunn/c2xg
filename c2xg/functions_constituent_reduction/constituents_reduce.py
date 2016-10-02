@@ -9,7 +9,6 @@ def constituents_reduce(pos_list,
 						remove_dictionary, 
 						copy_df, 
 						key, 
-						current_status, 
 						action = "REDUCE", 
 						encoding_type = "", 
 						examples_file = ""
@@ -40,19 +39,8 @@ def constituents_reduce(pos_list,
 	#Independent heads: labelled with head part-of-speech, lemma stays the same#
 	#Dependent heads: labelled with pos_phrase, lemma changes to pos_phrase#
 	
-	if current_status == "Dependent":
-		
-		current_pos = pos_list[key] + "_PHRASE"
-		current_pos_index = pos_list.index(current_pos)
-		current_lemma_index = lemma_list.index(current_pos)
-	
-		match_df.loc[match_df.Mas.isin(head_list), 'Pos'] = current_pos_index
-		match_df.loc[match_df.Mas.isin(head_list), 'Lem'] = current_lemma_index
-	
-	elif current_status == "Independent":
-	
-		current_pos_index = key
-		match_df.loc[match_df.Mas.isin(head_list), 'Pos'] = current_pos_index
+	current_pos_index = key
+	match_df.loc[match_df.Mas.isin(head_list), 'Pos'] = current_pos_index
 			
 	if action == "PRINT":
 

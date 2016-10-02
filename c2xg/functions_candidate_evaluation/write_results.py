@@ -16,21 +16,25 @@ def write_results(full_vector_df,
 	from functions_input.create_category_dictionary import create_category_dictionary
 	
 	fresults = open(output_file_name, "w", encoding=encoding_type)
-	fresults.write('Name,Frequency,Summed_LR,Smallest_LR,Summed_RL,Smallest_RL,Normalized_Summed_LR,Normalized_Summed_RL,Beginning_Reduced_LR,Beginning_Reduced_RL,End_Reduced_LR,End_Reduced_RL,Directional_Scalar,Directional_Categorical,Beginning_Divided_LR,Beginning_Divided_RL,End_Divided_LR,End_Divided_RL\n')
+	fresults.write('Name,Length,Template,Frequency,Summed_LR,Smallest_LR,Summed_RL,Smallest_RL,Normalized_Summed_LR,Normalized_Summed_RL,Beginning_Reduced_LR,Beginning_Reduced_RL,End_Reduced_LR,End_Reduced_RL,Directional_Scalar,Directional_Categorical,Endpoint_LR,Endpoint_RL,Beginning_Divided_LR,Beginning_Divided_RL,End_Divided_LR,End_Divided_RL\n')
 	
 	#Start loop through rows#
 	for row in full_vector_df.itertuples():
 		
 		#First, produce readable construction representation#
-		candidate_id = eval(row[1])
+		candidate_id = row[1]
+		candidate_id = eval(candidate_id)
 		candidate_str = ""
+		template_str = ""
 		item_counter = 0
-		
+
 		for item in candidate_id:
 			item_counter += 1
 
 			type = item[0]
 			index = item[1]
+			
+			template_str += " " + str(type)
 			
 			if type == "Lem":
 				readable_item = lemma_list[index]
@@ -53,6 +57,8 @@ def write_results(full_vector_df,
 		#Done loop to create readable construction candidate#
 		
 		#Second, write features values#
+		fresults.write(str(item_counter) + ',')
+		fresults.write(str(template_str) + ',')
 		fresults.write(str(row[2]) + ',')
 		fresults.write(str(row[3]) + ',')
 		fresults.write(str(row[4]) + ',')
@@ -69,7 +75,9 @@ def write_results(full_vector_df,
 		fresults.write(str(row[15]) + ',')
 		fresults.write(str(row[16]) + ',')
 		fresults.write(str(row[17]) + ',')
-		fresults.write(str(row[18]) + '\n')		
+		fresults.write(str(row[18]) + ',')
+		fresults.write(str(row[19]) + ',')
+		fresults.write(str(row[20]) + '\n')		
 
 	#End loop through candidates#
 	fresults.close()

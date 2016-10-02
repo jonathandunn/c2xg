@@ -11,7 +11,7 @@ def write_model(lemma_list,
 				sequence_list, 
 				max_construction_length, 
 				annotation_types, 
-				pruned_vector_dataframe, 
+				candidate_list, 
 				encoding_type, 
 				data_file_model, 
 				phrase_constituent_list, 
@@ -29,9 +29,6 @@ def write_model(lemma_list,
 	
 	write_dictionary = {}
 	
-	candidate_list = pruned_vector_dataframe.loc[:,'Candidate'].tolist()
-	candidate_list = add_constituent_candidates(candidate_list, phrase_constituent_list)
-	
 	write_dictionary['candidate_list'] = candidate_list
 	write_dictionary['lemma_list'] = lemma_list
 	write_dictionary['pos_list'] = pos_list
@@ -41,7 +38,6 @@ def write_model(lemma_list,
 	write_dictionary['sequence_list'] = sequence_list
 	write_dictionary['max_construction_length'] = max_construction_length
 	write_dictionary['annotation_types'] = annotation_types
-	write_dictionary['pruned_vector_dataframe'] = pruned_vector_dataframe
 	write_dictionary['encoding_type'] = encoding_type
 	write_dictionary['phrase_constituent_list'] = phrase_constituent_list
 	write_dictionary['lemma_dictionary'] = lemma_dictionary

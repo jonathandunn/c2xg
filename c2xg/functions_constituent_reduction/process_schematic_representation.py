@@ -8,8 +8,6 @@ def process_schematic_representation(single_df,
 										lemma_list,
 										full_remove_dictionary_lr, 
 										full_remove_dictionary_rl,
-										dependence_dictionary_lr,
-										dependence_dictionary_rl,
 										counter
 										):
 	
@@ -21,7 +19,6 @@ def process_schematic_representation(single_df,
 	tuple_list = []
 	
 	full_remove_dictionary = ct.merge(full_remove_dictionary_lr, full_remove_dictionary_rl)
-	full_dependence_dictionary = ct.merge(dependence_dictionary_lr, dependence_dictionary_rl)
 	
 	lr_heads = list(full_remove_dictionary_lr.keys())
 	rl_heads = list(full_remove_dictionary_rl.keys())
@@ -90,22 +87,8 @@ def process_schematic_representation(single_df,
 		current_covered.remove(current_head_index)
 		remove_list += current_covered
 		
-		current_status = full_dependence_dictionary[current_head]
-		
-		#Change head information, dependening on whether phrase is independent or dependent#
-		if current_status == "Dependent":
-		
-			current_pos = pos_list[current_head] + "_PHRASE"
-			current_pos_index = pos_list.index(current_pos)
-			current_lemma_index = lemma_list.index(current_pos)
-		
-			copy_df.loc[copy_df.Mas == current_head_index, 'Pos'] = current_pos_index
-			copy_df.loc[copy_df.Mas == current_head_index, 'Lem'] = current_lemma_index
-	
-		elif current_status == "Independent":
-	
-			current_pos_index = current_head
-			copy_df.loc[copy_df.Mas == current_head_index, 'Pos'] = current_pos_index
+		current_pos_index = current_head
+		copy_df.loc[copy_df.Mas == current_head_index, 'Pos'] = current_pos_index
 			
 	#Done changing phrase head information#
 	#Now remove non-head members of constituents#

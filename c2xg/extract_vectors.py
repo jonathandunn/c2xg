@@ -143,19 +143,26 @@ def process_extract_vectors(input_file,
 	
 	#Save vectors to file and return#
 	if write_output == True:
+	
+		if full_scope == True:
+			suffix = "Full"
+		
+		elif full_scope == False:
+			suffix = "Lexical"
 		
 		from functions_input.get_temp_filename import get_temp_filename
 		print("Saving vectors to file.")
 		
 		if use_centroid == True:
-			output_name = get_temp_filename(input_file, ".Centroid.Features")
+			suffix += ".Centroid.Features"
 			
 		elif relative_freq == True:
-			output_name = get_temp_filename(input_file, ".Relative.Features")
+			suffix += ".Relative.Features"
 			
 		else:
-			output_name = get_temp_filename(input_file, ".Raw.Features")
+			suffix +=  ".Raw.Features"
 	
+		output_name = get_temp_filename(input_file, suffix)
 		write_candidates(output_name + ".Columns", column_metadata) #Save column names#
 		full_vector_df.to_hdf(output_name, "Table", format='fixed', complevel=9, complib="blosc")
 		

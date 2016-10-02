@@ -4,7 +4,7 @@
 #OUTPUT: List of all pairs -------------------------------------------------------------------#
 # Take full candidate list and return all two item pairs -----#
 #---------------------------------------------------------------------------------------------#
-def get_formatted_candidates(full_candidate_dictionary, frequency_threshold):
+def get_formatted_candidates(full_candidate_dictionary):
 	
 	candidate_list_formatted = []
 	candidate_list_all = []
@@ -30,8 +30,7 @@ def get_formatted_candidates(full_candidate_dictionary, frequency_threshold):
 			candidate_list_formatted.append(formatted_candidate)
 			candidate_frequency = current_dictionary[current_candidate_list[j]]
 			
-			if candidate_frequency > frequency_threshold:
-				candidate_list_all.append([formatted_candidate, candidate_length, candidate_frequency])
+			candidate_list_all.append([formatted_candidate, candidate_length, candidate_frequency])
 			
 			if candidate_length == 2:
 				candidate_list_pairs.append([formatted_candidate, candidate_length, candidate_frequency])

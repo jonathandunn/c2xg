@@ -1187,9 +1187,7 @@
 8‑D	LaughingFace
 8D	LaughingFace
 x‑D	LaughingFace
-xD	LaughingFace
 X‑D	LaughingFace
-XD	LaughingFace
 =‑D	LaughingFace
 =D	LaughingFace
 =‑3	LaughingFace
@@ -1220,8 +1218,6 @@ D:	ScaredFace
 D8	ScaredFace
 D;	ScaredFace
 D=	ScaredFace
-DX	ScaredFace
-v.v	ScaredFace
 D‑':	ScaredFace
 >:O	SurprisedFace
 :‑O	SurprisedFace
@@ -1255,8 +1251,6 @@ O-O	SurprisedFace
 :P	Tongue
 X‑P	Tongue
 x‑p	Tongue
-xp	Tongue
-XP	Tongue
 :‑p	Tongue
 :p	Tongue
 =p	Tongue
@@ -1410,10 +1404,6 @@ _旦~~	Cup
 ;-;	SadFace
 ;n;	SadFace
 ;;	SadFace
-Q.Q	SadFace
-T.T	SadFace
-QQ	SadFace
-Q_Q	SadFace
 (ー_ー)!!	ShameFace
 (-.-)	ShameFace
 (-_-)	ShameFace

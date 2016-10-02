@@ -11,7 +11,8 @@ def process_unitwise_feature_vector(candidate_info_list,
 										pos_list, 
 										category_frequency, 
 										category_list, 
-										total_units
+										total_units,
+										freq_weighted
 										):
 	
 	import pandas as pd
@@ -74,10 +75,10 @@ def process_unitwise_feature_vector(candidate_info_list,
 			divided_beginning_rl = 0
 			
 		else:
-			divided_beginning_lr_temp = calculate_summed_lr(beginning_list)
+			divided_beginning_lr_temp = calculate_summed_lr(beginning_list, freq_weighted)
 			divided_beginning_lr = divided_beginning_lr_temp[0]
 			
-			divided_beginning_rl_temp = calculate_summed_rl(beginning_list)
+			divided_beginning_rl_temp = calculate_summed_rl(beginning_list, freq_weighted)
 			divided_beginning_rl = divided_beginning_rl_temp[0]
 		
 		if end_list == [[0,0,0,0]]:
@@ -86,10 +87,10 @@ def process_unitwise_feature_vector(candidate_info_list,
 			divided_end_rl = 0
 			
 		else:
-			divided_end_lr_temp = calculate_summed_lr(end_list)
+			divided_end_lr_temp = calculate_summed_lr(end_list, freq_weighted)
 			divided_end_lr = divided_end_lr_temp[0]
 			
-			divided_end_rl_temp = calculate_summed_rl(end_list)
+			divided_end_rl_temp = calculate_summed_rl(end_list, freq_weighted)
 			divided_end_rl = divided_end_rl_temp[0]
 	
 	vector_list	= [full_candidate_str, divided_beginning_lr, divided_beginning_rl, divided_end_lr, divided_end_rl]

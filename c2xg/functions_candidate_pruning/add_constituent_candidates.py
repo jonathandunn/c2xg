@@ -15,8 +15,6 @@ def add_constituent_candidates(full_candidate_list, phrase_constituent_list):
 			
 			for sequence in current_list:
 				
-				sequence = eval(sequence)
-			
 				current_construction = []
 				
 				for unit in sequence:

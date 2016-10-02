@@ -4,7 +4,6 @@
 #Open files, loop through lines, send lines to other functions, write list of sentences ------#
 #---------------------------------------------------------------------------------------------#
 def create_unit_index(input_files, 
-						frequency_threshold_individual, 
 						encoding_type, 
 						semantic_category_dictionary, 
 						illegal_pos
@@ -23,8 +22,6 @@ def create_unit_index(input_files,
 	lemma_dictionary = {}
 	word_dictionary = {}
 	category_dictionary = {}
-	
-	full_dictionary = {}
 
 	#Loop through input files#
 	for file in input_files:
@@ -89,17 +86,7 @@ def create_unit_index(input_files,
 		
 	#End loop through input files#
 	
-	print("")
-	print("Removing infrequent labels and creating label indexes")
-	
-	#Reduce unit inventories by removing infrequent labels#
-	above_threshold = lambda x: x > frequency_threshold_individual
-	
-	lemma_dictionary = ct.valfilter(above_threshold, lemma_dictionary)
-	pos_dictionary = ct.valfilter(above_threshold, pos_dictionary)
-	word_dictionary = ct.valfilter(above_threshold, word_dictionary)
-	category_dictionary = ct.valfilter(above_threshold, category_dictionary)
-	
+	full_dictionary = {}
 	full_dictionary['lemma'] = lemma_dictionary
 	full_dictionary['pos'] = pos_dictionary
 	full_dictionary['word'] = word_dictionary

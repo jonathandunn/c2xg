@@ -40,7 +40,7 @@ def process_learned_constituents(single_df,
 	#Evaluate to tuples and sort by length#
 	temp_list = []
 	for item in constituent_list:
-		temp_list.append(eval(item))
+		temp_list.append(item)
 		
 	constituent_list = temp_list
 	del temp_list
@@ -96,18 +96,9 @@ def process_learned_constituents(single_df,
 		counter += 1
 		current_dictionary = remove_dictionary[head]	
 	
-		#Determine if head is independent#
-		if (head,) in constituent_list:
-			current_status = "Independent"
-			
-		else:
-			current_status = "Dependent"
-		
-		dependence_dictionary[head] = current_status
-		
 		print("\t", end="")
 		print(pos_list[head], end="")
-		print(": " + str(current_status) + ": ", end="")
+		print(": " + ": ", end="")
 		
 		#Now create reduced phrases for all constituents of current head#
 		copy_df = single_df.copy("Deep")
@@ -117,7 +108,6 @@ def process_learned_constituents(single_df,
 												current_dictionary, 
 												copy_df, 
 												head, 
-												current_status, 
 												action, 
 												encoding_type, 
 												examples_file
@@ -135,5 +125,5 @@ def process_learned_constituents(single_df,
 	#End loop through phrase heads#				
 	total_match_df = pd.concat(sentence_reductions_list)
 	
-	return total_match_df, remove_dictionary, dependence_dictionary, counter
+	return total_match_df, remove_dictionary, counter
 #---------------------------------------------------------------------------------------------#

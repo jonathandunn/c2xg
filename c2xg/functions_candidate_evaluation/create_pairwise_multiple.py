@@ -5,7 +5,8 @@
 #---------------------------------------------------------------------------------------------#
 def create_pairwise_multiple(candidate_id, 
 								candidate_frequency, 
-								pairwise_dictionary
+								pairwise_dictionary,
+								freq_weighted
 								):
 	
 	import pandas as pd
@@ -25,6 +26,8 @@ def create_pairwise_multiple(candidate_id,
 	
 	from functions_candidate_evaluation.calculate_directional_scalar import calculate_directional_scalar
 	from functions_candidate_evaluation.calculate_directional_categorical import calculate_directional_categorical
+	
+	from functions_candidate_evaluation.calculate_endpoint import calculate_endpoint
 
 	full_candidate_str = str(candidate_id)
 	candidate_vector = [full_candidate_str, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
@@ -70,26 +73,28 @@ def create_pairwise_multiple(candidate_id,
 	if len(co_occurrence_list) > 1:
 
 		#Second, calculate Delta P's for pairwise measures#
-		lr_tuple = calculate_summed_lr(co_occurrence_list)
+		lr_tuple = calculate_summed_lr(co_occurrence_list, freq_weighted)
 		summed_lr = lr_tuple[0]
 		smallest_lr = lr_tuple[1]
 		
-		rl_tuple = calculate_summed_rl(co_occurrence_list)
+		rl_tuple = calculate_summed_rl(co_occurrence_list, freq_weighted)
 		summed_rl = rl_tuple[0]
 		smallest_rl = rl_tuple[1]
 	
-		normalized_summed_lr = calculate_normalized_summed_lr(co_occurrence_list, summed_lr)
-		normalized_summed_rl = calculate_normalized_summed_rl(co_occurrence_list, summed_rl)
+		normalized_summed_lr = calculate_normalized_summed_lr(co_occurrence_list, summed_lr, freq_weighted)
+		normalized_summed_rl = calculate_normalized_summed_rl(co_occurrence_list, summed_rl, freq_weighted)
 	
-		end_reduced_lr = calculate_reduced_end_lr(co_occurrence_list)
-		end_reduced_rl = calculate_reduced_end_rl(co_occurrence_list)
+		end_reduced_lr = calculate_reduced_end_lr(co_occurrence_list, freq_weighted)
+		end_reduced_rl = calculate_reduced_end_rl(co_occurrence_list, freq_weighted)
 	
-		beginning_reduced_lr = calculate_reduced_beginning_lr(co_occurrence_list)
-		beginning_reduced_rl = calculate_reduced_beginning_rl(co_occurrence_list)
+		beginning_reduced_lr = calculate_reduced_beginning_lr(co_occurrence_list, freq_weighted)
+		beginning_reduced_rl = calculate_reduced_beginning_rl(co_occurrence_list, freq_weighted)
 	
-		directional_scalar = calculate_directional_scalar(co_occurrence_list)
-		directional_categorical = calculate_directional_categorical(co_occurrence_list)
-	
+		directional_scalar = calculate_directional_scalar(co_occurrence_list, freq_weighted)
+		directional_categorical = calculate_directional_categorical(co_occurrence_list, freq_weighted)
+		
+		endpoint_lr, endpoint_rl = calculate_endpoint(co_occurrence_list, pairwise_dictionary, candidate_id, freq_weighted)
+			
 		#Third, create list of feature values for current candidate, including candidate id#
 	
 		candidate_vector = [full_candidate_str, 
@@ -105,7 +110,9 @@ def create_pairwise_multiple(candidate_id,
 							end_reduced_lr,
 							end_reduced_rl,
 							directional_scalar,
-							directional_categorical
+							directional_categorical,
+							endpoint_lr,
+							endpoint_rl
 						]
 	
 	return candidate_vector

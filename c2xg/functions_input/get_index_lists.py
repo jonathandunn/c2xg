@@ -23,8 +23,13 @@ def get_index_lists(full_dictionary):
 	lemma_list.insert(0, "n/a")
 	pos_list.insert(0, "n/a")
 	
-	temp_index = category_list.index("n/a")
-	del category_list[temp_index]
+	try:
+		temp_index = category_list.index("n/a")
+		del category_list[temp_index]
+		
+	except:
+		null_counter = 0
+		
 	category_list.insert(0, "n/a")
 	
 	word_frequency = word_dictionary

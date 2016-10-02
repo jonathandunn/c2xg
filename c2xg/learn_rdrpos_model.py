@@ -86,7 +86,7 @@ def train_rdrpos_model(training_dir, test_dir):
 #-------------------------------------------------------------------------------------------#
 
 #Put Train and Test files in "construction_induction/functions_annotate/rdrpos_tagger/data"
-training_dir = "./data/Farsi.Formatted.Training.txt"
-test_dir = "./data/Farsi.Formatted.Testing.txt"
+training_dir = ""
+test_dir = ""
 
 train_rdrpos_model(training_dir, test_dir)

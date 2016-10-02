@@ -31,14 +31,14 @@ def process_sentence_expansion(current_df,
 	print("")
 	print("\tStarting Head-First Constituent Reduction")
 	start = time.time()
-	total_match_df_lr, remove_dictionary_lr, dependence_dictionary_lr, counter = process_learned_constituents(single_df, 
-																												pos_list, 
-																												lemma_list, 
-																												phrase_constituent_list[0], 
-																												direction = "LR", 
-																												action = "Reduce", 
-																												counter = 1
-																												)
+	total_match_df_lr, remove_dictionary_lr, counter = process_learned_constituents(single_df, 
+																					pos_list, 
+																					lemma_list, 
+																					phrase_constituent_list[0], 
+																					direction = "LR", 
+																					action = "Reduce", 
+																					counter = 1
+																					)
 	alt_list.append(total_match_df_lr)
 
 	end = time.time()		
@@ -48,14 +48,14 @@ def process_sentence_expansion(current_df,
 	print("")
 	print("\tStarting Head-Last Constituent Reduction")
 	start = time.time()
-	total_match_df_rl, remove_dictionary_rl, dependence_dictionary_rl, counter = process_learned_constituents(single_df, 
-																												pos_list, 
-																												lemma_list, 
-																												phrase_constituent_list[1], 
-																												direction = "RL", 
-																												action = "Reduce", 
-																												counter = counter
-																												)
+	total_match_df_rl, remove_dictionary_rl, counter = process_learned_constituents(single_df, 
+																					pos_list, 
+																					lemma_list, 
+																					phrase_constituent_list[1], 
+																					direction = "RL", 
+																					action = "Reduce", 
+																					counter = counter
+																					)
 	alt_list.append(total_match_df_rl)
 
 	end = time.time()		
@@ -70,8 +70,6 @@ def process_sentence_expansion(current_df,
 															lemma_list, 
 															remove_dictionary_lr, 
 															remove_dictionary_rl, 
-															dependence_dictionary_lr, 
-															dependence_dictionary_rl, 
 															counter
 															)
 	alt_list.append(total_schematic_df)

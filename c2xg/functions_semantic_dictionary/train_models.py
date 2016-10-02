@@ -5,7 +5,8 @@ def train_models(input_directory,
 					workers, 
 					min_count, 
 					dimensions, 
-					output_name
+					output_name,
+					sg
 					):
 
 	import gensim
@@ -15,7 +16,8 @@ def train_models(input_directory,
 	print("Starting to train word2vec model.")
 
 	sentences = MySentences(input_directory)
-	model = gensim.models.Word2Vec(sentences, min_count=min_count, size=dimensions, workers=workers, hashfxn=hash32)
+	
+	model = gensim.models.Word2Vec(sentences, min_count=min_count, size=dimensions, sg=sg, workers=workers, hashfxn=hash32)
 
 	print("Finished training word2vec model.")
 	
@@ -57,9 +59,10 @@ class MySentences(object):
 			for line in codecs.open(os.path.join(self.dirname, fname), encoding = "utf-8"):
 				
 				line = tokenize_line(line)
-
+				
 				#Some lines have only one item#
 				try:
+					line = line.lower()
 					line = line.split(" ")
 					
 					if len(line) > 1:

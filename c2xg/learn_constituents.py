@@ -19,11 +19,8 @@ def learn_constituents(input_folder,
 						semantic_dictionary_file, 
 						frequency_threshold_individual, 
 						illegal_pos, 
-						phrase_structure_ngram_length, 
-						significance,
-						independence_threshold,
+						distance_threshold,
 						data_file_grammar,
-						constituent_threshold,
 						annotate_pos = False,
 						encoding_type = "utf-8", 
 						docs_per_file = 999999999,
@@ -56,24 +53,20 @@ def learn_constituents(input_folder,
 		from functions_annotate.annotate_files import annotate_files
 
 		from functions_input.check_folders import check_folders
-		from functions_input.create_unit_index import create_unit_index
+		from functions_input.process_create_unit_index import process_create_unit_index
 		from functions_input.create_category_dictionary import create_category_dictionary
 		from functions_input.create_emoji_dictionary import create_emoji_dictionary
 		from functions_input.create_category_index import create_category_index
-		from functions_input.pandas_open import pandas_open
 		from functions_input.get_index_lists import get_index_lists
 
-		from functions_phrase_structure.learn_head_directions import learn_head_directions
-		from functions_phrase_structure.learn_phrase_constituents import learn_phrase_constituents
-		from functions_phrase_structure.learn_head_independence import learn_head_independence
-		from functions_phrase_structure.create_direction_list import create_direction_list
-		from functions_phrase_structure.update_pos_list import update_pos_list
-		from functions_phrase_structure.update_lemma_list import update_lemma_list
+		from functions_phrase_structure.get_matrix import get_matrix
+		from functions_phrase_structure.identify_catenae_pairs import identify_catenae_pairs
+		from functions_phrase_structure.join_catenae_pairs import join_catenae_pairs
+		
 		from functions_phrase_structure.reformat_constituents import reformat_constituents
-
 		from functions_candidate_extraction.read_candidates import read_candidates
 		from functions_candidate_extraction.write_candidates import write_candidates
-
+		
 		#Check if folders exist. If not, create them.#	
 		check_folders(input_folder, input_folder + "/Temp/", input_folder + "/Debug/", output_folder)
 		
@@ -107,10 +100,7 @@ def learn_constituents(input_folder,
 			input_files = conll_files
 			
 		else:
-			conll_files = []
-			for file in input_files:
-				conll_files.append(input_folder + "/Temp/" + file)
-			input_files = conll_files
+			input_files = [input_folder + "/Temp/" + file for file in input_files]
 		#---------------------------------------------------------------------------------------------#
 		#2: Create index of  frequency reduced labels from input files -------------------------------#
 		#---------------------------------------------------------------------------------------------#
@@ -122,7 +112,7 @@ def learn_constituents(input_folder,
 		print("Creating index of frequency reduced labels from input files.")
 
 		#Full list contains lemma, pos, and role lists#
-		full_dictionary = create_unit_index(input_files, frequency_threshold_individual, encoding_type, semantic_category_dictionary, illegal_pos)
+		full_dictionary = process_create_unit_index(input_files, frequency_threshold_individual, encoding_type, semantic_category_dictionary, illegal_pos, number_of_cpus_prepare)
 		full_dictionary = get_index_lists(full_dictionary)
 
 		#Separate the various items from the container dictionary#
@@ -156,35 +146,6 @@ def learn_constituents(input_folder,
 			write_debug(category_frequency, lemma_frequency, word_frequency, pos_frequency, debug_file, encoding_type)
 			
 		#---------------------------------------------------------------------------------------------#
-		#3: Ingest input files and create DataFrames of index values representing sentences ----------#
-		#--------and contained within larger HDF5 file for efficiency --------------------------------#
-		#---------------------------------------------------------------------------------------------#
-
-		print("")
-		print("Ingesting input files.")
-		
-		data_files = []
-		
-		#Start multi-processing for loading files#
-		pool_instance=mp.Pool(processes = number_of_cpus_prepare, maxtasksperchild = None)
-		data_files += pool_instance.map(partial(pandas_open, 
-									encoding_type = encoding_type,
-									semantic_category_dictionary = semantic_category_dictionary,
-									word_list = word_list,
-									lemma_list = lemma_list,
-									pos_list = pos_list,
-									lemma_dictionary = lemma_dictionary,
-									pos_dictionary = pos_dictionary,
-									category_dictionary = category_dictionary,
-									save_words = True,
-									write_output = True,
-									delete_temp = delete_temp
-							), input_files, chunksize = 1)
-		pool_instance.close()
-		pool_instance.join()
-		#End multi-processing for loading files#
-	
-		#---------------------------------------------------------------------------------------------#
 		#4: Learn basic phrase structure rules for constituent reduction -------------------------------#
 		#---------------------------------------------------------------------------------------------#
 	
@@ -192,92 +153,110 @@ def learn_constituents(input_folder,
 		print("Learning phrase structure rules for constituent reduction.")
 		print("")
 		
-		print("First, determining which POS categories are phrase heads and, if phrase heads, if they are head-first or head-last.")
-		
-		#Start multi-processing for learning pos head status#
-		pool_instance=mp.Pool(processes = number_of_cpus_prepare, maxtasksperchild = None)
-		head_direction_list = pool_instance.map(partial(learn_head_directions, 
-														data_files = data_files, 
-														phrase_structure_ngram_length = phrase_structure_ngram_length, 
-														index_list = pos_list, 
-														significance = significance
-													), pos_list[1:], chunksize = 1)
-		pool_instance.close()
-		pool_instance.join()
-		#End multi-processing for learning pos head status#
-				
-		lr_head_list = create_direction_list(head_direction_list, "Head-First", pos_list)
-		rl_head_list = create_direction_list(head_direction_list, "Head-Last", pos_list)
-		
-		print("")
-		print("Second, determining for each phrase head its set of possible constituents.")
-		
-		#Start multi-processing for learning phrase constituents#
-		pool_instance=mp.Pool(processes = number_of_cpus_prepare, maxtasksperchild = None)
-		phrase_constituent_list = pool_instance.map(partial(learn_phrase_constituents, 
-															data_files = data_files, 
-															phrase_structure_ngram_length = phrase_structure_ngram_length, 
-															index_list = pos_list, 
-															lr_head_list = lr_head_list, 
-															rl_head_list = rl_head_list,
-															constituent_threshold = constituent_threshold
-														), head_direction_list, chunksize = 1)
-		pool_instance.close()
-		pool_instance.join()
-		#End multi-processing for learning phrase constituents#
-	
-		print("")
-		print("Third, determining for each phrase head if it can independently form a phrase.")
-	
-		#Start multi-processing for learning phrase constituents#
-		pool_instance=mp.Pool(processes = number_of_cpus_prepare, maxtasksperchild = None)
-		phrase_independence_list = pool_instance.map(partial(learn_head_independence, 
-															data_files = data_files, 
-															index_list = pos_list, 
-															lr_head_list = lr_head_list, 
-															rl_head_list = rl_head_list,
-															independence_threshold = independence_threshold
-														), pos_list, chunksize = 1)
-		pool_instance.close()
-		pool_instance.join()
-		#End multi-processing for learning phrase constituents#
+		print("First, get frequency and association (LR and RL) matrices.")
+		pair_frequency_dictionary, lr_association_dictionary, rl_association_dictionary, base_frequency_dictionary, file_counter = get_matrix(pos_list, 
+																																input_files, 
+																																distance_threshold, 
+																																number_of_cpus_prepare,
+																																encoding_type,
+																																semantic_category_dictionary,
+																																word_list,
+																																lemma_list,
+																																lemma_dictionary,
+																																pos_dictionary,
+																																category_dictionary,
+																																delete_temp
+																																)
 
-		#Write debug file for phrase reduction rules#
-		if debug == True:
-			
-			fdebug = open(debug_file + "PhraseStructure", "w", encoding=encoding_type)
-			for phrase_tuple in phrase_constituent_list:
-			
-				if phrase_tuple != None:
-					pos_index = phrase_tuple[0]
-					pos_label = pos_list[pos_index]
-					pos_constituents = phrase_tuple[1]
-								
-					for item in pos_constituents:
-					
-						real_item = eval(item)
-						fdebug.write(str(pos_label.upper() + "_PHRASE: "))
-					
-						for pos in real_item:
-							fdebug.write(str(" "))
-							fdebug.write(str(pos_list[int(pos)]))
-							
-						fdebug.write("\n")
-			fdebug.close()
-		#Done with phrase reduction debug file#
+		print("")
+		print("Second, identify catenae-pairs.")
+		pair_status_dictionary, pair_head_dictionary, head_status_dictionary = identify_catenae_pairs(pair_frequency_dictionary, 
+																										lr_association_dictionary, 
+																										rl_association_dictionary,
+																										base_frequency_dictionary,
+																										pos_list
+																										)
 		
-		phrase_constituent_list = reformat_constituents(phrase_constituent_list, 
-														lr_head_list, 
-														rl_head_list, 
-														phrase_structure_ngram_length, 
-														phrase_independence_list,
-														pos_list
-														)
+		
+		#Write debug info for pair predictions#
+		if debug == True:
+		
+			fw = open(debug_file + "PairStatus", "w", encoding=encoding_type)
+			for pair in pair_status_dictionary:
+				fw.write(str(pos_list[pair[0]]))
+				fw.write(" : ")
+				fw.write(str(pos_list[pair[1]]))
+				fw.write(",")
+				fw.write(str(pair_status_dictionary[pair]))
+				
+				if pair_status_dictionary[pair] == "Catenae" and pair[0] != pair[1]:
+					fw.write(",")
+					fw.write(str(pair_head_dictionary[pair]))
+					
+				fw.write("\n")
+		#Done writing debug info#
+		
+		print("")
+		print("Third, join catenae-pairs into constituents.")
+		time_join = time.time()
+		
+		pair_status_list = [x for x in pair_status_dictionary.keys() if pair_status_dictionary[x] == "Catenae"]
+		
+		#Multi-process #
+		pool_instance=mp.Pool(processes = number_of_cpus_prepare, maxtasksperchild = None)
+		rule_list = pool_instance.map(partial(join_catenae_pairs,
+												pair_status_list = pair_status_list, 
+												head_status_dictionary = head_status_dictionary,
+												unit_list = pos_list,
+												input_files = input_files[0:file_counter],
+												pos_list = pos_list,
+												encoding_type = encoding_type,
+												semantic_category_dictionary = semantic_category_dictionary,
+												word_list = word_list,
+												lemma_list = lemma_list,
+												lemma_dictionary = lemma_dictionary,
+												pos_dictionary = pos_dictionary,
+												category_dictionary = category_dictionary,
+												delete_temp = delete_temp
+												), [i for i in range(len(pos_list))], chunksize = 1)
+		pool_instance.close()
+		pool_instance.join()
+		
+		print("Time for joining pairs: " + str(time.time() - time_join))
+		rule_list = ct.merge([x for x in rule_list if type(x) is dict])
+		
+		#Join unit rules as dictionary with rules as key and direction as value#
+		rule_dict = {}
+		for unit in rule_list.keys():
+		
+			current_head = unit
+			current_direction = head_status_dictionary[current_head]
 			
-		#Update lemma and pos indexes to include phrase-types for dependent heads#
-		pos_list = update_pos_list(pos_list, phrase_independence_list)
-		lemma_list = update_lemma_list(lemma_list, phrase_independence_list)
-	
+			for current_rule in rule_list[unit]:
+					
+					rule_dict[current_rule] = current_direction
+				
+		cfg_dictionary = rule_dict
+		
+		#Debug info for rules ----------------------------#
+		if debug == True:
+			fo = open(debug_file + "CFG-Rules", "w")
+			for phrase in cfg_dictionary.keys():
+				for unit in phrase:
+					fo.write(str((pos_list[unit])))
+					fo.write(str(" -- "))
+				
+				fo.write(str("\t"))
+				fo.write(str(cfg_dictionary[phrase]))
+				fo.write(str("\n"))
+				
+			fo.close()
+		#-------------------------------------------------#
+		
+		
+		#DONE LEARNING, NOW PRESENT AND STORE DATA#
+		phrase_constituent_list = reformat_constituents(cfg_dictionary)
+			
 		#---------------------------------------------------------------------------------------------#
 		#5: Write data to single file ----------------------------------------------------------------#
 		#---------------------------------------------------------------------------------------------#
@@ -337,13 +316,10 @@ if __name__ == '__main__':
 						pm.emoji_file,
 						pm.input_files, 
 						pm.semantic_dictionary_file, 
-						pm.frequency_threshold_individual, 
+						pm.frequency_threshold_individual,
 						pm.illegal_pos, 
-						pm.phrase_structure_ngram_length, 
-						pm.significance,
-						pm.independence_threshold,
+						pm.distance_threshold,
 						pm.data_file_constituents,
-						pm.constituent_threshold,
 						pm.annotate_pos,
 						pm.encoding_type,
 						pm.docs_per_file,

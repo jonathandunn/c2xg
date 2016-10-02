@@ -12,6 +12,7 @@ def learn_dictionary(nickname,
 						min_threshold, 
 						num_dimensions, 
 						num_clusters,
+						sg,
 						number_of_cpus = 1
 						):
 
@@ -25,20 +26,21 @@ def learn_dictionary(nickname,
 
 	print("Starting " + nickname + " on files in " + input_directory)
 
-	train_models(input_directory, number_of_cpus, min_threshold, num_dimensions, model_file)
+	train_models(input_directory, number_of_cpus, min_threshold, num_dimensions, model_file, sg)
 	build_clusters(model_file, num_clusters, cluster_file)
 	write_clusters(cluster_file, num_clusters, output_file)
 	
 	return
 #--------------------------------------------------------------------------------------------#
 
-nickname = "Russian"
+nickname = "German.Aranea"
 input_directory = "./Testing/"
 output_directory = "./files_data"
-num_workers = 6
-min_threshold = 100
-num_dimensions = 300
+num_workers = 12
+min_threshold = 10
+num_dimensions = 400
 num_clusters = 100
+sg = 1
 
 learn_dictionary(nickname, 
 					input_directory, 
@@ -46,5 +48,6 @@ learn_dictionary(nickname,
 					min_threshold, 
 					num_dimensions, 
 					num_clusters,
-					num_workers
+					num_workers,
+					sg
 					)
