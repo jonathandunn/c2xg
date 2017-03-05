@@ -19,8 +19,6 @@ setup(
 	package_data={'': ['c2xg.files_data.*']},
 	install_requires=["cytoolz",
 						"gensim",
-						"matplotlib",
-						"seaborn",
 						"numexpr",
 						"numpy",
 						"pandas",
