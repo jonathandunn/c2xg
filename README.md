@@ -4,7 +4,7 @@ c2xg 0.2
 
 Computational Construction Grammar, or c2xg, is two things: 
 
-(1) A Python package for the unsupervised learning vectorization of CxG representations
+(1) A Python package for the unsupervised learning and vectorization of CxG representations
 
 (2) A discovery-device grammar that learns falsifiable and replicable CxGs from observed unannotated text data
 
