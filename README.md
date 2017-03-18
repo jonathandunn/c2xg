@@ -16,15 +16,6 @@ Installation
 
 		pip install c2xg
 
-or
-
-		pip install <whl file>
-		
-or
-
-		conda install c2xg
-
-
 Environment and Dependencies
 ----------------------------------
 
