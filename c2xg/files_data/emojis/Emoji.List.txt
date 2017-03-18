@@ -1234,9 +1234,7 @@ O-O	SurprisedFace
 :*	Kiss
 :-*	Kiss
 :^*	Kiss
-(	Kiss
 '}{'	Kiss
-)	Kiss
 ;‑)	Wink
 ;)	Wink
 *-)	Wink

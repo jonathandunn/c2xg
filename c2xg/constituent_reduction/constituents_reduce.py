@@ -47,7 +47,7 @@ def constituents_reduce(pos_list,
 		original_df = copy_df.loc[copy_df.Sent.isin(sentence_list)]
 		constituents_print(pos_list[key], head_list, remove_list, lemma_list, original_df, match_df, direction, examples_file, encoding_type)
 			
-	print(str(len(head_list)) + " matches.")
+	print("\t\t" + str(pos_list[key]) + ": " + str(len(head_list)) + " matches.")
 			
 	return match_df
 #---------------------------------------------------------------------------------------------#

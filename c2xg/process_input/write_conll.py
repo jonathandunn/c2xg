@@ -35,6 +35,8 @@ def write_conll(text_dictionary,
 				
 				else:
 				
+					skip_flag = 0
+					
 					current_index = unit['index']
 					current_word = unit['word']
 					current_lemma = current_word
@@ -42,32 +44,27 @@ def write_conll(text_dictionary,
 					
 					if current_word != "":
 				
-						if len(current_pos) > 3:
-							current_pos = current_pos[0:3]
-					
 						if current_word[0] == "#":
-							current_pos = "ht"
-							current_lemma = current_lemma[1:]
+							skip_flag = 1
 
 						if current_word[0] == "@":
-							current_pos = "at"
-							current_lemma = current_lemma[1:]
+							skip_flag = 1
 					
 						if current_word[0:5] == "EMOJI" and current_word[len(current_word) - 5:] == "EMOJI":
-							current_pos = "em"
-							current_word = current_word[5:len(current_word)-5]
-							current_word = "{" + current_word + "}"
-							current_lemma = current_word.lower()
+							skip_flag = 1
 					
 						if "http" in current_word:
-							current_pos = "url"
-							current_lemma = "url"
+							skip_flag = 1
+							
+						if ":\\" in current_word:
+							skip_flag = 1
 						
-						fw.write(str(current_word) + "\t")
-						fw.write(str(current_lemma.lower()) + "\t")
-						fw.write(str(current_pos) + "\t")
-						fw.write(str(current_index) + "\t")
-						fw.write(str("\n"))	
+						if skip_flag == 0:
+							fw.write(str(current_word) + "\t")
+							fw.write(str(current_lemma.lower()) + "\t")
+							fw.write(str(current_pos) + "\t")
+							fw.write(str(current_index) + "\t")
+							fw.write(str("\n"))	
 		
 		except:
 			null_counter = 0

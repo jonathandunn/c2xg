@@ -22,6 +22,7 @@ def get_grammar(grammar_dict,
 			full_vector_df = full_vector_df.query(query_string, parser = "pandas", engine = "numexpr")
 			
 		except:
+			print("get_grammar.py line 25")
 			full_vector_df = full_vector_df
 		
 	else:

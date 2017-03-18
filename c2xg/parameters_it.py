@@ -8,8 +8,8 @@
 def set_parameters(C2xG_Parameters):
 
 	#General settings#
-	C2xG_Parameters.Nickname = "English.MDL.3-8"				#Name this series of experiments and the produced models
-	C2xG_Parameters.Language = "English"						#Language is used to select the correct RDRPOSTagger model; thus, must have the same name as an available model
+	C2xG_Parameters.Nickname = "Italian.MDL.3-8"				#Name this series of experiments and the produced models
+	C2xG_Parameters.Language = "Italian"						#Language is used to select the correct RDRPOSTagger model; thus, must have the same name as an available model
 	C2xG_Parameters.Lines_Per_File = 5000						#Number of lines from the raw input file to include in each CoNLL formatted file. For balancing CPU / memory in multi-processing
 	C2xG_Parameters.Encoding_Type = "utf-8"						#Encoding type to use after loading files; best to use utf-8
 	C2xG_Parameters.Illegal_POS = ["X", "x", ".", "punct"]		#Items with these pos-tags will be ignored; for most languages we use the Universal POS-Tags and this ignores punctuation and misc
@@ -19,7 +19,7 @@ def set_parameters(C2xG_Parameters):
 	C2xG_Parameters.Annotation_Types = ["Lex", "Pos", "Cat"]	#For learn_association, choose types of representation to include for candidate sequences
 	
 	#Name of pre-existing dictionary; learn a new one with learn_dictionary
-	C2xG_Parameters.Dictionary_File = "English.ukWac.DIM=500.SG=1.HS=1.ITER=25.txt"
+	C2xG_Parameters.Dictionary_File = "Italian.itWac.DIM=500.SG=1.HS=1.ITER=25.txt"
 	
 	#Frequency Thresholds#
 	C2xG_Parameters.Freq_Threshold_Individual = 2000			#Individual units (words, pos-tags, semantic categories) below this threshold will be assigned to 0 index
@@ -71,13 +71,13 @@ def set_parameters(C2xG_Parameters):
 	#Number of processes separated by type to allow balancing CPU / memory across tasks
 	C2xG_Parameters.CPUs_General = 6							#Number of CPUs to use for most tasks
 	C2xG_Parameters.CPUs_Merging = 6							#Number of CPUs for merging candidates; higher memory use per CPU
-	C2xG_Parameters.CPUs_Learning = 6							#Number of CPUs to use for learning constructions; may have higher memory use per CPU
+	C2xG_Parameters.CPUs_Learning = 6						#Number of CPUs to use for learning constructions; may have higher memory use per CPU
 
 	#FILES: Input_Files = The input data for learning candidates: Raw Text requires Run_Tagger = True ----#
 	#Training, Training-Testing, and Testing files are randomly generated from this list for each fold#
 	
 	C2xG_Parameters.Input_Files = [
-	"English.Testing.txt"
+	"Italian.Testing.txt"
 			]
 
 	C2xG_Parameters.Candidate_Files = []

@@ -12,7 +12,7 @@ def pandas_open(file, Parameters, Grammar, save_words = False, write_output = Tr
 	
 	begin = time.time()
 	
-	print("\t\t\t\tIngesting file: " + str(file))
+	#print("\t\t\t\tIngesting file: " + str(file))
 	
 	temp_dataframe = pd.read_csv(file, 
 									sep="\t", 
@@ -75,7 +75,7 @@ def pandas_open(file, Parameters, Grammar, save_words = False, write_output = Tr
 		temp_dataframe = temp_dataframe.loc[:,['Sent', 'Ind', "Lex", 'Pos', 'Cat', 'Mas']]
 	
 	end = time.time()
-	print("\t\t\t\tIngest Time: " + str(end - begin))
+	#print("\t\t\t\tIngest Time: " + str(end - begin))
 	
 	if delete_temp == True:
 		import os

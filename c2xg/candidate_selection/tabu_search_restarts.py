@@ -60,7 +60,30 @@ def tabu_search_restarts(mdl_file_list, test_file_list, Parameters, Grammar, max
 							"Directional_Scalar_Weighted",
 							"Directional_Categorical_Weighted"
 							]
-		
+							
+		#Drop frequency-weighted association measures if necessary#
+		if Parameters.Use_Freq_Weighting == False:
+			dropped_columns += [
+								"Beginning_Divided_LR_Weighted",
+								"Beginning_Divided_RL_Weighted", 
+								"End_Divided_LR_Weighted", 
+								"End_Divided_RL_Weighted",
+								"Summed_LR_Weighted",
+								"Smallest_LR_Weighted",
+								"Summed_RL_Weighted", 
+								"Smallest_RL_Weighted",
+								"Mean_LR_Weighted", 
+								"Mean_RL_Weighted", 
+								"Beginning_Reduced_LR_Weighted",
+								"Beginning_Reduced_RL_Weighted",
+								"End_Reduced_LR_Weighted",
+								"End_Reduced_RL_Weighted",
+								"Directional_Scalar_Weighted",
+								"Directional_Categorical_Weighted",
+								"Endpoint_LR_Weighted",
+								"Endpoint_RL_Weighted"
+								]
+
 		training_df.drop(dropped_columns, axis = 1, inplace = True)
 
 		#Load restart file and pre-calculate for MDL metric#
@@ -80,7 +103,7 @@ def tabu_search_restarts(mdl_file_list, test_file_list, Parameters, Grammar, max
 		
 		print("\t\tTime to pre-calculate construction cost: " + str(time.time() - start_time))
 		
-		restart_list.append(tabu_search_process(training_df.copy("Deep"), 
+		restart_list.append(tabu_search_process(training_df, 
 												baseline_mdl, 
 												all_indexes, 
 												pos_unit_cost,

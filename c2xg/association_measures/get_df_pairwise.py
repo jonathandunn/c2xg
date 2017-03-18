@@ -2,7 +2,7 @@
 def get_df_pairwise(vector_list, condition):
 
 	import pandas as pd
-	
+
 	vector_df = pd.DataFrame(vector_list, columns=['Candidate', 
 													'Frequency', 
 													'Summed_LR_' + condition,

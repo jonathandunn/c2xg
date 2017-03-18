@@ -22,7 +22,7 @@ def move_evaluator_direct(current_index,
 	#Evaluate for MDL metric#
 	mdl_l1, mdl_l2, mdl_full = grammar_evaluator(full_vector_df.loc[:,["Candidate", "Encoded", "Indexes", "Cost"]], all_indexes)
 								
-	if mdl_full != 1000000000000000000000 and mdl_full != current_best:	
+	if mdl_full != 1000000000000000000000 and mdl_full != current_best and mdl_full != "nan":	
 								
 		return {current_index: mdl_full}
 		

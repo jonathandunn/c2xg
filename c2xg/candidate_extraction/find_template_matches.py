@@ -90,7 +90,7 @@ def find_template_matches(current_df,
 	candidate_count_dictionary = get_candidate_count(current_df, frequency_threshold_constructions_perfile)
 	del current_df
 	
-	print("Number found: " + str(len(candidate_count_dictionary)) + ": ", end="")
+	print("\t\t\tNumber found: " + str(len(candidate_count_dictionary)) + ": ", end="")
 	
 	end_all = time.time()
 

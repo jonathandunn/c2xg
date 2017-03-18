@@ -7,11 +7,15 @@ def remove_punc(single_df, counter):
 
 	import pandas as pd
 	
-	single_df = single_df[single_df.Pos != 0]
-	
-	pd.options.mode.chained_assignment = None
-	single_df.loc[:,'Alt'] = counter
-	pd.options.mode.chained_assignment = "warn"
+	try:
+		single_df = single_df[single_df.Pos != 0]
+		
+		pd.options.mode.chained_assignment = None
+		single_df.loc[:,'Alt'] = counter
+		pd.options.mode.chained_assignment = "warn"
+		
+	except:
+		single_df = single_df
 				
 	return single_df
 #---------------------------------------------------------------------------------------------#

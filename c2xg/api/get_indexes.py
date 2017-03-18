@@ -7,7 +7,7 @@
 
 #-- Prerequisite function for creating categorical indexes used to represent lexical items, semantic domains, pos-tags
 
-def get_indexes(Parameters, Grammar = None, input_files = None, Idiom_check = False, run_parameter = 0):
+def get_indexes(Parameters, Grammar = None, input_files = None, idiom_check = False, run_parameter = 0):
 
 	print("")
 	print("Starting C2xG.Get_Indexes")
@@ -41,7 +41,7 @@ def get_indexes(Parameters, Grammar = None, input_files = None, Idiom_check = Fa
 		#---------------------------------------------------------------------------------------------#
 		#1: Annotate plain text input files  ---------------------------------------------------------#
 		#---------------------------------------------------------------------------------------------#
-		if Parameters.Run_Tagger == True and mwe_check == False:
+		if Parameters.Run_Tagger == True and idiom_check == False:
 		
 			conll_files = []
 			
@@ -57,7 +57,7 @@ def get_indexes(Parameters, Grammar = None, input_files = None, Idiom_check = Fa
 		print("Creating index of frequency reduced labels from input files.")
 		
 		#Full list contains lemma, pos, and role lists#
-		full_dictionary = process_create_unit_index(Parameters, input_files)
+		full_dictionary = process_create_unit_index(Parameters, Grammar, input_files)
 		full_dictionary = get_index_lists(full_dictionary)
 
 		#Separate the various items from the container dictionary#

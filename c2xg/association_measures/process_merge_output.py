@@ -49,38 +49,42 @@ def process_merge_output(output_files, action = "Load"):
 				current_dictionary = file
 				
 			temp_dictionary = {}
+			
+			if "Grammar" in current_dictionary:
 				
-			#Check to ensure the otuput files were created with the same grammar file#
-			if Grammar.POS_List == current_dictionary['Grammar'].POS_List and Grammar.Lemma_List == current_dictionary['Grammar'].Lemma_List:
-				
-				#These items need to be merged across all output files#
-				lemma_frequency = ct.merge_with(sum, [lemma_frequency, current_dictionary['lemma_frequency']])
-				pos_frequency = ct.merge_with(sum, [pos_frequency, current_dictionary['pos_frequency']])
-				category_frequency = ct.merge_with(sum, [category_frequency, current_dictionary['category_frequency']])
+				#Check to ensure the otuput files were created with the same grammar file#
+				if Grammar.POS_List == current_dictionary['Grammar'].POS_List and Grammar.Lemma_List == current_dictionary['Grammar'].Lemma_List:
 					
-				number_of_words_total += current_dictionary['number_of_words']	
-					
-				dictionary_key_list += list(current_dictionary['candidate_dictionary'].keys())
-				dictionary_key_list = list(set(dictionary_key_list))
+					#These items need to be merged across all output files#
+					lemma_frequency = ct.merge_with(sum, [lemma_frequency, current_dictionary['lemma_frequency']])
+					pos_frequency = ct.merge_with(sum, [pos_frequency, current_dictionary['pos_frequency']])
+					category_frequency = ct.merge_with(sum, [category_frequency, current_dictionary['category_frequency']])
+						
+					number_of_words_total += current_dictionary['number_of_words']	
+						
+					dictionary_key_list += list(current_dictionary['candidate_dictionary'].keys())
+					dictionary_key_list = list(set(dictionary_key_list))
 
-				for key in sequence_list:
-					
-					key = str(list(key))
+					for key in sequence_list:
 						
-					if key not in candidate_dictionary:
-						candidate_dictionary[key] = {}
-						
-					if key not in current_dictionary['candidate_dictionary']:
-						current_dictionary['candidate_dictionary'][key] = {}
+						key = str(list(key))
+							
+						if key not in candidate_dictionary:
+							candidate_dictionary[key] = {}
+							
+						if key not in current_dictionary['candidate_dictionary']:
+							current_dictionary['candidate_dictionary'][key] = {}
 
-					temp_dictionary[key] = ct.merge_with(sum, [candidate_dictionary[key], current_dictionary['candidate_dictionary'][key]])
+						temp_dictionary[key] = ct.merge_with(sum, [candidate_dictionary[key], current_dictionary['candidate_dictionary'][key]])
+							
+					del candidate_dictionary
+					candidate_dictionary = temp_dictionary
+					del temp_dictionary
 						
-				del candidate_dictionary
-				candidate_dictionary = temp_dictionary
-				del temp_dictionary
-					
+				else:
+					print("\t\tFile did not match grammar elements. Not compatible.")
 			else:
-				print("\t\tFile did not match grammar elements. Not compatible.")
+				print("Candidates not saved from this file.")
 				
 		final_candidate_dictionary = candidate_dictionary
 			

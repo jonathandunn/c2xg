@@ -3,9 +3,9 @@
 #---------------------------------------------#
 def tokenize_line(line):
 	
-	line = line.replace('"',' " ').replace(']',' ] ').replace('[',' [ ').replace(',',' , ')
+	line = line.replace('"',' " ').replace(']',' ] ').replace('[',' [ ').replace(',',' , ').replace('--',' -- ')
 	line = line.replace(')',' ) ').replace('(',' ( ').replace('>',' > ').replace('<',' < ')
-	line = line.replace('&',' & ').replace('. ',' . ').replace("' "," ' ").replace('/ ',' /')
+	line = line.replace('&',' & ').replace('. ',' . ').replace("' "," ' ").replace('/',' / ')
 	line = line.replace('“',' “ ').replace('’ ',' ’ ').replace('^',' ^ ').replace('\0','')
 	line = line.replace('*',' * ').replace(': ',' : ').replace('@ ', '@').replace("# ","#")
 	line = line.replace('+',' + ').replace('=',' = ').replace('~',' ~ ').replace('?',' ? ')

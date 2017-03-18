@@ -1,5 +1,5 @@
 #-----------------------------------------------#
-def process_create_unit_index(Parameters, input_files = None, run_parameter = 0):
+def process_create_unit_index(Parameters, Grammar, input_files = None, run_parameter = 0):
 							
 	#Protect for multi-processing#
 	if run_parameter == 0:
@@ -56,6 +56,18 @@ def process_create_unit_index(Parameters, input_files = None, run_parameter = 0)
 		print("")
 		print("Removing infrequent labels and creating label indexes")
 		
+		#Save previously found idioms frequency#
+		if Grammar != None:
+			if Grammar.Idiom_List != []:
+				idiom_freq_dict = {}
+				
+				for idiom in Grammar.Idiom_List:
+					idiom_label = idiom[1]
+					
+					if idiom_label in lemma_dictionary:
+						idiom_freq_dict[idiom_label] = lemma_dictionary[idiom_label]
+		#Ensure previously found idioms make the cut#
+		
 		#Reduce unit inventories by removing infrequent labels#
 		above_threshold = lambda x: x > Parameters.Freq_Threshold_Individual
 		
@@ -63,6 +75,16 @@ def process_create_unit_index(Parameters, input_files = None, run_parameter = 0)
 		pos_dictionary = ct.valfilter(above_threshold, pos_dictionary)
 		word_dictionary = ct.valfilter(above_threshold, word_dictionary)
 		category_dictionary = ct.valfilter(above_threshold, category_dictionary)
+		
+		#Ensure previously found idioms make the cut#
+		if Grammar != None:
+			if Grammar.Idiom_List != []:
+				for idiom in Grammar.Idiom_List:
+					idiom_label = idiom[1]
+					
+					if idiom_label not in lemma_dictionary and idiom_label in idiom_freq_dict:
+						lemma_dictionary[idiom_label] = idiom_freq_dict[idiom_label]
+		#Ensure previously found idioms make the cut#
 		
 		full_dictionary = {}
 		full_dictionary['lemma'] = lemma_dictionary

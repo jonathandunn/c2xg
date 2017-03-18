@@ -37,7 +37,7 @@ def tabu_search_process(full_vector_df,
 		from candidate_extraction.read_candidates import read_candidates
 		
 		#Initialize list of features and list of thresholds#
-		feature_list = [x for x in full_vector_df.columns if x[0:5] != "Index" and x != "Candidate" and x != "Encoded" and x != "Frequency"]
+		feature_list = [x for x in full_vector_df.columns if x[0:5] != "Index" and x != "Candidate" and x != "Encoded" and x != "Cost" and x != "Frequency"]
 		threshold_values = get_threshold_ranges(feature_list, full_vector_df, Parameters.Tabu_Thresholds_Number, max_candidate_length)
 		
 		print("\t\t\tPruning unobserved candidates.")
@@ -51,7 +51,7 @@ def tabu_search_process(full_vector_df,
 
 		best_grammar_dict = tabu_search_check(threshold_values, 
 												Parameters.Tabu_Random_Checks, 
-												full_vector_df.copy("Deep"), 
+												full_vector_df, 
 												all_indexes, 
 												pos_unit_cost,
 												lex_unit_cost,
@@ -78,7 +78,7 @@ def tabu_search_process(full_vector_df,
 		
 		#Evaluate current grammar to get baseline score#
 		best_grammar_dict = get_grammar(best_grammar_dict,
-											full_vector_df.copy("Deep"), 											 
+											full_vector_df, 											 
 											all_indexes, 
 											pos_unit_cost, 
 											lex_unit_cost,
@@ -108,7 +108,7 @@ def tabu_search_process(full_vector_df,
 			#Multi-process Generate possible moves, formatted as {"Threshold": New_Parameter} -------------------#
 			starting = time.time()
 			
-			print("\t\t\tMulti-processing move generation.")
+			#print("\t\t\tMulti-processing move generation.")
 			pool_instance=mp.Pool(processes = Parameters.CPUs_Learning, maxtasksperchild = None)
 			move_list = pool_instance.map(partial(move_generator, 
 												grammar_dict = current_grammar_dict.copy(),
@@ -120,6 +120,7 @@ def tabu_search_process(full_vector_df,
 			pool_instance.join()
 						
 			move_list = [item for sublist in move_list for item in sublist]
+			print("\t\t\tNumber of moves: " + str(len(move_list)))
 
 			#----End multi-processing for move generation-------------------------------------------------------#
 			
@@ -129,7 +130,7 @@ def tabu_search_process(full_vector_df,
 			pool_instance=mp.Pool(processes = Parameters.CPUs_Learning, maxtasksperchild = None)
 			move_eval_list = pool_instance.map(partial(move_evaluator, 
 												grammar_dict = current_grammar_dict.copy(),
-												full_vector_df = full_vector_df.copy("Deep"), 
+												full_vector_df = full_vector_df, 
 												all_indexes = all_indexes, 
 												pos_unit_cost = pos_unit_cost, 
 												lex_unit_cost = lex_unit_cost,
@@ -149,7 +150,7 @@ def tabu_search_process(full_vector_df,
 			#-----------LOOP UNTIL BEST ALLOWED MOVE IS FOUND--------------------------------------------------#
 			starting = time.time()
 			while True:
-				print("\t\t\tNow determining best available move.")
+				#print("\t\t\tNow determining best available move.")
 
 				#Check to ensure moves have not been exhausted#
 				if len(move_eval_dict) > 0:
@@ -161,7 +162,7 @@ def tabu_search_process(full_vector_df,
 					best_move_mdl = move_eval_dict[best_move]
 
 					#Check if best move is allowed by tabu list#
-					print("\t\t\t\tCandidate best move is " + str(best_move))
+					#print("\t\t\t\tCandidate best move is " + str(best_move))
 					
 					#Flatten tabu list and check if tabu is violated#
 					if len(tabu_list) > 0:
@@ -176,11 +177,12 @@ def tabu_search_process(full_vector_df,
 					#Done checking if tabu is violated#
 					
 					if tabu_flag == True or best_move_type == "OR":
-						print("\t\t\t\tBest move is in tabu list. Checking aspiration criteria.")
+						#print("\t\t\t\tBest move is in tabu list. Checking aspiration criteria.")
 					
 						#Check if MDL score overrules tabu list#
 						if best_move_mdl < best_grammar_dict["mdl_full"]:
 							print("\t\t\t\tBest move is allowed: tabu overruled.")
+							print("\t\t\t\tCandidate best move is " + str(best_move))
 							no_best_move_flag = False
 							break
 							
@@ -191,6 +193,7 @@ def tabu_search_process(full_vector_df,
 					#If best move not in tabu list, stop searching#
 					else:
 						no_best_move_flag = False
+						print("\t\t\t\tCandidate best move is " + str(best_move))
 						break
 						
 				#If moves have been exhausted, do nothing#
@@ -218,7 +221,7 @@ def tabu_search_process(full_vector_df,
 				
 				#Evaluate current grammar#
 				current_grammar_dict = get_grammar(current_grammar_dict, 
-														full_vector_df.copy("Deep"), 													
+														full_vector_df, 													
 														all_indexes, 
 														pos_unit_cost, 
 														lex_unit_cost,
@@ -246,7 +249,7 @@ def tabu_search_process(full_vector_df,
 				print("\t\t\tTime to check move status and make best move: " + str(time.time() - starting))	
 
 			#Check for stopping condition#
-			if no_change_counter >= 14:
+			if no_change_counter >= 12:
 				print("")
 				print("")
 				print("\t\tNo best grammar found for two cycles through tabu list. Performing validation safety check.")
@@ -257,7 +260,7 @@ def tabu_search_process(full_vector_df,
 
 				best_check_grammar_dict = tabu_search_check(threshold_values, 
 															Parameters.Tabu_Random_Checks, 
-															full_vector_df.copy("Deep"), 
+															full_vector_df, 
 															all_indexes, 
 															pos_unit_cost, 
 															lex_unit_cost,
@@ -299,7 +302,7 @@ def tabu_search_process(full_vector_df,
 		starting_direct_score = best_grammar_dict["mdl_full"]
 		
 		#First, reduce full_vector_df to constructions, state, and coverage values#
-		best_grammar_dict, tabu_search_df = get_grammar(best_grammar_dict, 
+		best_grammar_dict, tabu_search_df = get_grammar(best_grammar_dict.copy(), 
 														full_vector_df, 													
 														all_indexes, 
 														pos_unit_cost, 
@@ -309,19 +312,21 @@ def tabu_search_process(full_vector_df,
 														save_grammar = True
 														)
 		
-		tabu_search_df = tabu_search_df.loc[:,["Candidate", "Encoded", "Indexes"]]
+		tabu_search_df = tabu_search_df.loc[:,["Candidate", "Encoded", "Indexes", "Cost"]]
 		tabu_search_df.loc[:,"State"] = 1
-				
+
 		#Second, randomly initialize state by evaluating randomly generate grammars#
 		print("\t\tInitializing direct tabu search.")
 		
 		move_list = move_generator_direct(tabu_search_df, Parameters.Tabu_Random_Checks, Parameters.Tabu_Direct_Move_Size)
 		move_index = [x for x in range(0,Parameters.Tabu_Random_Checks-1)]
 		
+		print("\t\t\tCurrent moves: " + str(len(move_index)))
+		
 		pool_instance=mp.Pool(processes = Parameters.CPUs_Learning, maxtasksperchild = None)
 		move_eval_list = pool_instance.map(partial(move_evaluator_direct, 
 												move_list = move_list,
-												full_vector_df = tabu_search_df.copy("Deep"), 
+												full_vector_df = tabu_search_df, 
 												all_indexes = all_indexes, 
 												pos_unit_cost = pos_unit_cost, 
 												lex_unit_cost = lex_unit_cost,
@@ -370,7 +375,7 @@ def tabu_search_process(full_vector_df,
 			pool_instance=mp.Pool(processes = Parameters.CPUs_Learning, maxtasksperchild = None)
 			move_eval_list = pool_instance.map(partial(move_evaluator_direct, 
 													move_list = move_list,
-													full_vector_df = tabu_search_df.copy("Deep"), 
+													full_vector_df = tabu_search_df, 
 													all_indexes = all_indexes, 
 													pos_unit_cost = pos_unit_cost, 
 													lex_unit_cost = lex_unit_cost,
@@ -394,7 +399,7 @@ def tabu_search_process(full_vector_df,
 					best_move_index = best_move
 					best_move = move_list[best_move]
 
-					print("\t\t\tCurrent best move: " + str(best_move))
+					#print("\t\t\tCurrent best move: " + str(best_move))
 					
 					tabu_flag = False
 					flat_tabu_list = [item for sublist in tabu_list for item in sublist]
@@ -406,13 +411,13 @@ def tabu_search_process(full_vector_df,
 					#If best move is tabu#
 					if tabu_flag == True:
 					
-						print("\t\t\tBest move is on tabu list. Checking aspiration criteria.")
+						#print("\t\t\tBest move is on tabu list. Checking aspiration criteria.")
 						
 						if best_move_mdl < optimum_grammar_mdl:
 						
 							print("\t\t\tAspiration criteria satisfied: New Best Grammar with MDL metric of " + str(best_move_mdl) + " against baseline of " + str(baseline_mdl))
 							tabu_search_df.loc[best_move, "State"] = tabu_search_df.loc[best_move, "State"] * -1
-							optimum_grammar_df = tabu_search_df.copy("Deep")
+							optimum_grammar_df = tabu_search_df
 							optimum_grammar_mdl = best_move_mdl
 							tabu_search_mdl = optimum_grammar_mdl
 							tabu_list.appendleft(best_move)
@@ -422,7 +427,7 @@ def tabu_search_process(full_vector_df,
 							break
 					
 						else:
-							print("\t\t\tAspiration criteria not satisfied. Checking next candidate.")
+							#print("\t\t\tAspiration criteria not satisfied. Checking next candidate.")
 							move_eval_dict.pop(best_move_index)
 						
 					#If best move is not tabu#
@@ -430,9 +435,10 @@ def tabu_search_process(full_vector_df,
 					
 						if best_move_mdl < optimum_grammar_mdl:
 						
+							print("\t\t\tCurrent best move: " + str(best_move))
 							print("\t\t\tNew Best Grammar with MDL metric of " + str(best_move_mdl))
 							tabu_search_df.loc[best_move, "State"] = tabu_search_df.loc[best_move, "State"] * -1
-							optimum_grammar_df = tabu_search_df.copy("Deep")
+							optimum_grammar_df = tabu_search_df
 							optimum_grammar_mdl = best_move_mdl
 							tabu_search_mdl = optimum_grammar_mdl
 							tabu_list.appendleft(best_move)
@@ -471,7 +477,7 @@ def tabu_search_process(full_vector_df,
 				pool_instance=mp.Pool(processes = Parameters.CPUs_Learning, maxtasksperchild = None)
 				move_eval_list = pool_instance.map(partial(move_evaluator_direct, 
 														move_list = move_list,
-														full_vector_df = tabu_search_df.copy("Deep"), 
+														full_vector_df = tabu_search_df, 
 														all_indexes = all_indexes, 
 														pos_unit_cost = pos_unit_cost, 
 														lex_unit_cost = lex_unit_cost,

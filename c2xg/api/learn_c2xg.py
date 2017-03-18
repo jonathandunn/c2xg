@@ -14,9 +14,15 @@ def learn_c2xg(Parameters):
 	from api.learn_idioms import learn_idioms
 	from api.learn_constituents import learn_constituents
 	from api.learn_constructions import learn_constructions
+	
+	if Parameters.Run_Tagger == False:
+		print("Warning: Idioms will not be detected and modeled without running the tagger at least once after learn_idioms.")
+		sys.kill()
 
-	#Grammar = learn_idioms(Parameters)
+	print("Loading grammar")
 	Grammar = c2xg.Grammar()
+	print(Grammar.Idiom_List)
+	Grammar = learn_idioms(Parameters, Grammar)
 	Grammar = learn_constituents(Parameters, Grammar)
 	Grammar = learn_constructions(Parameters, Grammar)
 		

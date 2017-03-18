@@ -39,18 +39,19 @@ def learn_constituents(Parameters, Grammar = "", run_parameter = 0):
 		from candidate_selection.merge_and_save import merge_and_save
 
 		#Load Grammar object if necessary#
-		if Grammar == "Load":
+		if Grammar == "":
 			
 			try:
 				Grammar = read_candidates(Parameters.Data_File_Idioms)
 				print("Loaded Idiom Grammar")
+			
 			except:
-					print("Unable to load Idiom grammar specified in parameters")
-					sys.kill()
+					print("Unable to load Idiom grammar specified in parameters.")
+					print("No idiom reduction!!")
 
 			if Grammar.Type == "Unlearned":
 				print("Error: Wrong grammar type: " + str(Grammar.Type))
-				sys.kill()
+				print("No idiom reduction!!")
 		
 		start_beginning = time.time()
 		
@@ -75,7 +76,8 @@ def learn_constituents(Parameters, Grammar = "", run_parameter = 0):
 			input_files = Parameters.Input_Files
 			
 		#Now, run get_indexes#
-		Grammar = c2xg.Grammar()
+		if Grammar == "":
+			Grammar = c2xg.Grammar()
 		Grammar = get_indexes(Parameters, Grammar)
 		
 		fold_file_dict = fold_split(Parameters, input_files)

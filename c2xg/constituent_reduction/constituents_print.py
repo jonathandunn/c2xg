@@ -16,7 +16,7 @@ def constituents_print(pos_label,
 
 	import pandas as pd
 	import codecs	
-	
+	print(examples_file)
 	fw = codecs.open(examples_file, "a", encoding = encoding_type)
 	fw.write(str(pos_label).upper())
 	fw.write(str("\n\n"))
@@ -28,20 +28,14 @@ def constituents_print(pos_label,
 		reduced_sentence_df = match_df.query("Sent == @sentence", parser='pandas', engine='numexpr')
 		
 		fw.write(str("Current Sentence: " + str(sentence) + ":\n\t"))
-		
+
 		for row in original_sentence_df.itertuples():
+
+			if row[5] in head_list:
 			
-			if row[7] in head_list:
-			
-				if direction == "LR":
-					fw.write(str(" ["))
-				
 				fw.write(str(row[3]))
 				
-				if direction == "RL":
-					fw.write(str("] "))
-				
-			elif row[7] in remove_list:
+			elif row[5] in remove_list:
 				
 				if direction == "LR":
 					fw.write(str("_"))
@@ -66,6 +60,6 @@ def constituents_print(pos_label,
 		fw.write(str("\n"))
 	
 	fw.close()
-	
+
 	return
 #---------------------------------------------------------------------------------------------#

@@ -8,7 +8,7 @@
 #-- High-level function for learning a list of idioms
 #-- Assumes output from get_indexes
 
-def learn_idioms(Parameters, run_parameter = 0):
+def learn_idioms(Parameters, Grammar = "", run_parameter = 0):
 
 	#Prevent pool workers from starting here#
 	if run_parameter == 0:
@@ -65,12 +65,13 @@ def learn_idioms(Parameters, run_parameter = 0):
 			input_files = Parameters.Input_Files
 			
 		#Create temporary lexical indexes -------------------------------------------------------------#
-		Grammar = c2xg.Grammar()
-		Grammar = get_indexes(Parameters, Grammar, input_files = input_files, Idiom_check = True)
+		if Grammar == "":
+			Grammar = c2xg.Grammar()
+		
+		Grammar = get_indexes(Parameters, Grammar, input_files = input_files, idiom_check = True)
 		Grammar.Type = "Idiom_Indexes"
 		
 		fold_file_dict = fold_split(Parameters, input_files)
-		
 	#---ITERATE ACROSS FOLDS ----------------------------------------------------------------------------#
 		fold_results = []
 		
@@ -83,7 +84,7 @@ def learn_idioms(Parameters, run_parameter = 0):
 			training_files = fold_file_dict[fold]["Training_Candidates"]
 			training_testing_files = fold_file_dict[fold]["Training_Search"]
 			testing_files = fold_file_dict[fold]["Testing"]
-			
+		
 			#2: Get Word-Only sequence candidates ----------------------------------------------------------#
 						
 			#Start multi-processing for file processing#

@@ -82,13 +82,28 @@ def get_vectors(Parameters):
 	get_vectors(Parameters)
 		
 	return
+	
+def evaluate_constructions(Parameters, eval_type):		
+		
+	from api.evaluate_constructions import evaluate_constructions
+	evaluate_constructions(Parameters, eval_type)
+		
+	return
+	
+def examples_constituents(Parameters):		
+		
+	from api.examples_constituents import examples_constituents
+	examples_constituents(Parameters)
+		
+	return
 
 	
 class Grammar:
 
 	def __init__(self):
 		
-		Type = "Unlearned"
+		self.Type = "Unlearned"
+		self.Idiom_List = []
 		
 		return
 
@@ -221,7 +236,7 @@ class Parameters:
 		self.Data_File_Readable = self.Debug_Folder + "/Debug.Readable Corpus." + self.Output_Suffix + ".txt"
 		self.Data_File_Reductions = self.Debug_Folder + "/Debug.Reductions." + self.Output_Suffix + ".txt"
 		self.Debug_File = self.Debug_Folder + "/Debug." + self.Output_Suffix + "."
-
+		
 		self.Output_Files = []
 		for file in self.Candidate_Files:
 			self.Output_Files.append(str(self.Temp_Folder + "/" + file))

@@ -4,7 +4,7 @@ c2xg 0.2
 
 Computational Construction Grammar, or c2xg, is two things: 
 
-(1) A Python package for the unsupervised learning and vectorization of CxG representations
+(1) A Python package for the unsupervised learning of CxG representations along with tools for vectorizing these representations for computational tasks
 
 (2) A discovery-device grammar that learns falsifiable and replicable CxGs from observed unannotated text data
 
@@ -16,10 +16,28 @@ Installation
 
 		pip install c2xg
 
+or
+
+		pip install <whl file>
+		
+or
+
+		conda install c2xg
+
 
 Environment and Dependencies
 ----------------------------------
 
+This package is meant to run in Python 3.5 with a number of dependencies. The easiest way to maintain the necessary environment is to use Anaconda Python: https://www.continuum.io/downloads
+
+The package can be installed within Anaconda using the command:
+
+		conda install c2xg
+		
+This makes it easier to maintain the necessary environment. The package works with the dependency versions listed below. It will likely work with older versions of some packages but has not been tested with them. For example, older versions of numexpr have been known to cause issues withs pandas and may lead to lost candidates.
+
+Dependencies:
+		
 	Python 3.5
 	cytoolz 0.7.4
 	gensim 0.12.2
@@ -60,72 +78,72 @@ Automate Pipeline
 
 learn_c2xg			
 
-	Umbrella function for entire learning pipeline (from learn_mwes to learn_constructions).
+		Umbrella function for entire learning pipeline (from learn_mwes to learn_constructions).
 
 Individual Learning Functions
 ------------------------------
 
 learn_dictionary		
 
-	Use GenSim to create the dictionary of semantic representations needed for c2xg.
+		Use GenSim to create the dictionary of semantic representations needed for c2xg.
 
 learn_rdrpos_model		
 
-	Use RDRPOS Tagger Dependency to learn a new pos-tagging model.
+		Use RDRPOS Tagger Dependency to learn a new pos-tagging model.
 
 learn_idioms				
 
-	Use c2xg to learn a dictionary of idioms (lexical constructions).
+		Use c2xg to learn a dictionary of idioms (lexical constructions).
 
 learn_constituents	 	
 
-	Use c2xg to learn a constituency grammar.
+		Use c2xg to learn a constituency grammar.
 
 learn_constructions 	
 
-	Use c2xg to learn a full Construction Grammar with lexical, semantic, and constituent representations.
+		Use c2xg to learn a full Construction Grammar with lexical, MWE, semantic, and constituent representations.
 
 learn_usage				
 
-	Prepare to use TF-IDF weighting during feature extraction.
+		Prepare to use TF-IDF weighting during feature extraction.
 		
 learn_association
 
-	Produce a CSV file of association measures for sequences of a given length and types of representation
+		Produce a CSV file of association measures for sequences of a given length and types of representation
 
 Helper Functions
 -----------------
 
 annotate_pos			
 
-	Tokenize, pos-tag, mark emojis, and convert to CoNLL format.
+		Tokenize, pos-tag, mark emojis, and convert to CoNLL format.
 
 get_indexes				
 
-	Get indexes of representation types.
+		Get indexes of representation types.
 
 get_candidates			
 
-	Get candidate sequences from input files (covers MWEs, Constituents, and Constructions).
+		Getcandidate sequences from input files (covers MWEs, Constituents, and Constructions).
 
 get_association			
 
-	Get vector of association values for each candidate.
+		Get vector of association values for each candidate.
 
 get_vectors				
 
-	Get vector of CxG usage for input files.
+		Get vector of CxG usage for input files.
 
 Evaluation Functions
 ----------------------
 
 examples_constituents	
 
-	Get examples of predicted constituents by type. (*Not stable in v 0.2)
+		Get examples of predicted constituents by type. (*Not stable in v 0.2)
 
 examples_constructions	
 
-	Get examples of each predicted construction. (*Not stable in v 0.2)
+		Get examples of each predicted construction. (*Not stable in v 0.2)
 		
 Command-Line Usage
 ==================
@@ -187,3 +205,5 @@ Given a language-specific CxG, the get_vectors and learn_usage functions convert
 	use_centroid == True: Extract vectors with centriod normalization learned using learn_usage. This is functionally equivalent to TF-IDF scaling
 	
 	Centroid normalization first finds the probability of a given feature in the background corpus. This is stored after running learn_usage in separate centroid_df models for the full grammar and for the lexical-only features. During extraction, if centroids are used for representation, this is converted into negative logarithms of the inverted joint probability of each feature occuring as many times as it does in a message.
+	
+	*Note: Feature extraction is stable in v 0.1 but not in v 0.2

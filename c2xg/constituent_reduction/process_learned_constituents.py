@@ -26,6 +26,7 @@ def process_learned_constituents(single_df,
 	sentence_reductions_list = []
 	dependence_dictionary = {}
 	
+	
 	#If writing to file, make sure that file is empty here#
 	if action == "PRINT":
 		fw = open(examples_file, "w", encoding = encoding_type)
@@ -49,7 +50,7 @@ def process_learned_constituents(single_df,
 	length_list = list(constituent_len_dictionary.keys())
 	length_list = sorted(length_list, reverse=False)
 	
-	print("\tFinding constituent matches.")	
+	#print("\tFinding constituent matches.")	
 	#Loop through constituents by length, creating only 1 search_df for each length#
 	for length in length_list:
 	
@@ -89,17 +90,13 @@ def process_learned_constituents(single_df,
 		#Done looping through constituents of current length#
 	#Done looping through constituents by length#
 	
-	print("\tReducing complex constituents.")
+	#print("\tReducing complex constituents.")
 	#Now begin loop through phrase heads to produce reduced sentences#
 	for head in list(remove_dictionary.keys()):
 		
 		counter += 1
 		current_dictionary = remove_dictionary[head]	
 	
-		print("\t", end="")
-		print(pos_list[head], end="")
-		print(": " + ": ", end="")
-		
 		#Now create reduced phrases for all constituents of current head#
 		copy_df = single_df.copy("Deep")
 		current_match_df = constituents_reduce(pos_list, 
@@ -118,9 +115,9 @@ def process_learned_constituents(single_df,
 			sentence_reductions_list.append(current_match_df)
 		
 		except:
-			print("")
+			#print("")
 			print("No matches for " + str(head))
-			print("")
+			#print("")
 			
 	#End loop through phrase heads#				
 	try:

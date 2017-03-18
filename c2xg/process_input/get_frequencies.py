@@ -36,7 +36,7 @@ def get_frequencies(current_df, Grammar):
 		category_frequency[label] = count
 		
 	end = time.time()
-	print("Create frequency dictionaries: " + str(end-start))
+	#print("Create frequency dictionaries: " + str(end-start))
 	
 	current_df = current_df.query("(Pos != 0)")
 	number_of_words = len(current_df)

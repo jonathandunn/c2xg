@@ -9,24 +9,7 @@
 #--- a supplied text. ------------------------------------------------------------------------#
 
 #-------------------------------------------------------------------------------------------------#
-def process_examples_constituents(input_file, 
-									input_folder, 
-									output_folder, 
-									lemma_list, 
-									lemma_dictionary, 
-									pos_list, 
-									pos_dictionary, 
-									word_list, 
-									category_list, 
-									category_dictionary, 
-									semantic_category_dictionary, 
-									punctuation_breaks_clauses, 
-									phrase_constituent_list, 
-									examples_directory, 
-									annotate_pos, 
-									encoding_type
-									):
-#-------------------------------------------------------------------------------------------------#
+def process_examples_constituents(input_file, Parameters, Grammar):
 
 	import time 
 	import csv
@@ -40,52 +23,41 @@ def process_examples_constituents(input_file,
 	
 	start_beginning = time.time()
 	
-	#---------------------------------------------------------------------------------------------#
 	#INGEST TEST FILE ----------------------------------------------------------------------------#
-	#---------------------------------------------------------------------------------------------#
-
-	print("")
 	print("Ingesting input files.")
 	input_dataframe = pandas_open(input_file, 
-									encoding_type, 
-									semantic_category_dictionary, 
-									word_list, 
-									lemma_list, 
-									pos_list, 
-									lemma_dictionary, 
-									pos_dictionary, 
-									category_dictionary, 
-									write_output = False
+									Parameters,
+									Grammar,
+									save_words = True,
+									write_output = False,
+									delete_temp = False
 									)
-	print("Finished ingesting input files.")
 
-	#---------------------------------------------------------------------------------------------#
 	#EXPAND TEST FILE ----------------------------------------------------------------------------#
-	#---------------------------------------------------------------------------------------------#
 	examples_file = input_file + ".Examples"
 	
 	print("")
 	print("Savings constituent identifications to file: head-first.") 
 	total_match_df_lr, full_removed_dictionary_lr, dependence_dictionary_lr, counter = process_learned_constituents(input_dataframe, 
-																					pos_list, 
-																					lemma_list, 
-																					phrase_constituent_list[0], 
+																					Grammar.POS_List, 
+																					Grammar.Lemma_List, 
+																					Grammar.Constituent_Dict[0], 
 																					"LR", 
 																					"PRINT", 
 																					0,
-																					encoding_type, 
+																					Parameters.Encoding_Type, 
 																					examples_file + ".Head-First.txt"
 																					)
 	
 	print("Savings constituent identifications to file: head-last.") 
 	total_match_df_rl, full_removed_dictionary_rl, dependency_dictionary_rl, counter = process_learned_constituents(input_dataframe, 
-																					pos_list, 
-																					lemma_list, 
-																					phrase_constituent_list[1], 
+																					Grammar.POS_List, 
+																					Grammar.Lemma_List, 
+																					Grammar.Constituent_Dict[1], 
 																					"RL", 
 																					"PRINT", 
 																					0,
-																					encoding_type, 
+																					Parameters.Encoding_Type, 
 																					examples_file + ".Head-Last.txt"
 																					)
 
@@ -130,18 +102,7 @@ def process_examples_constituents(input_file,
 	return
 #------------------------------------------------------------------------------------------------#
 
-def examples_constituents(number_processes, 
-							model_file, 
-							encoding_type, 
-							punctuation_breaks_clauses, 
-							input_folder, 
-							output_folder, 
-							examples_directory, 
-							annotate_pos, 
-							settings_dictionary,
-							input_files,
-							run_parameter = 0
-							):
+def examples_constituents(Parameters, run_parameter = 0):
 
 	#Prevent pool workers from starting here#
 	if run_parameter == 0:
@@ -149,117 +110,52 @@ def examples_constituents(number_processes,
 		#Run parameter keeps pool workers out for this imported module#
 		run_parameter = 1
 
-		#---------------------------------------------------------------------------------------------#
-		#IMPORT DEPENDENCIES -------------------------------------------------------------------------#
-		#---------------------------------------------------------------------------------------------#
-
 		import datetime
 		import sys
 		import multiprocessing as mp
 		from functools import partial
 		
-		from examples_constituents import process_examples_constituents
+		from api.examples_constituents import process_examples_constituents
 
 		#Import required script-specific modules#
 		from candidate_extraction.read_candidates import read_candidates
-		from process_input.open_files import open_files
 		from constituent_reduction.expand_sentences import expand_sentences
 		from feature_extraction.process_extraction import process_extraction
 		from process_input.annotate_files import annotate_files
-
-		#---------------------------------------------------------------------------------------------#
+		
 		#LOAD DATA FROM MODEL FILE -------------------------------------------------------------------#
-		#---------------------------------------------------------------------------------------------#
 
 		print("Loading model file.")
-		write_dictionary = read_candidates(model_file)
-
-		lemma_list = write_dictionary['lemma_list']
-		lemma_dictionary = write_dictionary['lemma_dictionary']
-		pos_list = write_dictionary['pos_list']
-		pos_dictionary = write_dictionary['pos_dictionary']
-		word_list = write_dictionary['word_list']
-		category_list = write_dictionary['category_list']
-		category_dictionary = write_dictionary['category_dictionary']
-		semantic_category_dictionary = write_dictionary['semantic_category_dictionary']
-		phrase_constituent_list = write_dictionary['phrase_constituent_list']
-		emoji_dictionary = write_dictionary['emoji_dictionary']
-		encoding_type = encoding_type
-		punctuation_breaks_clauses = punctuation_breaks_clauses
-
-		#Fix elements which throw off ARFF importing#
 		try:
-			comma_index = lemma_list.index(",")
-			lemma_list[comma_index] = "<COMMA>"
-
+			Grammar = read_candidates(Parameters.Data_File_Constituents)
 		except:
-			comma_index = "n/a"
-	
-		try:
-			quote_index = lemma_list.index('"')
-			lemma_list[quote_index] = "<QUOTE>"
+			print("Getting constituent examples requires a constituent model!")
+			sys.kill()
 
-		except:
-			quote_index = "n/a"
-
-		del write_dictionary
-		print("Finished loading model file.")
-		
-		#---------------------------------------------------------------------------------------------#
 		#1: Annotate plain text input files  ---------------------------------------------------------#
-		#---------------------------------------------------------------------------------------------#
-		if annotate_pos == True:
-		
-			updated_input = []
-			
-			for input_file in input_files:
-			
-				input_short = input_file
-				output_name = output_folder + "/" + input_short + ".Vectors"
-				
-				conll_file = annotate_files(input_folder, 
-											input_file, 
-											settings_dictionary, 
-											encoding_type, 
-											number_processes, 
-											emoji_dictionary, 
-											docs_per_file = 100000000000
-											)
-						
-				updated_input += conll_file
-				
-		elif annotate_pos == False:
-		
-			updated_input = []
-	
-			for filename in input_files:
-				input_short = filename
-				updated_input.append(input_folder + "/" + filename)
-			
-			input_files = updated_input
 
-		input_files = updated_input
+		if Parameters.Run_Tagger == True:
+		
+			conll_files = []
+			
+			for input_file in Parameters.Input_Files:
+		
+				conll_files += annotate_files(input_file, Parameters, Grammar)
+			
+			Parameters.Input_Files = conll_files
+			input_files = conll_files
+			
+			#Only need to run tagger once#
+			Parameters.Run_Tagger = False
+		
+		#Get input files if tagger not run#
+		else:
+			input_files = Parameters.Input_Files
 		#----------------------------------------------------------------------------------------------#
 	
 		#Now, multi-process for input files#
-		pool_instance=mp.Pool(processes = number_processes, maxtasksperchild = None)
-		pool_instance.map(partial(process_examples_constituents, 
-									input_folder=input_folder, 
-									output_folder=output_folder, 
-									lemma_list=lemma_list, 
-									lemma_dictionary=lemma_dictionary, 
-									pos_list=pos_list, 
-									pos_dictionary=pos_dictionary, 
-									word_list=word_list, 
-									category_list=category_list, 
-									category_dictionary=category_dictionary, 
-									semantic_category_dictionary=semantic_category_dictionary, 
-									punctuation_breaks_clauses=punctuation_breaks_clauses, 
-									phrase_constituent_list=phrase_constituent_list, 
-									examples_directory=examples_directory, 
-									annotate_pos=annotate_pos, 
-									encoding_type=encoding_type
-									), input_files, chunksize = 1)
+		pool_instance=mp.Pool(processes = Parameters.CPUs_General, maxtasksperchild = None)
+		pool_instance.map(partial(process_examples_constituents, Parameters = Parameters, Grammar = Grammar), input_files, chunksize = 1)
 		pool_instance.close()
 		pool_instance.join()
 		#End multi-processing for input files#

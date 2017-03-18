@@ -14,8 +14,8 @@ def get_phrase_count(original_df, Grammar, lemma_frequency, pos_frequency):
 	except:
 		print("")
 	
-	print("")
-	print("Finding frequency for phrase types.")
+	#print("")
+	#print("Finding frequency for phrase types.")
 	
 	for key in phrase_names:
 		
@@ -43,8 +43,6 @@ def get_phrase_count(original_df, Grammar, lemma_frequency, pos_frequency):
 		pos_frequency[unit] += current_count
 		lemma_frequency[unit] += current_count
 			
-	print("")
-		
 	return lemma_frequency, pos_frequency
 #---------------------------------------------------------------------------------------------#
 #---------------------------------------------------------------------------------------------#

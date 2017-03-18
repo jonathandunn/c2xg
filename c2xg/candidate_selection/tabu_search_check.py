@@ -24,7 +24,7 @@ def tabu_search_check(threshold_values,
 		#First multi-process generation of n random grammars#
 		print("\t\t\tGenerating random " + str(n_checks) + " grammars.")
 
-		feature_list = [x for x in full_vector_df.columns if x[0:5] != "Index" and x != "Candidate" and x != "Encoded" and x != "Frequency"]
+		feature_list = [x for x in full_vector_df.columns if x[0:5] != "Index" and x != "Candidate" and x != "Encoded" and x != "Cost" and x != "Frequency"]
 		ran_list = []
 		for i in range(n_checks):
 			ran_list.append(random.choice(feature_list))	
@@ -39,7 +39,7 @@ def tabu_search_check(threshold_values,
 			
 		#Second multi-process evaluation of grammars#
 		print("\t\t\tEvaluating generated grammars.")
-		pool_instance=mp.Pool(processes = Parameters.CPUs_Learning, maxtasksperchild = 1)
+		pool_instance=mp.Pool(processes = Parameters.CPUs_Learning, maxtasksperchild = None)
 		eval_list = pool_instance.map(partial(get_grammar, 
 												full_vector_df = full_vector_df, 
 												all_indexes = all_indexes, 

@@ -32,7 +32,7 @@ def process_get_candidates(filename,
 	from process_input.get_temp_filename import get_temp_filename
 	output_file = get_temp_filename(filename, file_extension, candidate_flag = True)
 	
-	if os.path.isfile(output_file) and initial_flag == False:
+	if os.path.isfile(output_file):
 	
 		print("\t\tFile already exists, no need to remake: " + str(output_file))
 	
@@ -53,8 +53,8 @@ def process_get_candidates(filename,
 		#3: Ingest input files and create DataFrames of index values representing sentences ----------#
 		#---------------------------------------------------------------------------------------------#
 
-		print("")
-		print("\t\tIngesting input files.")
+		#print("")
+		#print("\t\tIngesting input files.")
 
 		current_df = pandas_open(filename, Parameters, Grammar, write_output = False)
 		lemma_frequency, pos_frequency, category_frequency, number_of_words = get_frequencies(current_df, Grammar)
@@ -65,9 +65,7 @@ def process_get_candidates(filename,
 
 		if expand_check == True:
 		
-			print("")
-			print("\t\tExpanding sentences to reduce recursive structures")
-			print("")
+			#print("\t\tExpanding sentences to reduce recursive structures")
 			current_df = expand_sentences(current_df, Grammar, write_output = False)
 			
 			#Get frequency of reduced phrases#
@@ -113,7 +111,7 @@ def process_get_candidates(filename,
 
 		write_candidates(output_file, final_dictionary)	
 		
-		print("")
+		#print("")
 		end_beginning = time.time()
 		print("\t\tTotal time for " + str(output_file) + ": " + str(end_beginning - start_beginning))
 	

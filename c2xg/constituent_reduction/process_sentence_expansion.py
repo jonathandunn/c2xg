@@ -24,8 +24,8 @@ def process_sentence_expansion(current_df, Grammar):
 	
 	#Remove Head-First constituents#
 	if len(Grammar.Constituent_Dict[0].keys()) > 0:
-		print("")
-		print("\tStarting Head-First Constituent Reduction")
+
+		#print("\tStarting Head-First Constituent Reduction")
 		start = time.time()
 		total_match_df_lr, remove_dictionary_lr, counter = process_learned_constituents(single_df, 
 																						Grammar.POS_List, 
@@ -46,8 +46,8 @@ def process_sentence_expansion(current_df, Grammar):
 	
 	#Remove Head-Last constituents#
 	if len(Grammar.Constituent_Dict[0].keys()) > 0:
-		print("")
-		print("\tStarting Head-Last Constituent Reduction")
+
+		#print("\tStarting Head-Last Constituent Reduction")
 		start = time.time()
 		total_match_df_rl, remove_dictionary_rl, counter = process_learned_constituents(single_df, 
 																						Grammar.POS_List, 
@@ -80,7 +80,7 @@ def process_sentence_expansion(current_df, Grammar):
 	alt_list.append(total_schematic_df)
 
 	end = time.time()
-	print("\tDone with Fully-Schematic Representation: " + str(end - start) + ", Number of alts: " + str(counter))
+	#print("\tDone with Fully-Schematic Representation: " + str(end - start) + ", Number of alts: " + str(counter))
 	
 	#Call function to combine and reformat alternate sentence DataFrames#
 	alternate_sentence_candidates = create_alternate_sentences(single_df, alt_list)

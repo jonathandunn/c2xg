@@ -72,6 +72,9 @@ def create_pairwise_single(candidate_id,
 	
 		directional_scalar = 0
 		directional_categorical = 0
+		
+		endpoint_lr = summed_lr
+		endpoint_rl = summed_rl
 	
 		#Third, create list of feature values for current candidate, including candidate id#
 	
@@ -88,7 +91,9 @@ def create_pairwise_single(candidate_id,
 						end_reduced_lr,
 						end_reduced_rl,
 						directional_scalar,
-						directional_categorical
+						directional_categorical,
+						endpoint_lr,
+						endpoint_rl
 						]
 	
 		return candidate_vector

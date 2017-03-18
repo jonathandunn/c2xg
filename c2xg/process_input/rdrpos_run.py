@@ -1,9 +1,7 @@
-#-------------------------------------------------------------------------------#
-#---run_rdrpos -----------------------------------------------------------------#
 #INPUT: Line tuple (ID, Str), encoding, rdr object, dict file, language name ---#
 #OUTPUT: Annotated data for writing to CoNLL file ------------------------------#
 #-------------------------------------------------------------------------------#
-def rdrpos_run(line_tuple, r, DICT, Parameters):
+def rdrpos_run(line_tuple, r, DICT, Parameters, Idiom_List):
 		
 	counter = 0
 	
@@ -12,19 +10,14 @@ def rdrpos_run(line_tuple, r, DICT, Parameters):
 	
 	try:
 		if len(line) > 1:
-		
-			if Parameters.Language == "English":
-				line_annotated = r.tagRawEnSentence(DICT, line)
-				line_annotated = line_annotated.split()
 
-			elif Parameters.Language == "Vietnamese":
-				line_annotated = r.tagRawVnSentence(DICT, line)
-				line_annotated = line_annotated.split()
-				
-			else:
-				line_annotated = r.tagRawSentence(DICT, line)
-				line_annotated = line_annotated.split()
-				
+			if Idiom_List != []:
+				for idiom in Idiom_List:
+					line = line.replace(" " + idiom[0] + " ", " " + idiom[1] + " ")
+			
+			line_annotated = r.tagRawSentence(DICT, line)
+			line_annotated = line_annotated.split()
+	
 			#Now prepare line for adding to line list#
 			current_line = ["<s>"]
 			

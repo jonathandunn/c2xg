@@ -17,9 +17,7 @@ def create_templates(annotation_types, max_construction_length):
 		for p in itertools.product(annotation_types, repeat=ngram):
 			sequence_list.append(p)
 			
-	print("")
-	print("Number of templates: " + str(len(sequence_list)))
-	print("")
+	#print("Number of templates: " + str(len(sequence_list)))
 			
 	return sequence_list
 #---------------------------------------------------------------------------------------------#

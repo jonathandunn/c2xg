@@ -16,9 +16,6 @@ def annotate_files(input_file, Parameters, Grammar, metadata = False, same_size 
 		import multiprocessing as mp
 		from functools import partial
 		from process_input.load_utf8 import load_utf8
-		from process_input.stanford_start import stanford_start
-		from process_input.stanford_run import stanford_run
-		from process_input.stanford_stop import stanford_stop
 		from process_input.write_conll import write_conll
 		from process_input.process_lines import process_lines
 		from process_input.rdrpos_run import rdrpos_run
@@ -59,75 +56,56 @@ def annotate_files(input_file, Parameters, Grammar, metadata = False, same_size 
 		del line_list
 	
 		time_start = time.time()
-		if Parameters.POS_Tagger == "stanford":
+		
+		print("Annotating files using RDR POS-Tagger:" + str(input_file))
+		from process_input.rdrpos_tagger.Utility.Utils import readDictionary
+				
+		import os
+		import codecs
+		import platform
 	
-			print("Annotating files using Stanford CoreNLP: " + str(input_file))
-			process_id = stanford_start(Parameters)
-		
-			#Multi-process lines to Stanford Core NLP#
-			pool_instance=mp.Pool(processes = Parameters.CPUs_General, maxtasksperchild = None)
-			text_dictionary = pool_instance.map(partial(stanford_run, Parameters.Stanford_POS_Model), tokenized_line_list, chunksize = 1000)
-			pool_instance.close()
-			pool_instance.join()
-			#End multi-processing for tagging with Stanford CoreNLP#
-		
-			stanford_stop(process_id)
-		
-		elif Parameters.POS_Tagger == "rdrpos":
-		
-			print("Annotating files using RDR POS-Tagger:" + str(input_file))
-			from process_input.rdrpos_tagger.Utility.Utils import readDictionary
-				
-			import os
-			import codecs
-			import platform
-	
-			if Parameters.Language == "English":
-				from process_input.rdrpos_tagger.pSCRDRtagger.RDRPOSTagger4En import RDRPOSTagger4En
-				from process_input.rdrpos_tagger.pSCRDRtagger.RDRPOSTagger4En import unwrap_self_RDRPOSTagger4En
-				from process_input.rdrpos_tagger.pSCRDRtagger.RDRPOSTagger4En import printHelp
-				r = RDRPOSTagger4En()
-				
-			elif Parameters.Language == "Vietnamese":
-				from process_input.rdrpos_tagger.pSCRDRtagger.RDRPOSTagger4Vn import RDRPOSTagger4Vn
-				from process_input.rdrpos_tagger.pSCRDRtagger.RDRPOSTagger4Vn import unwrap_self_RDRPOSTagger4Vn
-				from process_input.rdrpos_tagger.pSCRDRtagger.RDRPOSTagger4Vn import printHelp
-				r = RDRPOSTagger4Vn()
-				
-			else:
-				from process_input.rdrpos_tagger.pSCRDRtagger.RDRPOSTagger import RDRPOSTagger
-				from process_input.rdrpos_tagger.pSCRDRtagger.RDRPOSTagger import unwrap_self_RDRPOSTagger
-				from process_input.rdrpos_tagger.pSCRDRtagger.RDRPOSTagger import printHelp
-				r = RDRPOSTagger()
+		from process_input.rdrpos_tagger.pSCRDRtagger.RDRPOSTagger import RDRPOSTagger
+		from process_input.rdrpos_tagger.pSCRDRtagger.RDRPOSTagger import unwrap_self_RDRPOSTagger
+		from process_input.rdrpos_tagger.pSCRDRtagger.RDRPOSTagger import printHelp
+		r = RDRPOSTagger()
 			
-			#Check and Change directory if necessary; only once if multi-processing#
-			current_dir = os.getcwd()
+		#Check and Change directory if necessary; only once if multi-processing#
+		current_dir = os.getcwd()
 
-			if platform.system() == "Windows":
-				slash_index = current_dir.rfind("\\")
+		if platform.system() == "Windows":
+			slash_index = current_dir.rfind("\\")
 				
-			else:
-				slash_index = current_dir.rfind("/")
+		else:
+			slash_index = current_dir.rfind("/")
 				
-			current_dir = current_dir[slash_index+1:]
+		current_dir = current_dir[slash_index+1:]
 			
-			if current_dir == "Utility":
-				os.chdir("../../../")
-			#End directory check#
+		if current_dir == "Utility":
+			os.chdir("../../../")
+		#End directory check#
 			
-			model_string = "./files_data/pos_rdr/" + Parameters.Language + ".RDR"
-			dict_string = "./files_data/pos_rdr/"  + Parameters.Language + ".DICT"
+		model_string = "./files_data/pos_rdr/" + Parameters.Language + ".RDR"
+		dict_string = "./files_data/pos_rdr/"  + Parameters.Language + ".DICT"
 		
-			r.constructSCRDRtreeFromRDRfile(model_string)
-			DICT = readDictionary(dict_string)
-			
-			#Multi-process lines to RDR Pos-Tagger#
-			pool_instance=mp.Pool(processes = Parameters.CPUs_General, maxtasksperchild = None)
-			text_dictionary = pool_instance.map(partial(rdrpos_run, r=r, DICT=DICT, Parameters=Parameters), tokenized_line_list, chunksize = 1000)
-			pool_instance.close()
-			pool_instance.join()
-			#End multi-processing for tagging#
-			
+		r.constructSCRDRtreeFromRDRfile(model_string)
+		DICT = readDictionary(dict_string)
+		
+		if Grammar.Idiom_List != []:
+			for idiom in Grammar.Idiom_List:
+				DICT[idiom[1]] = idiom[2]
+				
+		#Multi-process lines to RDR Pos-Tagger#
+		pool_instance=mp.Pool(processes = Parameters.CPUs_General, maxtasksperchild = None)
+		text_dictionary = pool_instance.map(partial(rdrpos_run, 
+														r = r, 
+														DICT = DICT, 
+														Parameters = Parameters, 
+														Idiom_List = Grammar.Idiom_List
+														), tokenized_line_list, chunksize = 1000)
+		pool_instance.close()
+		pool_instance.join()
+		#End multi-processing for tagging#
+
 		time_end = time.time()
 		print("Time to pos-tag: " + str(time_end - time_start))
 		print("")
