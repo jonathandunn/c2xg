@@ -26,10 +26,6 @@ Environment and Dependencies
 
 This package is meant to run in Python 3.5 with a number of dependencies. The easiest way to maintain the necessary environment is to use Anaconda Python: https://www.continuum.io/downloads
 
-The package can be installed within Anaconda using the command:
-
-		conda install c2xg
-		
 This makes it easier to maintain the necessary environment. The package works with the dependency versions listed below. It will likely work with older versions of some packages but has not been tested with them. For example, older versions of numexpr have been known to cause issues withs pandas and may lead to lost candidates.
 
 Dependencies:
