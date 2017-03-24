@@ -67,19 +67,19 @@ def process_sentence_expansion(current_df, Grammar):
 		remove_dictionary_rl = {}
 											
 	#Fully schematic representation#
-	print("")
-	print("\tStarting Fully Schematic Representation")
-	start = time.time()
-	total_schematic_df, counter = process_schematic_representation(single_df, 
-																	Grammar.POS_List, 
-																	Grammar.Lemma_List, 
-																	remove_dictionary_lr, 
-																	remove_dictionary_rl, 
-																	counter
-																	)
-	alt_list.append(total_schematic_df)
+	# print("")
+	# print("\tStarting Fully Schematic Representation")
+	# start = time.time()
+	# total_schematic_df, counter = process_schematic_representation(single_df, 
+																	# Grammar.POS_List, 
+																	# Grammar.Lemma_List, 
+																	# remove_dictionary_lr, 
+																	# remove_dictionary_rl, 
+																	# counter
+																	# )
+	# alt_list.append(total_schematic_df)
 
-	end = time.time()
+	# end = time.time()
 	#print("\tDone with Fully-Schematic Representation: " + str(end - start) + ", Number of alts: " + str(counter))
 	
 	#Call function to combine and reformat alternate sentence DataFrames#

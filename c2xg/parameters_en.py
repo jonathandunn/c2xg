@@ -54,6 +54,7 @@ def set_parameters(C2xG_Parameters):
 	#Misc. settings for misc. algorithms#
 	C2xG_Parameters.Frequency = "Raw"							#Type of frequency measure to use for CxG vectors: "Raw", "Relative", "TFIDF"
 	C2xG_Parameters.Vectors = "CxG"								#Type of vectors to extract: "Lexical", "Units", "CxG", "CxG+Units"
+	C2xG_Parameters.Expand_Check = False						#If using CxG features, allow constituents to fill slots#
 	C2xG_Parameters.Debug = True								#Will save debugging info (like phrase structure rules) to debug folder
 	C2xG_Parameters.Run_Tagger = True							#True: input raw tex, one document per line; False: input CoNLL formatted texts
 	C2xG_Parameters.Use_Metadata = False						#Metadata should be in the format: "Field:Value,Field:Value,Field:Value [\t] Text" 
@@ -65,19 +66,18 @@ def set_parameters(C2xG_Parameters):
 	C2xG_Parameters.CV = 2										#Number of folds for cross-fold validation for each iteration
 	C2xG_Parameters.Restarts = 2								#Number of restarts for the tabu search
 	C2xG_Parameters.Training_Candidates = 1000000				#Number of documents / sentences (ids) to use for finding candidates / association measures
-	C2xG_Parameters.Training_Search = 50000					#Number of documents / sentences (ids) to use for training files during restarts
+	C2xG_Parameters.Training_Search = 50000						#Number of documents / sentences (ids) to use for training files during restarts
 	C2xG_Parameters.Testing = 100000							#Number of documents / sentences (ids) to use for testing files, once per fold
 
 	#Number of processes separated by type to allow balancing CPU / memory across tasks
-	C2xG_Parameters.CPUs_General = 6							#Number of CPUs to use for most tasks
-	C2xG_Parameters.CPUs_Merging = 6							#Number of CPUs for merging candidates; higher memory use per CPU
-	C2xG_Parameters.CPUs_Learning = 6							#Number of CPUs to use for learning constructions; may have higher memory use per CPU
+	C2xG_Parameters.CPUs_General = 12							#Number of CPUs to use for most tasks
+	C2xG_Parameters.CPUs_Merging = 12							#Number of CPUs for merging candidates; higher memory use per CPU
+	C2xG_Parameters.CPUs_Learning = 12							#Number of CPUs to use for learning constructions; may have higher memory use per CPU
 
 	#FILES: Input_Files = The input data for learning candidates: Raw Text requires Run_Tagger = True ----#
 	#Training, Training-Testing, and Testing files are randomly generated from this list for each fold#
 	
 	C2xG_Parameters.Input_Files = [
-	"English.Testing.txt"
 			]
 
 	C2xG_Parameters.Candidate_Files = []

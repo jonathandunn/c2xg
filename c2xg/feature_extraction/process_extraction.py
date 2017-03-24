@@ -53,20 +53,21 @@ def process_extraction(candidate_list,
 		extract_lex = True
 		
 	if frequency_type == "Raw":
-		relative_freq == False
-		use_centroid == False
+		relative_freq = False
+		use_centroid = False
 	
 	elif frequency_type == "Relative":
-		relative_freq == True
-		use_centroid == False
+		relative_freq = True
+		use_centroid = False
 
 	elif frequency_type == "TFIDF":
-		relative_freq == False
-		use_centroid == True
+		relative_freq = False
+		use_centroid = True
 	
 	#Get constructions
 	if extract_constructions == True:
-	
+		eval_list = candidate_list
+		
 		for i in eval_list.keys():
 			
 			if eval_list[i]:

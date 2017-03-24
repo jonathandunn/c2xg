@@ -54,6 +54,7 @@ def set_parameters(C2xG_Parameters):
 	#Misc. settings for misc. algorithms#
 	C2xG_Parameters.Frequency = "Raw"							#Type of frequency measure to use for CxG vectors: "Raw", "Relative", "TFIDF"
 	C2xG_Parameters.Vectors = "CxG"								#Type of vectors to extract: "Lexical", "Units", "CxG", "CxG+Units"
+	C2xG_Parameters.Expand_Check = False						#If using CxG features, allow constituents to fill slots#
 	C2xG_Parameters.Debug = True								#Will save debugging info (like phrase structure rules) to debug folder
 	C2xG_Parameters.Run_Tagger = True							#True: input raw tex, one document per line; False: input CoNLL formatted texts
 	C2xG_Parameters.Use_Metadata = False						#Metadata should be in the format: "Field:Value,Field:Value,Field:Value [\t] Text" 

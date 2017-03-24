@@ -13,7 +13,8 @@ def process_get_vectors(input_file,
 							Parameters,
 							frequency_type,
 							vector_type,
-							write_output = True
+							write_output = True,
+							expand_check = True
 							):
 	
 	import time 
@@ -37,7 +38,7 @@ def process_get_vectors(input_file,
 
 	#EXPAND TEST FILE ----------------------------------------------------------------------------#
 	
-	if vector_type == "CxG" or vector_type == "CxG+Units":
+	if vector_type == "CxG" or vector_type == "CxG+Units" and expand_check == True:
 		print("")
 		print("Expanding sentences to reduce recursive structures.") 
 		input_dataframe = expand_sentences(input_dataframe, Grammar, write_output = False)
@@ -58,7 +59,7 @@ def process_get_vectors(input_file,
 	print("Begin feature extraction.")
 	
 	full_vector_df = process_extraction(Grammar.Candidate_List, 
-											Parameters.Max_Construction_Length, 
+											Parameters.Max_Candidate_Length_Constructions, 
 											input_dataframe, 
 											Grammar.Lemma_List, 
 											Grammar.POS_List, 
@@ -84,8 +85,8 @@ def process_get_vectors(input_file,
 	if Parameters.Use_Metadata == True:
 	
 		print("Adding meta-data from input file.")
-		metadata_tuples = metadata_dictionary[input_file]
-		full_vector_df = get_meta_data(full_vector_df, metadata_tuples)
+		#metadata_tuples = metadata_dictionary[input_file]
+		#full_vector_df = get_meta_data(full_vector_df, metadata_tuples)
 		
 	#Extract column names and save separately#
 	column_metadata = list(full_vector_df.columns)
@@ -114,7 +115,7 @@ def process_get_vectors(input_file,
 		return full_vector_df
 #---------------------------------------------------------------------------------------------#
 #---------------------------------------------------------------------------------------------#
-def get_vectors(Grammar, Paramters, TFIDF = False, run_parameter = 0):
+def get_vectors(Parameters, Grammar = "", TFIDF = False, run_parameter = 0):
 
 	#Prevent pool workers from starting here#
 	if run_parameter == 0:
@@ -135,7 +136,7 @@ def get_vectors(Grammar, Paramters, TFIDF = False, run_parameter = 0):
 		from functools import partial
 		import pandas as pd
 		
-		from get_vectors import process_get_vectors
+		from api.get_vectors import process_get_vectors
 
 		#Import required script-specific modules#
 		from process_input.annotate_files import annotate_files
@@ -144,7 +145,7 @@ def get_vectors(Grammar, Paramters, TFIDF = False, run_parameter = 0):
 		start_all = time.time()
 		
 		#Load Grammar object if necessary#
-		if Grammar == "Load":
+		if Grammar == "":
 			
 			if TFIDF == True:
 				try:
@@ -180,8 +181,8 @@ def get_vectors(Grammar, Paramters, TFIDF = False, run_parameter = 0):
 		#Evaluate string candidates to lists and sort by length#
 		eval_list = []
 	
-		for construction in Grammar.Candidate_List:
-			eval_list.append(eval(construction))
+		for construction in Grammar.Construction_List:
+			eval_list.append(construction)
 
 		eval_list = ct.groupby(len, eval_list)
 		Grammar.Candidate_List = eval_list		
@@ -234,15 +235,19 @@ def get_vectors(Grammar, Paramters, TFIDF = False, run_parameter = 0):
 			else:
 				input_files = Parameters.Input_Files
 		#--------------------------------------------------------------------------------------------#
-
+		
+		#DELETE THIS LATER#
+		metadata_dictionary = {}
+		
 		#Now, multi-process for input files#
-		pool_instance=mp.Pool(processes = number_processes, maxtasksperchild = None)
+		pool_instance=mp.Pool(processes = Parameters.CPUs_General, maxtasksperchild = None)
 		pool_instance.map(partial(process_get_vectors, 
 										Grammar = Grammar,
 										Parameters = Parameters,
 										metadata_dictionary = metadata_dictionary,
 										frequency_type = Parameters.Frequency,
-										vector_type = Parameters.Vectors
+										vector_type = Parameters.Vectors,
+										expand_check = Parameters.Expand_Check
 										), input_files, chunksize = 1)
 		pool_instance.close()
 		pool_instance.join()
