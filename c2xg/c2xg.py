@@ -120,9 +120,6 @@ class Parameters:
 		self.Language = "English"
 		self.Lines_Per_File = 500000
 		self.Dictionary_File = "Dictionary.English.ukWac.100.txt"
-		self.Stanford_Memory_Limit = "4g"
-		self.Stanford_Working_Directory = "./files_data/pos_stanford/"
-		self.Stanford_POS_Model = "NAME.tagger"
 		self.Encoding_Type = "utf-8"
 		self.Delete_Temp = False
 		self.Illegal_POS = []
@@ -143,7 +140,7 @@ class Parameters:
 		self.CPUs_Merging = 1
 		self.CPUs_Pruning = 1
 		self.CPUs_Extract = 1
-		self.Root_Location = "../../../../data/"
+		self.Root_Location = os.path.join("..", "..", "..", "..", "data")
 		self.Emoji_File = "Emoji.List.txt"
 		self.Run_Tagger = False
 		self.Use_Metadata = False
@@ -167,10 +164,12 @@ class Parameters:
 
 	def initialize(self, parameter_file, gui_flag = False):
 		
-		from process_input.check_folders import check_folders
-		from process_input.create_category_dictionary import create_category_dictionary
-		from process_input.create_emoji_dictionary import create_emoji_dictionary
-		from process_input.create_category_index import create_category_index
+		import os
+		
+		from modules.process_input import check_folders
+		from modules.process_input import create_category_dictionary
+		from modules.process_input import create_emoji_dictionary
+		from modules.process_input import create_category_index
 		
 		print("\tLoading parameters from file.")
 		
@@ -190,24 +189,24 @@ class Parameters:
 		#Load, set, and initialize parameters#
 		pm.set_parameters(self)
 		
-		self.Input_Folder = self.Root_Location + "Input"
-		self.Dict_Folder = self.Input_Folder + "/Dict_Files"
-		self.POS_Training_Folder = self.Input_Folder + "/POS_Training"
-		self.POS_Testing_Folder = self.Input_Folder + "/POS_Testing"
-		self.Temp_Folder = self.Input_Folder + "/Temp"
-		self.Candidate_Folder = self.Temp_Folder + "/Candidates"
-		self.Debug_Folder = self.Input_Folder + "/Debug"
-		self.Output_Folder = self.Root_Location + "Output"
+		self.Input_Folder = os.path.join(self.Root_Location, "Input")
+		self.Dict_Folder = os.path.join(self.Input_Folder, "Dict_Files")
+		self.POS_Training_Folder = os.path.join(self.Input_Folder, "POS_Training")
+		self.POS_Testing_Folder = os.path.join(self.Input_Folder, "POS_Testing")
+		self.Temp_Folder = os.path.join(self.Input_Folder, "Temp")
+		self.Candidate_Folder = os.path.join(self.Temp_Folder, "Candidates")
+		self.Debug_Folder = os.path.join(self.Input_Folder, "Debug")
+		self.Output_Folder = os.path.join(self.Root_Location, "Output")
 		self.Examples_Directory = self.Output_Folder
-		self.Parameters_Folder = self.Root_Location + "Parameters"
+		self.Parameters_Folder = os.path.join(self.Root_Location, "Parameters")
 		
 		print("\tLoading semantic dictionary from file.")
-		self.Dictionary_File = "./files_data/dictionaries/" + self.Dictionary_File
+		self.Dictionary_File = os.path.join(".", "files_data", "dictionaries", self.Dictionary_File)
 		self.Semantic_Category_Dictionary = create_category_dictionary(self.Dictionary_File, self.Encoding_Type)
 		self.Category_List = create_category_index(self.Semantic_Category_Dictionary)
 		
 		print("\tLoading emoji list from file.")
-		self.Emoji_File = "./files_data/emojis/" + self.Emoji_File
+		self.Emoji_File = os.path.join(".", "files_data", "emojis", self.Emoji_File)
 		self.Emoji_Dictionary = create_emoji_dictionary(self.Emoji_File)
 		
 		print("\tChecking and creating necessary folders.")
@@ -222,27 +221,29 @@ class Parameters:
 						self.Parameters_Folder
 						)
 
-		self.Data_File_Indexes = self.Output_Folder + "/" + self.Nickname + ".0.Indexes.model"
-		self.Data_File_Idioms = self.Output_Folder + "/" + self.Nickname + ".1.Idioms.model"
-		self.Data_File_Constituents = self.Output_Folder + "/" + self.Nickname + ".2.Constituents.model"
-		self.Data_File_Constructions = self.Output_Folder + "/" + self.Nickname + ".3.Constructions.model"
-		self.Data_File_Usage = self.Output_Folder + "/" + self.Nickname + ".4.Usage.model"
-		self.Data_File_Vectors = self.Output_Folder + "/" + self.Nickname + ".Association.Vectors"
+		self.Data_File_Indexes = os.path.join(self.Output_Folder, self.Nickname + ".0.Indexes.model")
+		self.Data_File_Idioms = os.path.join(self.Output_Folder, self.Nickname + ".1.Idioms.model")
+		self.Data_File_Constituents = os.path.join(self.Output_Folder, self.Nickname + ".2.Constituents.model")
+		self.Data_File_Constructions = os.path.join(self.Output_Folder, self.Nickname + ".3.Constructions.model")
+		self.Data_File_Usage = os.path.join(self.Output_Folder, self.Nickname + ".4.Usage.model")
+		self.Data_File_Vectors = os.path.join(self.Output_Folder, self.Nickname + ".Association.Vectors")
 
 		self.Output_Suffix = self.Nickname + ".FreqIndv=" + str(self.Freq_Threshold_Individual) + ".Length=" + str(self.Max_Candidate_Length_Constructions)
-		self.Output_File = self.Output_Folder + "/" + self.Nickname + ".Associations.FreqIndv=" + str(self.Freq_Threshold_Individual) + ".Length=" + str(self.Max_Candidate_Length_Constructions) + ".csv"
+		self.Output_File = os.path.join(self.Output_Folder, self.Nickname + ".Associations.FreqIndv=" + str(self.Freq_Threshold_Individual) + ".Length=" + str(self.Max_Candidate_Length_Constructions) + ".csv")
 		self.Output_File_Pruned = self.Output_File.replace(".csv", "") + ".Pruned.csv"
 
-		self.Data_File_Readable = self.Debug_Folder + "/Debug.Readable Corpus." + self.Output_Suffix + ".txt"
-		self.Data_File_Reductions = self.Debug_Folder + "/Debug.Reductions." + self.Output_Suffix + ".txt"
-		self.Debug_File = self.Debug_Folder + "/Debug." + self.Output_Suffix + "."
+		self.Data_File_Readable = os.path.join(self.Debug_Folder, "Debug.Readable Corpus." + self.Output_Suffix + ".txt")
+		self.Data_File_Reductions = os.path.join(self.Debug_Folder, "Debug.Reductions." + self.Output_Suffix + ".txt")
+		self.Debug_File = os.path.join(self.Debug_Folder, "Debug." + self.Output_Suffix + ".")
+		
+		import os
 		
 		self.Output_Files = []
 		for file in self.Candidate_Files:
-			self.Output_Files.append(str(self.Temp_Folder + "/" + file))
+			self.Output_Files.append(os.path.join(self.Temp_Folder, file))
 			
 		if self.Run_Tagger == False:
-			self.Input_Files = [self.Input_Folder + "/Temp/" + file for file in self.Input_Files]
+			self.Input_Files = [os.path.join(self.Input_Folder, "Temp", file) for file in self.Input_Files]
 			
 		print("Finished loading parameters.")
 

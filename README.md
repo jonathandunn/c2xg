@@ -10,6 +10,8 @@ Computational Construction Grammar, or c2xg, is two things:
 
 Why CxGs? Constructions are grammatical entities that allow the straight-forward quantification of linguistic structure.
 
+NOTE: For the last stable release, use v.0.2!
+
 
 Installation
 --------------
@@ -20,12 +22,20 @@ or
 
 		pip install <whl file>
 		
+or
+
+		conda install c2xg
+
 
 Environment and Dependencies
 ----------------------------------
 
 This package is meant to run in Python 3.5 with a number of dependencies. The easiest way to maintain the necessary environment is to use Anaconda Python: https://www.continuum.io/downloads
 
+The package can be installed within Anaconda using the command:
+
+		conda install c2xg
+		
 This makes it easier to maintain the necessary environment. The package works with the dependency versions listed below. It will likely work with older versions of some packages but has not been tested with them. For example, older versions of numexpr have been known to cause issues withs pandas and may lead to lost candidates.
 
 Dependencies:
@@ -56,7 +66,7 @@ Initialize the package with the following commands:
 The parameters class takes as input a string indicating the name of the parameters file. Now, run the API using the following template, where Parameters is an initialized c2xg.Parameter object:
 
 	c2xg.learn_c2xg(Parameters)
-	c2xg.learn_idioms(Parameters)
+	c2xg.learn_mwes(Parameters)
 	
 All functions in the API take a c2xg.Parameters object as an argument. The c2xg.Grammar object can be passed to each function or, if not passed, loaded from file.
 	
@@ -188,13 +198,14 @@ Feature Extraction
 
 Given a language-specific CxG, the get_vectors and learn_usage functions convert that grammar into a vector representation of texts or sentences (i.e., one unit per line in the input files). There are two modes and three quantification methods for creating vectors:
 
-	vector_scope = "CxG+Units": Constructions and lexical / POS / semantic features
+	vector_scope = "Full": Constructions and lexical / POS / semantic features
 	vector_scope = "Lexical": Only lexical features
 	vector_scope = "CxG": Only construction features	
 	
-	expand_check == True: Allow complex constituents to fill slots in extracted features
 	relative_freq == True: Quantify using the relative frequency of the feature in given sentence or text (as negative logarithms)
 	relative_freq == False: Quantify using unadjusted raw frequency of the feature
 	use_centroid == True: Extract vectors with centriod normalization learned using learn_usage. This is functionally equivalent to TF-IDF scaling
 	
-	Centroid normalization first finds the probability of a given feature in the background corpus. This is stored after running learn_usage in separate centroid_df models for the full grammar and for the lexical-only features. During extraction, if centroids are used for representation, this is converted into negative logarithms of the inverted joint probability of each feature occuring as many times as it does in a document.
+	Centroid normalization first finds the probability of a given feature in the background corpus. This is stored after running learn_usage in separate centroid_df models for the full grammar and for the lexical-only features. During extraction, if centroids are used for representation, this is converted into negative logarithms of the inverted joint probability of each feature occuring as many times as it does in a message.
+	
+	*Note: Feature extraction is stable in v 0.1 but not in v 0.2

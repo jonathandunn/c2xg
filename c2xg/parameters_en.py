@@ -1,19 +1,20 @@
-#-- C2xG, v 0.2
+#-- C2xG, v 0.3
 #-- Copyright, 2015-2017 Jonathan E. Dunn
 #-- GNU LGPLv3
 #-- www.jdunn.name
 #-- jdunn8@iit.edu
-#-- Illinois Institute of Technology, Department of Computer Science
 
 def set_parameters(C2xG_Parameters):
 
+	import os
+	
 	#General settings#
-	C2xG_Parameters.Nickname = "English.MDL.3-8"				#Name this series of experiments and the produced models
-	C2xG_Parameters.Language = "English"						#Language is used to select the correct RDRPOSTagger model; thus, must have the same name as an available model
+	C2xG_Parameters.Nickname = "English.Dict"			#Name this series of experiments and the produced models
+	C2xG_Parameters.Language = "eng"							#Language is used to select the correct RDRPOSTagger model; thus, must have the same name as an available model
 	C2xG_Parameters.Lines_Per_File = 5000						#Number of lines from the raw input file to include in each CoNLL formatted file. For balancing CPU / memory in multi-processing
 	C2xG_Parameters.Encoding_Type = "utf-8"						#Encoding type to use after loading files; best to use utf-8
 	C2xG_Parameters.Illegal_POS = ["X", "x", ".", "punct"]		#Items with these pos-tags will be ignored; for most languages we use the Universal POS-Tags and this ignores punctuation and misc
-	C2xG_Parameters.Root_Location = "../../../../Data/"			#Relative path to data storage from the "c2xg/c2xg" folder
+	C2xG_Parameters.Root_Location = os.path.join("..", "..", "..", "..", "Data")			#Relative path to data storage from the "c2xg/c2xg" folder
 	C2xG_Parameters.Emoji_File = "Emoji.List.txt"				#Path to list of emojis; helpful for dealing with noisy web-crawled data
 	
 	C2xG_Parameters.Annotation_Types = ["Lex", "Pos", "Cat"]	#For learn_association, choose types of representation to include for candidate sequences
@@ -45,11 +46,12 @@ def set_parameters(C2xG_Parameters):
 	C2xG_Parameters.Tabu_Random_Checks = 2000					#Number of random grammars to use for initialization (before) and validation (after) Tabu Search
 
 	#For learning semantic dictionary with GenSim's word2vec#
-	C2xG_Parameters.Dict_Min_Threshold = 500					#Frequency threshold for inclusion in dictionary
+	C2xG_Parameters.Dict_Min_Threshold = 10						#Frequency threshold for inclusion in dictionary
 	C2xG_Parameters.Dict_Num_Dimensions = 500					#Dimensionality of neural network
 	C2xG_Parameters.Dict_Skip_Gram = 1							#0 = CBOW, 1 = Skip-Grams
 	C2xG_Parameters.Dict_Num_Clusters = 100						#Arbitrary number of categories in final dictionary
-	C2xG_Parameters.Dict_Num_Iterations = 25					#Fixed number of iterations for learning feature weights#C2xG_Parameters.Delete_Temp = False
+	C2xG_Parameters.Dict_Num_Iterations = 25					#Fixed number of iterations for learning feature weights#
+	C2xG_Parameters.Delete_Temp = False
 	
 	#Misc. settings for misc. algorithms#
 	C2xG_Parameters.Frequency = "Raw"							#Type of frequency measure to use for CxG vectors: "Raw", "Relative", "TFIDF"
@@ -78,6 +80,7 @@ def set_parameters(C2xG_Parameters):
 	#Training, Training-Testing, and Testing files are randomly generated from this list for each fold#
 	
 	C2xG_Parameters.Input_Files = [
+	"ukWac.Plain.001.Test.txt"
 			]
 
 	C2xG_Parameters.Candidate_Files = []
