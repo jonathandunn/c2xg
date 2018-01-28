@@ -1,5 +1,5 @@
 
-c2xg 0.2
+c2xg 0.3
 =============
 
 Computational Construction Grammar, or c2xg, is two things: 
