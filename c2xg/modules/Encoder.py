@@ -1,16 +1,13 @@
 import os
-import os.path
 import pickle
-import codecs
-import time
 import re
 import cytoolz as ct
-import pandas as pd
 from gensim.parsing import preprocessing
 from modules.rdrpos_tagger.Utility.Utils import readDictionary
 from modules.rdrpos_tagger.pSCRDRtagger.RDRPOSTagger import RDRPOSTagger
 from modules.rdrpos_tagger.pSCRDRtagger.RDRPOSTagger import unwrap_self_RDRPOSTagger
 from modules.rdrpos_tagger.pSCRDRtagger.RDRPOSTagger import printHelp
+from sklearn.utils import murmurhash3_32
 
 #Fix RDRPos import
 current_dir = os.getcwd()
@@ -24,9 +21,10 @@ DICT_CONSTANT = ".DIM=500.SG=1.HS=1.ITER=25.p"
 class Encoder(object):
 
 	#---------------------------------------------------------------------------#
-	def __init__(self, language):
+	def __init__(self, language, Loader, word_classes = False):
 		
 		self.language = language
+		self.Loader = Loader
 
 		#Initialize RDRPosTagger
 		model_string = os.path.join(".", "data", "pos_rdr", self.language + ".RDR")
@@ -54,57 +52,36 @@ class Encoder(object):
 				re.UNICODE)
 		
 		#Universal POS Tags are fixed across languages
-		self.pos_dict = {}
-		self.pos_dict['propn'] = 1
-		self.pos_dict['sym'] = 2
-		self.pos_dict['verb'] = 3
-		self.pos_dict['det'] = 4
-		self.pos_dict['cconj'] = 5
-		self.pos_dict['aux'] = 6
-		self.pos_dict['adj'] = 7
-		self.pos_dict['sconj'] = 8
-		self.pos_dict['pron'] = 9
-		self.pos_dict['num'] = 10
-		self.pos_dict['punct'] = 11
-		self.pos_dict['adv'] = 12
-		self.pos_dict['adp'] = 13
-		self.pos_dict['x'] = 14
-		self.pos_dict['noun'] = 15
-		self.pos_dict['part'] = 16
-		self.pos_dict['intj'] = 17
+		pos_list = ["PROPN", "SYM", "VERB", "DET", "CCONJ", "AUX", "ADJ", "INTJ", "SCONJ", "PRON", "NUM", "PUNCT", "ADV", "ADP", "X", "NOUN", "PART"]
+		self.pos_dict = {murmurhash3_32(pos, seed=0): pos for pos in pos_list}
 		
 		#Get semantic dict
-		dictionary_file = os.path.join(".", "data", "dictionaries", language + DICT_CONSTANT)
-		with open(dictionary_file, "rb") as fo:
-			self.word_dict = pickle.load(fo)
+		if word_classes == False:
+			dictionary_file = os.path.join(".", "data", "dictionaries", language + DICT_CONSTANT)
+			with open(dictionary_file, "rb") as fo:
+				self.word_dict = pickle.load(fo)
+			
+			#UPDATE ONCE HAVE NEW DICTSs
+			self.domain_dict = {murmurhash3_32(key, seed=0): self.word_dict[key]["domain"] for key in self.word_dict.keys()}
+			self.word_dict = {murmurhash3_32(key, seed=0): key for key in self.word_dict.keys()}
+			
+			self.build_decoder()
 
+	#-----------------------------------------------------------------------------------#
 		
-	def build_decoder():
-	
+	def build_decoder(self):
+
 		#Create a decoding resource
+		#LEX = 1, POS = 2, CAT = 3
 		decoding_dict = {}
-		decoding_dict[0] = {}
-		decoding_dict[1] = {}
-		decoding_dict[2] = {}
-		
-		for pos in self.pos_dict.keys():
-			current_index = self.pos_dict[pos]
-			decoding_dict[2][current_index] = pos.upper()
+		decoding_dict[1] = self.word_dict
+		decoding_dict[2] = self.pos_dict
+		decoding_dict[3] = {key: "<" + str(key) + ">" for key in list(set(self.domain_dict.values()))}
 			
-		for word in self.word_dict.keys():
-			current_index = self.word_dict[word]["index"]
-			current_domain = self.word_dict[word]["domain"]
-			
-			decoding_dict[1][current_index] = word
-			decoding_dict[3][current_domain] = "<" + str(current_domain) + ">"
-			
-		decoding_dict[1][0] = "NONE"
-		decoding_dict[2][0] = "NONE"
-		decoding_dict[3][0] = "NONE"
-		
 		self.decoding_dict = decoding_dict
 
 	#---------------------------------------------------------------------------#
+	
 	def decode(self, item):
 	
 		sequence = [self.decoding_dict[pair[0]][pair[1]] for pair in item]
@@ -112,12 +89,17 @@ class Encoder(object):
 		return " ".join(sequence)		
 
 	#---------------------------------------------------------------------------#
-	def load(self, files):
-
-		#Check if getting a file or list of files
-		if not isinstance(files, list):
-			files = [files]
+	
+	def load_stream(self, input_files, word_classes = False):	
+	
+		for file in input_files:
+			for line in self.load(file, word_classes = word_classes):
+				yield line
 		
+	#---------------------------------------------------------------------------#
+		
+	def load(self, file, word_classes = False):
+
 		#zho needs an additional tokenizer
 		if self.language == "zho":
 			
@@ -126,41 +108,43 @@ class Encoder(object):
 			tk.initialize()
 			tk.lock = True
 				
-		for fname in files:
+		for line in self.Loader.read_file(file):
 			
-			#Yield sentence annotations one sentence at a time
-			with codecs.open(fname, encoding = "utf-8", errors = "replace") as fo:
-				for line in fo:
-										
-					#Tokenize zho
-					if self.language == "zho":
+			#Tokenize zho
+			if self.language == "zho":
 								
-						line = [x for x in tk.cut(line, cut_all = True, HMM = True) if x != ""]
-						line = " ".join(line)
+				line = [x for x in tk.cut(line, cut_all = True, HMM = True) if x != ""]
+				line = " ".join(line)
 
 
-					#Remove links, hashtags, at-mentions, mark-up, and "RT"
-					line = re.sub(r"http\S+", "", line)
-					line = re.sub(r"@\S+", "", line)
-					line = re.sub(r"#\S+", "", line)
-					line = re.sub("<[^>]*>", "", line)
-					line = line.replace(" RT", "").replace("RT ", "")
+			#Remove links, hashtags, at-mentions, mark-up, and "RT"
+			line = re.sub(r"http\S+", "", line)
+			line = re.sub(r"@\S+", "", line)
+			line = re.sub(r"#\S+", "", line)
+			line = re.sub("<[^>]*>", "", line)
+			line = line.replace(" RT", "").replace("RT ", "")
 								
-					#Remove emojis
-					line = re.sub(self.myre, "", line)
+			#Remove emojis
+			line = re.sub(self.myre, "", line)
 									
-					#Remove punctuation and extra spaces
-					line = ct.pipe(line, 
-									preprocessing.strip_tags, 
-									preprocessing.strip_punctuation, 
-									preprocessing.split_alphanum,
-									preprocessing.strip_non_alphanum,
-									preprocessing.strip_multiple_whitespaces
-									)
+			#Remove punctuation and extra spaces
+			line = ct.pipe(line, 
+							preprocessing.strip_tags, 
+							preprocessing.strip_punctuation, 
+							preprocessing.split_alphanum,
+							preprocessing.strip_non_alphanum,
+							preprocessing.strip_multiple_whitespaces
+							)
 									
-					#Strip and reduce to max training length
-					line = line.lower().strip().lstrip()
-					line = self.r.tagRawSentence(rawLine = line, DICT = self.DICT, word_dict = self.word_dict, pos_dict = self.pos_dict)
-					#Array of tuples (LEX, POS, CAT)
+			#Strip and reduce to max training length
+			line = line.lower().strip().lstrip()
+			
+			if word_classes == False:
+				line = self.r.tagRawSentenceHash(rawLine = line, DICT = self.DICT, word_dict = self.domain_dict)
+				#Array of tuples (LEX, POS, CAT)
+				
+			#For training word embeddings, just return the list
+			else:
+				line = self.r.tagRawSentenceGenSim(rawLine = line, DICT = self.DICT)
 
-					yield line
+			yield line

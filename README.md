@@ -1,5 +1,5 @@
 
-c2xg 0.3
+c2xg 0.2
 =============
 
 Computational Construction Grammar, or c2xg, is two things: 
@@ -9,8 +9,6 @@ Computational Construction Grammar, or c2xg, is two things:
 (2) A discovery-device grammar that learns falsifiable and replicable CxGs from observed unannotated text data
 
 Why CxGs? Constructions are grammatical entities that allow the straight-forward quantification of linguistic structure.
-
-NOTE: For the last stable release, use v.0.2!
 
 
 Installation

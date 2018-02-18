@@ -9,6 +9,7 @@ os.chdir("./modules/rdrpos_tagger/pSCRDRtagger")
 
 from multiprocessing import Pool
 import cytoolz as ct
+from sklearn.utils import murmurhash3_32
 from modules.rdrpos_tagger.InitialTagger.InitialTagger import initializeCorpus, initializeSentence
 from modules.rdrpos_tagger.SCRDRlearner.Object import FWObject
 from modules.rdrpos_tagger.SCRDRlearner.SCRDRTree import SCRDRTree
@@ -61,6 +62,49 @@ class RDRPOSTagger(SCRDRTree):
             else:# Fired at root, return initialized tag
                 sen.append(word + "/" + tag)
         return " ".join(sen)
+		
+    def tagRawSentenceGenSim(self, DICT, rawLine):
+        line = initializeSentence(DICT, rawLine)
+
+        sen = []
+        wordTags = line.split()
+
+        for i in range(len(wordTags)):
+            fwObject = FWObject.getFWObject(wordTags, i)
+            word, tag = getWordTag(wordTags[i])
+            node = self.findFiredNode(fwObject)
+            if node.depth > 0:
+                sen.append(word + "/" + node.conclusion)
+            else:# Fired at root, return initialized tag
+                sen.append(word + "/" + tag)
+        return sen
+		
+    def tagRawSentenceHash(self, rawLine, DICT, word_dict):
+        line = initializeSentence(DICT, rawLine)
+
+        sen = []
+        wordTags = line.split()
+
+        for i in range(len(wordTags)):
+            fwObject = FWObject.getFWObject(wordTags, i)
+            word, tag = getWordTag(wordTags[i])
+            node = self.findFiredNode(fwObject)
+			
+            #Only hash word once and block out-of-lexicon words
+            word_hash = murmurhash3_32(word, seed=0)
+            try:
+                word_cat = ct.get(word_hash, word_dict)
+            except:
+                word_cat = 0
+                word_hash = 0			
+			
+			#Format and return
+            if node.depth > 0:
+                sen.append((word_hash, murmurhash3_32(node.conclusion, seed=0), word_cat))
+            else:# Fired at root, return initialized tag
+                sen.append((word_hash, murmurhash3_32(tag, seed=0), word_cat))
+        
+        return sen
     
     def tagRawSentence(self, rawLine, DICT, word_dict, pos_dict):
         line = initializeSentence(DICT, rawLine)
@@ -83,7 +127,7 @@ class RDRPOSTagger(SCRDRTree):
                 else:
                     sen.append((ct.get("index", current_dict), ct.get(tag.lower(), pos_dict, default = 0), ct.get("domain", current_dict)))
         return sen
-
+		
     def tagRawCorpus(self, DICT, rawCorpusPath):
         lines = open(rawCorpusPath, "r").readlines()
         #Change the value of NUMBER_OF_PROCESSES to obtain faster tagging process!
