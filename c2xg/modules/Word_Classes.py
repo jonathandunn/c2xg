@@ -1,10 +1,59 @@
 import os
 import time
 import codecs
+import random
+import numpy as np
+import multiprocessing as mp
+from functools import partial
 
+from sklearn import metrics
 from gensim.models.word2vec import Word2Vec
-from modules.clustering.xmeans import XMeans
+from modules.clustering.kmedoids import kMedoids
 from modules.Encoder import Encoder
+
+#Clustering takes place outside of the class itself
+def run_cluster(num_clusters, distance_matrix):
+
+	starting = time.time()
+	
+	#Cluster
+	M, C = kMedoids(distance_matrix, num_clusters)
+		
+	#Initiate labels
+	labels = [0 for i in range(distance_matrix.shape[0])]
+
+	#Assign labels
+	for key in C.keys():
+		current_cluster = C[key]
+		for index in current_cluster:
+			labels[index] = key
+
+	#silhouette = metrics.silhouette_score(distance_matrix, labels, metric = "precomputed")
+	calinski = metrics.calinski_harabaz_score(distance_matrix, labels)
+	
+	print(str(num_clusters) + " clusters in " + str(time.time() - starting) + " seconds with Calinski-Harabaz = " + str(calinski))
+		
+	return num_clusters, labels, calinski
+#-----------------------------------------------------------------------------------------#
+
+#Cluster evaluation takes place outside the class itself
+def evaluate_clustering(results):
+
+	highest = 0.0
+	#Loop through results to find best clustering
+	for (i, labels, silhouette) in results:
+		
+		if silhouette > highest:
+			
+			print("New highest: " + str(silhouette))
+				
+			highest = silhouette
+			highest_i = i
+			highest_labels = labels
+			highest_silhouette = silhouette
+			
+	return highest_i, highest_labels, highest_silhouette
+#-----------------------------------------------------------------------------------------#
 
 class Word_Classes(object):
 
@@ -85,7 +134,7 @@ class Word_Classes(object):
 		return model
 	#----------------------------------------------------------------------------------#
 
-	def build_clusters(self, model_file, nickname):
+	def build_clusters(self, model_file, nickname, workers = 1):
 	
 		#Set input file as nickname
 		self.nickname = nickname
@@ -98,24 +147,33 @@ class Word_Classes(object):
 		else:
 			model = model_file
 
-		print("Setting word vectors and number of clusters.")
+		print("Getting word vectors: ", end = "")
 		word_vectors = model.wv
 		word_vectors = word_vectors.syn0
 		print(word_vectors.shape)
-
-		#Perform x-means clustering
+		
+		#Get cosine distance matrix for clustering
 		starting = time.time()
+		distance_matrix = metrics.pairwise.pairwise_distances(word_vectors, Y = None, metric = "cosine", n_jobs = workers)
+		print("Distance matrix took: " + str(time.time() - starting))
 		
-		x = XMeans()
-		x.fit(word_vectors)
+		#Learning loop: Optimizations for number of clusters
+		num_clusters = [i for i in range(10,100)]
 		
-		x_name = str(self.nickname + ".XMeans.p")
-		self.Loader.save_file(x, x_name)
+		pool_instance = mp.Pool(processes = workers, maxtasksperchild = 1)
+		results = pool_instance.map(partial(run_cluster, distance_matrix = distance_matrix), num_clusters, chunksize = 1)
+		pool_instance.close()
+		pool_instance.join()
 		
-		print("\tCreated " + str(len(x.cluster_sizes_)) + " clusters in " + str(time.time() - starting) + " seconds.")
+		[print(x) for x in results]
+		sys.kill()
 		
-		clusters = x.labels_
-
+		#Use Silouhette score to choose n_clusters
+		n_clusters, highest_labels, highest_silhouette = evaluate_clustering(results)
+		
+		#Proceed with best clustering
+		clusters = highest_labels
+		
 		#Now create dictionaries of {words: cluster} pairs
 		write_dict = {}
 		write_pos_dict = {}

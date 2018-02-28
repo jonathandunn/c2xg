@@ -1,11 +1,55 @@
 from modules.Encoder import Encoder
-import cytoolz as ct
+from modules.Association import Association
 import time
 import operator
 import os
+import numpy as np
+import pandas as pd
+import cytoolz as ct
 import multiprocessing as mp
 from functools import partial
+from numba import jit
 
+#-------------------------------------------------------------------#
+#The main calculation function is outside of the class for jitting
+@jit(nopython = True)
+def calculate_measures(lr_list, rl_list):
+
+	#Mean Delta-P
+	mean_lr = np.mean(lr_list)
+	mean_rl = np.mean(rl_list)
+	
+	#Min Delta-P
+	min_lr = np.amin(lr_list)
+	min_rl = np.amin(rl_list)
+	
+	#Directional: Scalar and Categorical
+	directional = np.subtract(lr_list, rl_list)
+	directional_scalar = np.sum(directional)
+	directional_categorical = min((directional > 0.0).sum(), (directional < 0.0).sum())
+	
+	#Beginning-Reduced Delta-P
+	reduced_beginning_lr = (np.sum(lr_list) - np.sum(lr_list[1:]))
+	reduced_beginning_rl = (np.sum(rl_list) - np.sum(rl_list[1:]))
+	
+	#End-Reduced Delta-P
+	reduced_end_lr = (np.sum(lr_list) - np.sum(lr_list[0:-1]))
+	reduced_end_rl = (np.sum(rl_list) - np.sum(rl_list[0:-1]))
+	
+	#Package and return
+	return_list = [mean_lr, 
+					mean_rl, 
+					min_lr, 
+					min_rl, 
+					directional_scalar, 
+					directional_categorical, 
+					reduced_beginning_lr,
+					reduced_beginning_rl,
+					reduced_end_lr,
+					reduced_end_rl
+					]
+					
+	return return_list
 #-------------------------------------------------------------------#
 class PairsData(object):
 	
@@ -52,7 +96,7 @@ class Candidates(object):
 			self.association_dict = Loader.load_file(language + ".association.p")		
 	
 	#--------------------------------------------------------------#
-	def run(self, ngrams = (3,6), workers = 1, save = False):
+	def find(self, ngrams = (3,6), workers = 1, threshold = 10, save = False):
 	
 		files = self.Loader.list_input()
 		
@@ -62,7 +106,11 @@ class Candidates(object):
 		pool_instance.close()
 		pool_instance.join()
 		
-		candidates = merge_candidates(self)
+		#Now merge intermediate results
+		candidates = self.merge_candidates(self, threshold)
+		
+		#Save and then return
+		self.Loader.save_file(candidates, self.language + ".candidates.merged.p")		
 		
 		return candidates
 	#--------------------------------------------------------------#
@@ -81,7 +129,7 @@ class Candidates(object):
 				
 				#Get list of ngrams from line
 				candidates += self.ngrams_from_line(line, ngrams)
-		
+
 		#Count each candidate, get dictionary with candidate frequencies
 		candidates = ct.frequencies(candidates)
 		
@@ -93,7 +141,7 @@ class Candidates(object):
 		print(str(time.time() - starting)  + " " + str(len(candidates)))
 		
 		if save == True:
-			self.Loader.save_file(ngrams, filename + ".candidates.p")
+			self.Loader.save_file(candidates, filename + ".candidates.p")
 			return os.path.join(self.Loader.output_dir, filename + ".candidates.p")
 			
 		else:
@@ -212,7 +260,7 @@ class Candidates(object):
 		return best_key, best_value
 	#--------------------------------------------------------------------------------------------#	
 	
-	def merge_candidates(self, output_files):
+	def merge_candidates(self, output_files, threshold):
 		
 		candidates = []
 		output_files = self.Loader.list_output(type = "candidates")
@@ -224,7 +272,92 @@ class Candidates(object):
 		
 		#Merge
 		candidates = ct.merge_with(sum, [x for x in candidates])
-		print("\tTOTAL CANDIDATES: " + str(len(list(candidates.keys()))))
+		print("\tTOTAL CANDIDATES BEFORE PRUNING: " + str(len(list(candidates.keys()))))
+		
+		#Prune
+		above_threshold = lambda x: x > threshold
+		candidates = ct.valfilter(above_threshold, candidates)
+		print("\tTOTAL CANDIDATES AFTER PRUNING: " + str(len(list(candidates.keys()))))
 		
 		return candidates
+	#----------------------------------------------------------------------------------------------#
+	
+	def get_association(self, candidate_dict, save = False):
+	
+		#Initialize Association module
+		Assoc = Association(language = self.language, Loader = self.Loader)
+		
+		try:
+			self.association_dict = self.Loader.load_file(self.language + ".association.p")
+			
+		except Exception as e:
+			print(e)
+			print("Missing pairwise counts. Need to run Association.calculate_association() first")
+			sys.kill()
+		
+		#Process candidatess
+		starting = time.time()
+		results = [self.get_pairwise_lists(candidate) for candidate in candidate_dict.keys()]
+		print(str(len(list(candidate_dict.keys()))) + " candidates in " + str(time.time() - starting) + " seconds.")
+			
+		#Define the DataFrame columns
+		columns = ["candidate", "mean_lr", "mean_rl", "min_lr", "min_rl", "directional_scalar",
+					"directional_categorical", "reduced_beginning_lr", "reduced_beginning_rl",
+					"reduced_end_lr", "reduced_end_rl", "endpoint_lr", "endpoint_rl"]
+		
+		results = np.array(results)
+		print(results.shape)
+		
+		if save == True:
+			self.Loader.save_file(results, self.language + ".candidates_association.p")
+			
+		return results
+	#----------------------------------------------------------------------------------------------#
+		
+	def get_pairwise_lists(self, candidate):
+
+		lr_list = []	#Initiate list of LR association values
+		rl_list = []	#Initiate list of RL association values
+		
+		#Populate the pairwise value lists
+		for current_pair in ct.sliding_window(2, candidate):
+
+			lr_list.append(self.association_dict[current_pair]["LR"])
+			rl_list.append(self.association_dict[current_pair]["RL"])
+
+		#Send lists to class-external jitted function for processing
+		return_list = calculate_measures(np.array(lr_list), np.array(rl_list))
+		
+		#Check for end-point
+		try:
+			endpoint_lr = self.association_dict[(candidate[0], candidate[-1])]["LR"]
+			endpoint_rl = self.association_dict[(candidate[0], candidate[-1])]["RL"]
+			
+		except Exception as e:
+			endpoint_lr = 0.0
+			endpoint_rl = 0.0
+			
+		#Add Endpoint to return_list
+		return_list.append(endpoint_lr)
+		return_list.append(endpoint_rl)
+		
+		#Insert candidate at beginning
+		return_list.insert(0, candidate)
+		
+		#return_list contains the following items:
+		#--- candidate (representation, index) tuples
+		#--- mean_lr 
+		#--- mean_rl
+		#--- min_lr
+		#--- min_rl
+		#--- directional_scalar
+		#--- directional_categorical
+		#--- reduced_beginning_lr
+		#--- reduced_beginning_rl
+		#--- reduced_end_lr
+		#--- reduced_end_rl
+		#--- endpoint_lr
+		#--- endpoint_rl
+		
+		return return_list
 	#----------------------------------------------------------------------------------------------#

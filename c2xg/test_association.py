@@ -8,15 +8,15 @@ if __name__ == "__main__":
 	from modules.Loader import Loader
 	
 	#Set input and output paths
-	in_dir = os.path.join("..", "..", "..", "..", "!Corpora", "!Background Data", "eng")
-	out_dir = os.path.join("..", "..", "..", "..", "data", "Test")
+	in_dir = os.path.join("..", "..", "..", "..", "Test", "In")
+	out_dir = os.path.join("..", "..", "..", "..", "Test", "Out")
 	
 	#Initiate Loader and Association objects; all files in input_directory that end with ".txt" will be used
-	Load = Loader(in_dir, out_dir)
+	Load = Loader(in_dir, out_dir, language = "eng")
 	Association = Association(language = "eng", Loader = Load)
 
 	#Find ngrams, save results to files to support very large datasets
-	Association.find_ngrams(workers = 4)
+	Association.find_ngrams(workers = 10)
 
 	#Merge ngrams
 	ngrams = Association.merge_ngrams()

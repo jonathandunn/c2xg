@@ -6,13 +6,25 @@ from random import randint
 #The loader object handles all file access to enable local or S3 bucket support
 class Loader(object):
 
-	def __init__(self, input, output, s3 = False, s3_bucket = ""):
+	def __init__(self, input, output, language, s3 = False, s3_bucket = ""):
 	
 		#if using S3, input and output dirs are prefixes
-		self.input_dir = input
-		self.output_dir = output
+		self.input_dir = os.path.join(input, language)
+		self.output_dir = os.path.join(output, language)
 		self.s3 = s3
 		self.s3_bucket = s3_bucket
+		self.language = language
+		
+		#Check that directories exist
+		if s3 == False:
+			
+			if os.path.isdir(self.input_dir) == False:
+				os.makedirs(self.input_dir)
+				print("Creating input folder")
+			
+			if os.path.isdir(self.output_dir) == False:
+				os.makedirs(self.output_dir)
+				print("Creating output folder")
 			
 	#---------------------------------------------------------------#
 	

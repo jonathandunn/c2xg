@@ -15,7 +15,7 @@ if current_dir == "Utility":
 	os.chdir(os.path.join("..", "..", ".."))
 
 #Changes the generation of lexicon / dictionary used
-DICT_CONSTANT = ".DIM=500.SG=1.HS=1.ITER=25.p"
+DICT_CONSTANT = ".POS.2000dim.2000min.20iter.POS_Clusters.p"
 #-------------------------------------------------------------------------------------------#
 
 class Encoder(object):
@@ -55,16 +55,17 @@ class Encoder(object):
 		pos_list = ["PROPN", "SYM", "VERB", "DET", "CCONJ", "AUX", "ADJ", "INTJ", "SCONJ", "PRON", "NUM", "PUNCT", "ADV", "ADP", "X", "NOUN", "PART"]
 		self.pos_dict = {murmurhash3_32(pos, seed=0): pos for pos in pos_list}
 		
-		#Get semantic dict
+		#Get semantic dict, unless currently training those dicts
 		if word_classes == False:
+			
 			dictionary_file = os.path.join(".", "data", "dictionaries", language + DICT_CONSTANT)
 			with open(dictionary_file, "rb") as fo:
 				self.word_dict = pickle.load(fo)
 			
-			#UPDATE ONCE HAVE NEW DICTSs
-			self.domain_dict = {murmurhash3_32(key, seed=0): self.word_dict[key]["domain"] for key in self.word_dict.keys()}
+			self.domain_dict = {murmurhash3_32(key, seed=0): self.word_dict[key] for key in self.word_dict.keys()}
 			self.word_dict = {murmurhash3_32(key, seed=0): key for key in self.word_dict.keys()}
 			
+			#Build decoder
 			self.build_decoder()
 
 	#-----------------------------------------------------------------------------------#
@@ -107,7 +108,7 @@ class Encoder(object):
 			tk = jb.Tokenizer()
 			tk.initialize()
 			tk.lock = True
-				
+	
 		for line in self.Loader.read_file(file):
 			
 			#Tokenize zho
@@ -138,11 +139,11 @@ class Encoder(object):
 									
 			#Strip and reduce to max training length
 			line = line.lower().strip().lstrip()
-			
+
 			if word_classes == False:
 				line = self.r.tagRawSentenceHash(rawLine = line, DICT = self.DICT, word_dict = self.domain_dict)
 				#Array of tuples (LEX, POS, CAT)
-				
+
 			#For training word embeddings, just return the list
 			else:
 				line = self.r.tagRawSentenceGenSim(rawLine = line, DICT = self.DICT)
