@@ -1,26 +1,75 @@
 import time
 import os
 import cytoolz as ct
+import numpy as np
 from collections import defaultdict
 from functools import partial
 import multiprocessing as mp
-from modules.Encoder import Encoder
+from numba import jit
+
+try:
+	from modules.Encoder import Encoder
+except:
+	from c2xg.modules.Encoder import Encoder
+
+#-------------------------------------------------------------------#
+#The main calculation function is outside of the class for jitting
+
+@jit(nopython = True)
+def calculate_measures(lr_list, rl_list):
+
+	#Mean Delta-P
+	mean_lr = np.mean(lr_list)
+	mean_rl = np.mean(rl_list)
+	
+	#Min Delta-P
+	min_lr = np.amin(lr_list)
+	min_rl = np.amin(rl_list)
+	
+	#Directional: Scalar and Categorical
+	directional = np.subtract(lr_list, rl_list)
+	directional_scalar = np.sum(directional)
+	directional_categorical = min((directional > 0.0).sum(), (directional < 0.0).sum())
+	
+	#Beginning-Reduced Delta-P
+	reduced_beginning_lr = (np.sum(lr_list) - np.sum(lr_list[1:]))
+	reduced_beginning_rl = (np.sum(rl_list) - np.sum(rl_list[1:]))
+	
+	#End-Reduced Delta-P
+	reduced_end_lr = (np.sum(lr_list) - np.sum(lr_list[0:-1]))
+	reduced_end_rl = (np.sum(rl_list) - np.sum(rl_list[0:-1]))
+	
+	#Package and return
+	return_list = [mean_lr, 
+					mean_rl, 
+					min_lr, 
+					min_rl, 
+					directional_scalar, 
+					directional_categorical, 
+					reduced_beginning_lr,
+					reduced_beginning_rl,
+					reduced_end_lr,
+					reduced_end_rl
+					]
+					
+	return return_list
 
 #------------------------------------------------------------------#
 
 class Association(object):
 
-	def __init__(self, language, Loader):
+	def __init__(self, Loader):
 	
 		#Initialize Ingestor
-		self.language = language
-		self.Encoder = Encoder(language = language, Loader = Loader)
+		self.language = Loader.language
+		self.Encoder = Encoder(Loader = Loader)
 		self.Loader = Loader
 		
 	#--------------------------------------------------------------#
 	
 	def process_ngrams(self, filename, Encoder, save = False):
 
+		print("\t\tStarting " + filename)
 		#Initialize bigram dictionary
 		ngrams = defaultdict(int)
 		unigrams = defaultdict(int)
@@ -28,7 +77,7 @@ class Association(object):
 		starting = time.time()
 		total = 0
 
-		for line in Encoder.load(filename):
+		for line in Encoder.load_stream(filename):
 
 			total += len(line)
 
@@ -89,12 +138,13 @@ class Association(object):
 			return ngrams
 	#--------------------------------------------------------------------------------------------#
 
-	def find_ngrams(self, workers):
+	def find_ngrams(self, files = None, workers = 1):
 
 		print("Starting to find ngrams.")
 		starting = time.time()
 		
-		files = self.Loader.list_input()
+		if files == None:
+			files = self.Loader.list_input()
 		
 		#Multi-process#
 		pool_instance = mp.Pool(processes = workers, maxtasksperchild = 1)
@@ -109,11 +159,13 @@ class Association(object):
 		return output_files
 	#---------------------------------------------------------------------------------------------#
 	
-	def merge_ngrams(self):
+	def merge_ngrams(self, files = None):
 		
 		ngrams = []		#Initialize holding list
-		files = self.Loader.list_output(type = "ngrams")
-
+		
+		if files == None:
+			files = self.Loader.list_output(type = "ngrams")
+			
 		#Load
 		for dict_file in files:
 			ngrams.append(self.Loader.load_file(dict_file))
@@ -129,7 +181,7 @@ class Association(object):
 
 	def calculate_association(self, ngrams, save = False):
 	
-		print("Calculating association for " + str(len(list(ngrams.keys()))) + " pairs.")
+		print("\n\tCalculating association for " + str(len(list(ngrams.keys()))) + " pairs.")
 		association_dict = defaultdict(dict)
 		total = ngrams["TOTAL"]
 		starting = time.time()

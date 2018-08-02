@@ -2,13 +2,16 @@
 
 import os
 import sys
-os.chdir("../")
-sys.setrecursionlimit(100000)
-sys.path.append(os.path.abspath(""))
-os.chdir("./Utility")
-
 import re
-from Utility.Utils import getWordTag
+
+try:
+	os.chdir("../")
+	sys.setrecursionlimit(100000)
+	sys.path.append(os.path.abspath(""))
+	os.chdir("./Utility")
+	
+except:
+	from c2xg.modules.rdrpos_tagger.Utility.Utils import getWordTag
 
 def add2WordTagFreqDict(word, tag, inDict):
     if word not in inDict:
@@ -32,7 +35,7 @@ def createLexicon(corpusFilePath, fullLexicon):
     
     lines = open(corpusFilePath, "r").readlines()
     wordTagCounter = {}
-    for i in xrange(len(lines)):
+    for i in range(len(lines)):
         # print i
         pairs = lines[i].strip().replace("“", "''").replace("”", "''").replace("\"", "''").split()
         for pair in pairs:

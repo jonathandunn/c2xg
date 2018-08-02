@@ -5,62 +5,28 @@ import random
 import numpy as np
 import multiprocessing as mp
 from functools import partial
-
 from sklearn import metrics
 from gensim.models.word2vec import Word2Vec
-from modules.clustering.kmedoids import kMedoids
-from modules.Encoder import Encoder
+from sklearn.neighbors import kneighbors_graph
+from sklearn.cluster import AgglomerativeClustering
+from sklearn.neighbors import BallTree
 
-#Clustering takes place outside of the class itself
-def run_cluster(num_clusters, distance_matrix):
+try:
+	from modules.Encoder import Encoder
+	from modules.clustering.pyc_xmeans import xmeans
+	from modules.clustering.pyc_center_initializer import kmeans_plusplus_initializer
+except:
+	from c2xg.modules.Encoder import Encoder
+	from c2xg.modules.clustering.pyc_xmeans import xmeans
+	from c2xg.modules.clustering.pyc_center_initializer import kmeans_plusplus_initializer
 
-	starting = time.time()
-	
-	#Cluster
-	M, C = kMedoids(distance_matrix, num_clusters)
-		
-	#Initiate labels
-	labels = [0 for i in range(distance_matrix.shape[0])]
-
-	#Assign labels
-	for key in C.keys():
-		current_cluster = C[key]
-		for index in current_cluster:
-			labels[index] = key
-
-	#silhouette = metrics.silhouette_score(distance_matrix, labels, metric = "precomputed")
-	calinski = metrics.calinski_harabaz_score(distance_matrix, labels)
-	
-	print(str(num_clusters) + " clusters in " + str(time.time() - starting) + " seconds with Calinski-Harabaz = " + str(calinski))
-		
-	return num_clusters, labels, calinski
-#-----------------------------------------------------------------------------------------#
-
-#Cluster evaluation takes place outside the class itself
-def evaluate_clustering(results):
-
-	highest = 0.0
-	#Loop through results to find best clustering
-	for (i, labels, silhouette) in results:
-		
-		if silhouette > highest:
-			
-			print("New highest: " + str(silhouette))
-				
-			highest = silhouette
-			highest_i = i
-			highest_labels = labels
-			highest_silhouette = silhouette
-			
-	return highest_i, highest_labels, highest_silhouette
-#-----------------------------------------------------------------------------------------#
 
 class Word_Classes(object):
 
-	def __init__(self, language, Loader, use_pos = "POS"):
+	def __init__(self, Loader, use_pos = "POS"):
 	
-		self.language = language
-		self.Encoder = Encoder(language = language, Loader = Loader, word_classes = True)
+		self.language = Loader.language
+		self.Encoder = Encoder(Loader = Loader, word_classes = True)
 		self.Loader = Loader
 		self.use_pos = use_pos
 		
@@ -133,12 +99,65 @@ class Word_Classes(object):
 			
 		return model
 	#----------------------------------------------------------------------------------#
-
-	def build_clusters(self, model_file, nickname, workers = 1):
 	
-		#Set input file as nickname
-		self.nickname = nickname
+	def xmeans_clusters(self, word_vectors):
+	
+		#Initalize a k-means object and use it to extract centroids
+		print("Starting K-Means++ initializer.")
+		initial_centers = kmeans_plusplus_initializer(word_vectors, 5).initialize()
+		
+		print("Starting X-Means proper.")
+		xmeans_instance = xmeans(word_vectors, initial_centers, kmax = 500, ccore = False)
+		xmeans_instance.process()
+		clusters = xmeans_instance.get_clusters()
+			
+		#Get the end time and print how long the process took
+		end = time.time()
+		elapsed = end - start
+		print("Time taken for X Means clustering: " + str(elapsed) + " seconds.")
+		
+		return clusters
+	#----------------------------------------------------------------------------------#	
+	
+	def agglomerative_clusters(self, word_vectors):
+	
+		#Pre-calculate BallTree object
+		starting = time.time()
+		Ball_Tree = BallTree(word_vectors, leaf_size = 200, metric = "minkowski")
+		print("BallTree object in " + str(time.time() - starting))
+		
+		#Pre-calculate k_neighbors graph
+		starting = time.time()
+		connectivity_graph = kneighbors_graph(Ball_Tree, 
+						n_neighbors = 1, 
+						mode = "connectivity", 
+						metric = "minkowski", 
+						p = 2, 
+						include_self = False, 
+						n_jobs = workers
+						)
+		print("Pre-compute connectivity graph in " + str(time.time() - starting))
 
+		#Agglomerative clustering
+		starting = time.time()
+		Agl = AgglomerativeClustering(n_clusters = 100, 
+										affinity = "minkowski", 
+										connectivity = connectivity_graph, 
+										compute_full_tree = True, 
+										linkage = "average"
+										)
+		
+		Agl.fit(word_vectors)
+		print("Agglomerative clustering in " + str(time.time() - starting))
+		
+		clusters = Agl.labels_
+		
+		return clusters
+	#----------------------------------------------------------------------------------#
+	
+	def build_clusters(self, model_file, nickname, cluster_type = "xmeans", workers = 1):
+
+		#Load and prep word embeddings
 		if isinstance(model_file, str):
 			print("Loading model")	
 			model = gensim.models.Word2Vec.load(model_file)
@@ -147,73 +166,48 @@ class Word_Classes(object):
 		else:
 			model = model_file
 
-		print("Getting word vectors: ", end = "")
+		start = time.time()
+
+		print("Setting word vectors and number of clusters.")
 		word_vectors = model.wv
 		word_vectors = word_vectors.syn0
 		print(word_vectors.shape)
 		
-		#Get cosine distance matrix for clustering
-		starting = time.time()
-		distance_matrix = metrics.pairwise.pairwise_distances(word_vectors, Y = None, metric = "cosine", n_jobs = workers)
-		print("Distance matrix took: " + str(time.time() - starting))
-		
-		#Learning loop: Optimizations for number of clusters
-		num_clusters = [i for i in range(10,100)]
-		
-		pool_instance = mp.Pool(processes = workers, maxtasksperchild = 1)
-		results = pool_instance.map(partial(run_cluster, distance_matrix = distance_matrix), num_clusters, chunksize = 1)
-		pool_instance.close()
-		pool_instance.join()
-		
-		[print(x) for x in results]
-		sys.kill()
-		
-		#Use Silouhette score to choose n_clusters
-		n_clusters, highest_labels, highest_silhouette = evaluate_clustering(results)
-		
-		#Proceed with best clustering
-		clusters = highest_labels
-		
-		#Now create dictionaries of {words: cluster} pairs
-		write_dict = {}
-		write_pos_dict = {}
+		#Run relevant clustering algorithm
+		if cluster_type == "xmeans":
+			clusters = xmeans_clusters(word_vectors)
 			
-		#First, ignore POS tags
-		for i in range(len(clusters)):
+		elif cluster_type == "agglomerative":
+			clusters = agglomerative_clusters(word_vectors, workers)		
 		
-			word = model.wv.index2word[i]
-			cluster = clusters[i]
-			
-			write_dict[word] = cluster
-			
-		#Second, enforce consistency of tags within clusters
+		#Now convert clusters to word:cluster pairs
 		cluster_dict = {}
 		max_cluster = 0
 				
 		for i in range(len(clusters)):
-
-			word = model.wv.index2word[i]
-			cluster = clusters[i]
-			word_list = word.split("/")
-			pos = word_list[1]
+			for word in clusters[i]:
 						
-			if str(cluster) + pos in cluster_dict:
-				current_cluster = cluster_dict[str(cluster) + pos]
+				text = model.wv.index2word[word]
+				word_list = text.split("/")
+				pos = word_list[1]
+						
+				if str(i) + pos in cluster_dict:
+					current_cluster = cluster_dict[str(i) + pos]
 							
-			else:
-				cluster_dict[str(cluster) + pos] = max_cluster
-				max_cluster += 1
-						
-			write_pos_dict[word] = cluster_dict[str(cluster) + pos]
-		
+				else:
+					cluster_dict[str(i) + pos] = max_cluster
+					max_cluster += 1
+							
+				write_pos_dict[text] = cluster_dict[str(i) + pos]
+					
 		return write_dict, write_pos_dict
 		
 	#-------------------------------------------------------------------------------#
 	#Write clusters in readable comma separated format -----------------------------#
 
-	def write_clusters(self, input_clusters, output_file):
+	def write_clusters(self, input_clusters, nickname, output_file):
 
-		with codecs.open(os.path.join(self.Loader.output_dir, self.nickname + "." + output_file + ".Clusters.txt"), "w", encoding = "utf-8") as fw:
+		with codecs.open(os.path.join(self.Loader.output_dir, nickname + "." + output_file + ".Clusters.txt"), "w", encoding = "utf-8") as fw:
 
 			for key in list(set(sorted(input_clusters.values()))):
 					
@@ -222,5 +216,5 @@ class Word_Classes(object):
 							
 						fw.write(word + "," + str(key) + "\n")
 						
-		self.Loader.save_file(input_clusters, self.nickname + "." + output_file + ".Dict.p")
+		self.Loader.save_file(input_clusters, nickname + "." + output_file + ".Dict.p")
 	#-------------------------------------------------------------------------------#

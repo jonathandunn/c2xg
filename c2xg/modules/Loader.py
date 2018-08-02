@@ -31,18 +31,19 @@ class Loader(object):
 	def save_file(self, file, filename):
 	
 		if self.s3 == True:
-		
+			print("\t\tSaving " + filename + " to S3 as " + str(self.output_dir + "/" + filename))
+			
 			#Initialize boto3 client
 			import boto3
 			client = boto3.client("s3")
 		
 			#Write file to disk
 			temp_name = "temp." + str(randint(1,10000000)) + ".p"	#Have to avoid conflicts across cores
-			with open(os.path.join(self.output_dir, temp_name), "wb") as handle:
+			with open(os.path.join(temp_name), "wb") as handle:
 				pickle.dump(file, handle, protocol = pickle.HIGHEST_PROTOCOL)
 				
 			#Upload and delete
-			client.upload_file(temp_name, self.s3_bucket, filename)
+			client.upload_file(temp_name, self.s3_bucket, self.output_dir + "/" + filename)
 			os.remove(temp_name)
 		
 		else:
@@ -73,6 +74,14 @@ class Loader(object):
 		
 			for key in response["Contents"]:
 				files.append(key["Key"])
+				
+			new_files = []
+			for file in files:
+				file = file.split("/")
+				file = file[-1]
+				new_files.append(file)
+			
+			files = new_files
 			
 		#If reading local file	
 		else:
@@ -101,11 +110,21 @@ class Loader(object):
 							Delimiter = "/",
 							Prefix = self.output_dir + "/"
 							)
-		
+
 			for key in response["Contents"]:
-				if type in key:
-					files.append(key["Key"])
+				files.append(key["Key"])
 			
+			new_files = []
+			for file in files:
+				file = file.split("/")
+				file = file[-1]
+				new_files.append(file)
+			
+			files = new_files
+				
+			if type != "":
+				files = [file for file in files if type in file]
+				
 		#If reading local file	
 		else:
 		
@@ -131,7 +150,8 @@ class Loader(object):
 	def load_file(self, filename):
 	
 		if self.s3 == True:
-		
+			
+			filename = self.output_dir + "/" + filename
 			#Initialize boto3 client
 			import boto3
 			client = boto3.client("s3")
@@ -179,7 +199,9 @@ class Loader(object):
 	
 		#Read from S3 bucket
 		if self.s3 == True:
-		
+			
+			file = self.input_dir + "/" + file
+			
 			#Initialize boto3 client
 			import boto3
 			client = boto3.client("s3")
@@ -210,21 +232,58 @@ class Loader(object):
 	
 	def clean(self, type = ""):
 	
+		print("\nNow cleaning up after learning cycle.")
 		files_to_remove = []
 		
-		for filename in os.listdir(self.output_dir):
-		
-			if type == "ngrams" or type == "":
-				if "ngrams" in filename:
-					files_to_remove.append(filename)
-			
-			elif type == "association" or type == "":
-				if "association" in filename:
-					files_to_remove.append(filename)
-			
-			elif type == "candidates" or type == "":
-				if "candidates" in filename:
-					files_to_remove.append(filename)
+		#First, cleaning method if using local data
+		if self.s3 == False:
+			for filename in os.listdir(self.output_dir):
+				filename = self.output_dir + "/" + filename
+				if type == "ngrams" or type == "":
+					if "ngrams" in filename:
+						files_to_remove.append(filename)
+				
+				elif type == "association" or type == "":
+					if "association" in filename:
+						files_to_remove.append(filename)
+				
+				elif type == "candidates" or type == "":
+					if "candidates" in filename:
+						files_to_remove.append(filename)
+						
+			for file in files_to_remove:
+				if "Final_Grammar" not in file:
+					print("\t\tRemoving " + file)
+					os.remove(os.path.join(self.output_dir, file))
 					
-		for file in files_to_remove:
-			os.remove(os.path.join(self.output_dir, file))		
+		#Second, cleaning method if using S3 bucket
+		if self.s3 == True:
+		
+			#Initialize boto3 client
+			import boto3
+			client = boto3.client("s3")
+			
+			#Get files in bucket
+			files = self.list_output()
+			
+			for file in files:
+				
+				if type == "ngrams" or type == "":
+					if "ngrams" in filename:
+						files_to_remove.append(filename)
+				
+				elif type == "association" or type == "":
+					if "association" in filename:
+						files_to_remove.append(filename)
+				
+				elif type == "candidates" or type == "":
+					if "candidates" in filename:
+						files_to_remove.append(filename)
+						
+			for file in files_to_remove:
+				if "Final_Grammar" not in file:
+					print("\t\tRemoving " + file)					
+					client.delete_object(Bucket = self.s3_bucket, Key = file)
+
+	#---------------------------------------------------------------#
+			

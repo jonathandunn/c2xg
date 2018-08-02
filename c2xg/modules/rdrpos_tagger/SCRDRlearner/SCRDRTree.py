@@ -1,8 +1,13 @@
-# -*- coding: utf-8 -*-
-
-from modules.rdrpos_tagger.SCRDRlearner.Node import Node
-from modules.rdrpos_tagger.SCRDRlearner.Object import FWObject
 import codecs
+import os
+
+try:
+	from modules.rdrpos_tagger.SCRDRlearner.Node import Node
+	from modules.rdrpos_tagger.SCRDRlearner.Object import FWObject
+
+except:
+	from c2xg.modules.rdrpos_tagger.SCRDRlearner.Node import Node
+	from c2xg.modules.rdrpos_tagger.SCRDRlearner.Object import FWObject
 
 class SCRDRTree:
     """
@@ -37,8 +42,13 @@ class SCRDRTree:
         currentNode = self.root
         currentDepth = 0
         
-        rulesFile = codecs.open(rulesFilePath, "r", encoding = "utf-8")
-        lines = rulesFile.readlines()
+        try:
+            rulesFile = codecs.open(rulesFilePath, "r", encoding = "utf-8")
+            lines = rulesFile.readlines()
+        except:
+            rulesFilePath = os.path.join("..", "c2xg", "c2xg", rulesFilePath)
+            rulesFile = codecs.open(rulesFilePath, "r", encoding = "utf-8")
+            lines = rulesFile.readlines()
         
         for i in range(1, len(lines)):
             line = lines[i]
