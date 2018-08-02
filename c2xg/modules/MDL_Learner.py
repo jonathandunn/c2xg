@@ -120,7 +120,7 @@ class MDL_Learner(object):
 
 	#---------------------------------------------------------------------------
 	
-	def get_mdl_data(self, test_files, workers = 1):
+	def get_mdl_data(self, test_files, workers = 1, learn_flag = True):
 
 		#No need to reencode the test set many times
 		starting = time.time()
@@ -130,6 +130,7 @@ class MDL_Learner(object):
 		#Get {construction: indexes, matches} dictionary
 		starting = time.time()
 		print("\tPrepping MDL search with " + str(len(self.candidates)) + " total candidates.")
+		
 		self.candidates, self.indexes, self.matches, vector_list = self.Parser.parse_batch_mdl(lines, self.candidates, freq_threshold = self.freq_threshold, workers = workers)
 		print("\tParsed " + str(len(lines)) + " words with " + str(len(self.candidates)) + " constructions in " + str(time.time() - starting) + " seconds.")
 
@@ -152,9 +153,10 @@ class MDL_Learner(object):
 		print("\tAdded encoding costs in " + str(time.time() - starting))
 		
 		#Prune association vectors to include only current candidates
-		starting = time.time()
-		self.vectors = self.vectors[vector_list,:]
-		print("\tReduced association vectors to freq. threshold candidates in " + str(time.time() - starting))		
+		if learn_flag == True:
+			starting = time.time()
+			self.vectors = self.vectors[vector_list,:]
+			print("\tReduced association vectors to freq. threshold candidates in " + str(time.time() - starting))		
 
 	#---------------------------------------------------------------------------
 	
@@ -320,32 +322,55 @@ class MDL_Learner(object):
 	def evaluate_subset(self, subset):
 	
 		#External call to looping function
-		l1_cost, l2_match_cost = get_subset(self.candidates[subset], 
-												self.costs[subset], 
-												self.matches[subset], 
-												self.pointers[subset]
-												)
+		if subset == False:
+			l1_cost, l2_match_cost = get_subset(self.candidates, 
+													self.costs, 
+													self.matches, 
+													self.pointers
+													)
+													
+		else:
+			l1_cost, l2_match_cost = get_subset(self.candidates[subset], 
+													self.costs[subset], 
+													self.matches[subset], 
+													self.pointers[subset]
+													)
 		
 		#Find unencoded indexes
-		unencoded_indexes = list(ct.concat([self.indexes[i] for i in subset]))
-		unencoded_indexes = self.max_index - len(list(ct.unique(unencoded_indexes)))
+		if subset == False:
+			unencoded_indexes = list(ct.concat([self.indexes[i] for i in range(len(self.indexes))]))
+			unencoded_indexes = self.max_index - len(list(ct.unique(unencoded_indexes)))
+		
+		else:
+			unencoded_indexes = list(ct.concat([self.indexes[i] for i in subset]))
+			unencoded_indexes = self.max_index - len(list(ct.unique(unencoded_indexes)))
 
 		#Use unencoded indexes to get regret cost
-		unencoded_cost = -math.log2(float(1.0/(unencoded_indexes + len(subset))))
-		l2_regret_cost = unencoded_cost * unencoded_indexes
+		if subset == False:
+			unencoded_cost = -math.log2(float(1.0/(unencoded_indexes)))
+			l2_regret_cost = unencoded_cost * unencoded_indexes
+
+		else:
+			unencoded_cost = -math.log2(float(1.0/(unencoded_indexes + len(subset))))
+			l2_regret_cost = unencoded_cost * unencoded_indexes
 		
 		#Total all terms
 		total_mdl = l1_cost + l2_match_cost + l2_regret_cost
 				
 		#DEBUGGING
-		# print("\t\tMDL: " + str(total_mdl), end = "\t")
-		# print(" in " + str(time.time() - starting) + " seconds", end = "\t")
-		# print(" with " + str(len(self.candidates[subset])) + " constructions.")
-		# print("L1 Cost: " + str(l1_cost), end = "\t")
-		# print("L2 Match Cost: " + str(l2_match_cost), end = "\t")
-		# print("L2 Regret Cost: " + str(l2_regret_cost), end = "\t")
-		# print("Encoded: " + str(self.max_index - unencoded_indexes) , end = "\t")
-		# print("Unencoded: " + str(unencoded_indexes))
+		print("\t\tMDL: " + str(total_mdl))
+		print("\t\tL1 Cost: " + str(l1_cost))
+		print("\t\tL2 Match Cost: " + str(l2_match_cost))
+		print("\t\tL2 Regret Cost: " + str(l2_regret_cost))
+		print("\t\tEncoded: " + str(self.max_index - unencoded_indexes))
+		print("\t\tUnencoded: " + str(unencoded_indexes))
+		
+		#Calculate baseline
+		if subset == False:
+			baseline_cost_per = -math.log2(float(1.0/self.max_index))
+			baseline_mdl = baseline_cost_per * self.max_index
+			print("\t\tBaseline: " + str(baseline_mdl))
+			print("\t\tRatio: " + str(total_mdl/baseline_mdl))		
 		
 		return total_mdl
 		

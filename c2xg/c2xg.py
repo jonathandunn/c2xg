@@ -4,23 +4,24 @@ import pickle
 from collections import defaultdict
 
 #Depending on usage, may be importing from the same package
-try:
-	from modules.Encoder import Encoder
-	from modules.Loader import Loader
-	from modules.Parser import Parser
-	from modules.Association import Association
-	from modules.Candidates import Candidates
-	from modules.MDL_Learner import MDL_Learner
-	
+#try:
+from modules.Encoder import Encoder
+from modules.Loader import Loader
+from modules.Parser import Parser
+from modules.Association import Association
+from modules.Candidates import Candidates
+from modules.MDL_Learner import MDL_Learner
+
 #Or from idNet package
-except:
-	from c2xg.modules.Encoder import Encoder
-	from c2xg.modules.Loader import Loader
-	from c2xg.modules.Parser import Parser
-	from c2xg.modules.Association import Association
-	from c2xg.modules.Candidates import Candidates
-	from c2xg.modules.MDL_Learner import MDL_Learner
-	os.chdir(os.path.join(".", "c2xg"))
+# except:
+
+	# from c2xg.modules.Encoder import Encoder
+	# from c2xg.modules.Loader import Loader
+	# from c2xg.modules.Parser import Parser
+	# from c2xg.modules.Association import Association
+	# from c2xg.modules.Candidates import Candidates
+	# from c2xg.modules.MDL_Learner import MDL_Learner
+	# os.chdir(os.path.join(".", "c2xg"))
 
 class C2xG(object):
 
@@ -63,6 +64,19 @@ class C2xG(object):
 				self.model = None
 			
 		self.n_features = len(self.model)
+		
+	#-------------------------------------------------------------------------------
+	
+	def eval_mdl(self, files, workers):
+	
+		print("Initiating MDL evaluation: " + str(files))
+		
+		for file in files:
+			print("\tStarting " + file)
+			MDL = MDL_Learner(self.Load, self.Encode, self.Parse, freq_threshold = 10, vectors = {"na": 0}, candidates = self.model)
+			MDL.get_mdl_data([file], workers = workers, learn_flag = False)
+			current_mdl = MDL.evaluate_subset(subset = False)
+	
 		
 	#-------------------------------------------------------------------------------
 		
