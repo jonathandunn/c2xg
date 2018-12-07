@@ -10,6 +10,7 @@ from modules.Loader import Loader
 from modules.Parser import Parser
 from modules.Association import Association
 from modules.Candidates import Candidates
+from modules.Candidates import find_candidates
 from modules.MDL_Learner import MDL_Learner
 
 #Or from idNet package
@@ -133,7 +134,7 @@ class C2xG(object):
 			
 	#-------------------------------------------------------------------------------
 		
-	def learn(self, nickname, cycles = 1, cycle_size = (1, 5, 20), ngram_range = (3,6), freq_threshold = 10, turn_limit = 10, workers = 1):
+	def learn(self, nickname, cycles = 1, cycle_size = (1, 5, 20), ngram_range = (3,6), freq_threshold = 10, turn_limit = 10, workers = 1, states = None):
 	
 		self.nickname = nickname
 
@@ -148,6 +149,11 @@ class C2xG(object):
 		if self.model_state_file in loader_files:
 			print("Resuming learning state.")
 			self.progress_dict, self.data_dict = self.Load.load_file(self.model_state_file)
+			
+			if states != None:
+				print("Manual state change!")
+				for state in states:
+					self.progress_dict[state[0]][state[1]] = state[2]
 			
 		else:
 			print("Initializing learning state.")
@@ -213,13 +219,17 @@ class C2xG(object):
 						
 				else:
 					print("\tLoading association_dict.")
-					association_dict = self.Load.load_file(nickname + ".Cycle-" + str(cycle) + ".Association_Dict.p")
+					self.association_dict = self.Load.load_file(nickname + ".Cycle-" + str(cycle) + ".Association_Dict.p")
 					
 				#-----------------#
 				#CANDIDATE STAGE
 				#-----------------#	
-				if self.progress_dict[cycle]["Candidate_State"] != "Complete":
 				
+				if self.progress_dict[cycle]["Candidate_State"] != "Complete":
+	
+					print("Initializing Candidates module")
+					C = Candidates(self.language, self.Load, self.association_dict)
+					
 					#Check which files have been completed
 					if self.progress_dict[cycle]["Candidate_State"] == "None":
 						check_files = self.Load.list_output(type = "candidates")
@@ -236,14 +246,13 @@ class C2xG(object):
 						#If remaining candidate files, process them
 						if len(self.progress_dict[cycle]["Candidate"]) > 0:
 							print("\n\tNow processing remaining files: " + str(len(self.progress_dict[cycle]["Candidate"])))
-							self.Candidates.find(ngrams = ngram_range,
-													workers = workers,
-													files = self.progress_dict[cycle]["Candidate"]
-													)
-																
+							
+							for file in self.progress_dict[cycle]["Candidate"]:
+								C.process_file(file)
+							
 						self.progress_dict[cycle]["Candidate_State"] = "Merge"
 						self.Load.save_file((self.progress_dict, self.data_dict), self.model_state_file)
-					
+
 					#Merage and Save candidates
 					if self.progress_dict[cycle]["Candidate_State"] == "Merge":
 						output_files = [filename + ".candidates.p" for filename in self.data_dict[cycle]["Candidate"]]

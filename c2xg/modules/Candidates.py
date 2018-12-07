@@ -7,6 +7,11 @@ import cytoolz as ct
 import multiprocessing as mp
 from functools import partial
 from numba import jit
+from collections import defaultdict
+from collections import deque
+import itertools
+import operator
+import difflib
 
 try:
 	from modules.Encoder import Encoder
@@ -18,49 +23,24 @@ except:
 	from c2xg.modules.Association import calculate_measures
 
 #--------------------------------------------------------------#
+def find_candidates(Loader, Encoder, language, workers = 1, files = "", save = True, association_dict = None):
 
-def process_file(filename, ngrams, Encoder, Loader, save = False):
+	if files == "":
+		files = Loader.list_input()
+		
+	print("Initializing module")
+	C = Candidates(language, Loader, association_dict)
 
-	starting = time.time()
-	candidates = []
+	print("Starting multi-process")
+	#Multi-process#
+	pool_instance = mp.Pool(processes = workers, maxtasksperchild = 1)		
+	pool_instance.map(partial(C.process_file), files, chunksize = 1)
+	pool_instance.close()
+	pool_instance.join()
 		
-	for line in Encoder.load_stream(filename):
-		
-		if len(line) > 2:
-			
-			#Get one-dimensional representation using the "best" version of each word (LEX, POS, CAT)
-			line = represent_line(line)
-				
-			#Get list of ngrams from line
-			candidates += ngrams_from_line(line, ngrams)
-
-	#Count each candidate, get dictionary with candidate frequencies
-	candidates = ct.frequencies(candidates)
-		
-	#Reduce nonce candidates
-	above_zero = lambda x: x > 2
-	candidates = ct.valfilter(above_zero, candidates)		
-		
-	#Print time and number of remaining candidates
-	print("\t" + str(len(candidates)) + " candidates in " + str(time.time() - starting) + " seconds.")
-		
-	if save == True:
-		Loader.save_file(candidates, filename + ".candidates.p")
-		return os.path.join(Loader.output_dir, filename + ".candidates.p")
-			
-	else:
-		return candidates			
+	return
+#--------------------------------------------------------------#	
 #--------------------------------------------------------------#
-	
-def ngrams_from_line(line, ngrams):
-		
-	candidates = []	#Initialize candidate list
-		
-	for window_size in range(ngrams[0], ngrams[1]+1):
-		candidates += [x for x in ct.sliding_window(window_size, line)]
-			
-	return candidates
-#---------------------------------------------------------------#
 	
 def represent_line(original_line):
 	
@@ -171,30 +151,195 @@ class Candidates(object):
 		self.language = language
 		self.Encoder = Encoder(Loader = Loader)
 		self.Loader = Loader
+		self.delta_threshold = 0.05
+		self.candidate_scores = {}
+		self.search_monitor = deque(maxlen = 20)
 		
 		if association_dict != "":
 			self.association_dict = association_dict
 	
-	#--------------------------------------------------------------#
-	def find(self, ngrams = (3,6), workers = 1, files = "", save = True):
-	
-		if files == "":
-			files = self.Loader.list_input()
+	#------------------------------------------------------------------
+	def process_file(self, filename):
 		
-		print("Starting multi-process")
+		candidates = []
+		starting = time.time()
+		
+		for line in self.Encoder.load_stream(filename):
 
-		#Multi-process#
-		pool_instance = mp.Pool(processes = workers, maxtasksperchild = 1)
-		pool_instance.map(partial(process_file, 
-									ngrams = ngrams, 
-									Encoder = self.Encoder, 
-									Loader = self.Loader, 
-									save = True
-									), files, chunksize = 1)
-		pool_instance.close()
-		pool_instance.join()
+			if len(line) > 2:
+				
+				#Get one-dimensional representation using the "best" version of each word (LEX, POS, CAT)
+				#line = represent_line(line)
+				#candidates += ngrams_from_line(line, ngrams)
+				
+				#Beam Search extraction
+				candidates += self.beam_search(line)
+				
+		#Count each candidate, get dictionary with candidate frequencies
+		candidates = ct.frequencies(candidates)
+			
+		#Reduce nonce candidates
+		above_zero = lambda x: x > 2
+		candidates = ct.valfilter(above_zero, candidates)		
+			
+		#Print time and number of remaining candidates
+		print("\t" + str(len(candidates)) + " candidates in " + str(time.time() - starting) + " seconds.")
+			
+		if save == True:
+			self.Loader.save_file(candidates, filename + ".candidates.p")
+			return os.path.join(self.Loader.output_dir, filename + ".candidates.p")
+				
+		else:
+			return candidates
+	#--------------------------------------------------------------#
+	
+	def beam_search(self, line):
+
+		#Initialize empty candidate stack
+		self.candidate_stack = defaultdict(dict)
+		candidates = []
+		
+		#Loop left-to-right across the line
+		for i in range(len(line)):
+
+			#Start path from each of the current slot-constraints
+			for current_start in [(1, line[i][0]), (2, line[i][1]), (2, line[i][2])]:
+
+				#Recursive search from each available path
+				self.recursive_beam(current_start, line, i, len(line))
+				
+		#Evaluate candidate stack
+		for index in self.candidate_stack.keys():
+			top_score = 0.0
+			for candidate in self.candidate_stack[index].keys():
+				if self.candidate_stack[index][candidate] > top_score:
+					top_score = self.candidate_stack[index][candidate]
+					top_candidate = candidate
+					
+			candidates.append(top_candidate)
+		
+		#Horizontal pruning
+		to_pop = []
+		for i in range(len(candidates)):
+			for j in range(len(candidates)):
+				if i != j and j > i:
+					candidate1 = candidates[i]
+					candidate2 = candidates[j]
+					
+					s = difflib.SequenceMatcher(None, candidate1, candidate2)
+					largest = max([x[2] for x in s.get_matching_blocks()])
+					
+					if largest > 2:
+						shortest = min(len(candidate1), len(candidate2))
+						
+						if float(largest / shortest) < 0.75:
+							score1 = self.candidate_scores[candidate1]
+							score2 = self.candidate_scores[candidate2]
+							
+							if score1 < score2:
+								if candidate1 not in to_pop:
+									to_pop.append(candidate1)
+							elif candidate2 not in to_pop:
+								to_pop.append(candidate2)
+		
+		candidates = [x for x in candidates if x not in to_pop]
+	
+		return candidates
+	#--------------------------------------------------------------#
+	
+	def recursive_beam(self, previous_start, line, i, line_length):
+
+		go = False
+		
+		if len(previous_start) < 2:
+			go = True
+			
+		if self.search_monitor.count(previous_start[0:2]) < 19:
+			go = True
+			
+			
+		if go == True:
+			self.search_monitor.append(previous_start[0:2])
+			#Progress down the line
+			i += 1
+
+			#Stop at the end
+			if i < line_length:
+				
+				#For each available next path
+				for start in [(1, line[i][0]), (2, line[i][1]), (3, line[i][2])]:
+					
+					#Create larger path
+					try:
+						previous_start = list(ct.concat(previous_start))
+
+					except:
+						previous_start = previous_start
+						
+					current_path = list(ct.concat([previous_start, start]))
+					current_path = tuple(ct.partition(2, current_path))
+					
+					if len(current_path) > 2:
+						test_path = current_path[-2:]
+						current_dict = self.association_dict[test_path]
+							
+						if current_dict != {}:
+									
+							delta_p = max(current_dict["LR"], current_dict["RL"])
+								
+							if delta_p > self.delta_threshold:
+								self.recursive_beam(current_path, line, i, line_length)
+															
+							#This is the end of a candidate sequence
+							else:
+								#Has to be at least 3 slots
+								if len(current_path) > 3:
+										
+									#Remove the bad part
+									current_path = current_path[0:-1]
+									
+									#Get score if not cached
+									if current_path not in self.candidate_scores:
+										self.get_score(current_path)
+
+									#Add to candidate_stack
+									self.candidate_stack[i - len(current_path) + 1][current_path] = self.candidate_scores[current_path]
+
+					else:
+						current_dict = self.association_dict[current_path]
+
+						if current_dict != {}:
+							delta_p = max(current_dict["LR"], current_dict["RL"])
+								
+							if delta_p > self.delta_threshold:
+								self.recursive_beam(current_path, line, i, line_length)
+								
+			return
+	#--------------------------------------------------------------#
+	
+	def get_score(self, current_candidate):
+	
+		total_score = 0.0
+		
+		for pair in ct.sliding_window(2, current_candidate):
+		
+			current_dict = self.association_dict[pair]
+			current_score = max(current_dict["RL"], current_dict["LR"])
+			total_score += current_score
+	
+		self.candidate_scores[current_candidate] = total_score
 		
 		return
+	#--------------------------------------------------------------#
+	
+	def ngrams_from_line(line, ngrams):
+			
+		candidates = []	#Initialize candidate list
+			
+		for window_size in range(ngrams[0], ngrams[1]+1):
+			candidates += [x for x in ct.sliding_window(window_size, line)]
+				
+		return candidates
 	#--------------------------------------------------------------#
 	
 	def merge_candidates(self, output_files, threshold):
