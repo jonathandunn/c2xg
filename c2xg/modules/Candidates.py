@@ -9,8 +9,6 @@ from functools import partial
 from numba import jit
 from collections import defaultdict
 from collections import deque
-import itertools
-import operator
 import difflib
 
 try:
@@ -152,21 +150,24 @@ class Candidates(object):
 		self.Encoder = Encoder(Loader = Loader)
 		self.Loader = Loader
 		self.delta_threshold = 0.05
-		self.candidate_scores = {}
 		self.search_monitor = deque(maxlen = 20)
 		
 		if association_dict != "":
 			self.association_dict = association_dict
 	
 	#------------------------------------------------------------------
-	def process_file(self, filename):
+	def process_file(self, filename, save = True):
 		
 		candidates = []
 		starting = time.time()
+		temp_counter = 0
 		
 		for line in self.Encoder.load_stream(filename):
 
 			if len(line) > 2:
+				
+				#temp_counter += 1
+				#print(temp_counter)
 				
 				#Get one-dimensional representation using the "best" version of each word (LEX, POS, CAT)
 				#line = represent_line(line)
@@ -196,7 +197,7 @@ class Candidates(object):
 	def beam_search(self, line):
 
 		#Initialize empty candidate stack
-		self.candidate_stack = defaultdict(dict)
+		self.candidate_stack = defaultdict(list)
 		candidates = []
 		
 		#Loop left-to-right across the line
@@ -211,9 +212,10 @@ class Candidates(object):
 		#Evaluate candidate stack
 		for index in self.candidate_stack.keys():
 			top_score = 0.0
-			for candidate in self.candidate_stack[index].keys():
-				if self.candidate_stack[index][candidate] > top_score:
-					top_score = self.candidate_stack[index][candidate]
+			for candidate in self.candidate_stack[index]:
+				current_score = self.get_score(candidate)
+				if current_score > top_score:
+					top_score = current_score
 					top_candidate = candidate
 					
 			candidates.append(top_candidate)
@@ -233,8 +235,8 @@ class Candidates(object):
 						shortest = min(len(candidate1), len(candidate2))
 						
 						if float(largest / shortest) < 0.75:
-							score1 = self.candidate_scores[candidate1]
-							score2 = self.candidate_scores[candidate2]
+							score1 = self.get_score(candidate1)
+							score2 = self.get_score(candidate2)
 							
 							if score1 < score2:
 								if candidate1 not in to_pop:
@@ -243,7 +245,7 @@ class Candidates(object):
 								to_pop.append(candidate2)
 		
 		candidates = [x for x in candidates if x not in to_pop]
-	
+
 		return candidates
 	#--------------------------------------------------------------#
 	
@@ -254,7 +256,7 @@ class Candidates(object):
 		if len(previous_start) < 2:
 			go = True
 			
-		if self.search_monitor.count(previous_start[0:2]) < 19:
+		if self.search_monitor.count(previous_start[0:2]) < 20:
 			go = True
 			
 			
@@ -298,12 +300,8 @@ class Candidates(object):
 									#Remove the bad part
 									current_path = current_path[0:-1]
 									
-									#Get score if not cached
-									if current_path not in self.candidate_scores:
-										self.get_score(current_path)
-
 									#Add to candidate_stack
-									self.candidate_stack[i - len(current_path) + 1][current_path] = self.candidate_scores[current_path]
+									self.candidate_stack[i - len(current_path) + 1].append(current_path)
 
 					else:
 						current_dict = self.association_dict[current_path]
@@ -326,10 +324,8 @@ class Candidates(object):
 			current_dict = self.association_dict[pair]
 			current_score = max(current_dict["RL"], current_dict["LR"])
 			total_score += current_score
-	
-		self.candidate_scores[current_candidate] = total_score
 		
-		return
+		return total_score
 	#--------------------------------------------------------------#
 	
 	def ngrams_from_line(line, ngrams):
