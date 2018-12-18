@@ -9,6 +9,7 @@ from functools import partial
 from numba import jit
 from collections import defaultdict
 from collections import deque
+import operator
 import difflib
 
 try:
@@ -143,38 +144,63 @@ class PairsData(object):
 #------------------------------------------------------------------#
 class Candidates(object):
 
-	def __init__(self, language, Loader, association_dict = ""):
+	def __init__(self, language, Loader, delta_threshold, workers = 1, association_dict = ""):
 	
 		#Initialize Ingestor
 		self.language = language
 		self.Encoder = Encoder(Loader = Loader)
 		self.Loader = Loader
-		self.delta_threshold = 0.05
-		self.search_monitor = deque(maxlen = 20)
+		self.delta_threshold = delta_threshold
+		self.search_monitor = deque(maxlen = 50)
+		self.workers = workers
 		
 		if association_dict != "":
 			self.association_dict = association_dict
 	
 	#------------------------------------------------------------------
+	def delta_grid_search(self, files, CxG, workers):
+	
+		candidate_file = files[0]
+		test_file = files[1]
+		result_dict = {}
+		
+		delta_thresholds = [0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 1.0]
+		
+		for threshold in delta_thresholds:
+			
+			candidates = self.process_file(candidate_file, save = False)
+			CxG.model = candidates
+			mdl_score = CxG.eval_mdl([test_file], workers = workers, report = True)
+			result_dict[threshold] = mdl_score
+			
+		#Get threshold with best score
+		best = min(result_dict.items(), key=operator.itemgetter(1))[0]
+		
+		return best
+
+	#------------------------------------------------------------------
+	
 	def process_file(self, filename, save = True):
 		
 		candidates = []
 		starting = time.time()
-		temp_counter = 0
-		
-		for line in self.Encoder.load_stream(filename):
 
-			if len(line) > 2:
+		lines = self.Encoder.load_batch(filename):
+
+		#Get one-dimensional representation using the "best" version of each word (LEX, POS, CAT)
+		#line = represent_line(line)
+		#candidates += ngrams_from_line(line, ngrams)
 				
-				#temp_counter += 1
-				#print(temp_counter)
-				
-				#Get one-dimensional representation using the "best" version of each word (LEX, POS, CAT)
-				#line = represent_line(line)
-				#candidates += ngrams_from_line(line, ngrams)
-				
-				#Beam Search extraction
-				candidates += self.beam_search(line)
+		#Beam Search extraction, multi-process
+		pool_instance = mp.Pool(processes = self.workers, maxtasksperchild = 1)		
+		candidates = pool_instance.map(self.beam_search, lines, chunksize = 100)
+		pool_instance.close()
+		pool_instance.join()
+		
+		print(candidates)
+		candidates = ct.merge(candidates)
+		print(candidates)
+		sys.kill()
 				
 		#Count each candidate, get dictionary with candidate frequencies
 		candidates = ct.frequencies(candidates)
@@ -256,7 +282,7 @@ class Candidates(object):
 		if len(previous_start) < 2:
 			go = True
 			
-		if self.search_monitor.count(previous_start[0:2]) < 20:
+		if self.search_monitor.count(previous_start[0:2]) < 40:
 			go = True
 			
 			

@@ -346,13 +346,17 @@ class MDL_Learner(object):
 			unencoded_indexes = self.max_index - len(list(ct.unique(unencoded_indexes)))
 
 		#Use unencoded indexes to get regret cost
-		if subset == False:
-			unencoded_cost = -math.log2(float(1.0/(unencoded_indexes)))
-			l2_regret_cost = unencoded_cost * unencoded_indexes
+		if unencoded_indexes > 0:
+			if subset == False:
+				unencoded_cost = -math.log2(float(1.0/(unencoded_indexes)))
+				l2_regret_cost = unencoded_cost * unencoded_indexes
 
+			else:
+				unencoded_cost = -math.log2(float(1.0/(unencoded_indexes + len(subset))))
+				l2_regret_cost = unencoded_cost * unencoded_indexes
+		
 		else:
-			unencoded_cost = -math.log2(float(1.0/(unencoded_indexes + len(subset))))
-			l2_regret_cost = unencoded_cost * unencoded_indexes
+			l2_regret_cost = 0
 		
 		#Total all terms
 		total_mdl = l1_cost + l2_match_cost + l2_regret_cost

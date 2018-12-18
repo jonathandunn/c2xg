@@ -16,7 +16,6 @@ if __name__ == "__main__":
 				freq_threshold = 200,
 				turn_limit = 10,
 				workers = 4,
-				states = [(1, "Candidate_State", "None"), (1, "Candidate", ["eng.88.txt", "eng.89.txt"])]
 				)
 				
 # import pickle

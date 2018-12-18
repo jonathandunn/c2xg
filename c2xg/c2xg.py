@@ -68,7 +68,7 @@ class C2xG(object):
 		
 	#-------------------------------------------------------------------------------
 	
-	def eval_mdl(self, files, workers):
+	def eval_mdl(self, files, workers, report = False):
 	
 		print("Initiating MDL evaluation: " + str(files))
 		
@@ -77,7 +77,9 @@ class C2xG(object):
 			MDL = MDL_Learner(self.Load, self.Encode, self.Parse, freq_threshold = 10, vectors = {"na": 0}, candidates = self.model)
 			MDL.get_mdl_data([file], workers = workers, learn_flag = False)
 			current_mdl = MDL.evaluate_subset(subset = False)
-	
+			
+		if report == True:
+			return current_mdl	
 		
 	#-------------------------------------------------------------------------------
 		
@@ -228,10 +230,24 @@ class C2xG(object):
 				if self.progress_dict[cycle]["Candidate_State"] != "Complete":
 	
 					print("Initializing Candidates module")
-					C = Candidates(self.language, self.Load, self.association_dict)
+					C = Candidates(self.language, self.Load, self.workers, self.association_dict)
+					
+					#Find beam search threshold
+					if self.progress_dict[cycle]["Candidate_State"] == "None":
+						delta_threshold = C.delta_grid_search(self.progress_dict[cycle]["Candidate"], self, self.workers)
+						self.progress_dict[cycle]["BeamSearch"] = delta_threshold
+						self.progress_dict[cycle]["Candidate"] = self.progress_dict[cycle]["Candidate"][2:]
+						
+						self.progress_dict[cycle]["Candidate_State"] = "Threshold"
+						self.Load.save_file((self.progress_dict, self.data_dict), self.model_state_file)
+						
+					
+					#If saved, load beam search threshold
+					else:
+						delta_threshold = self.progress_dict[cycle]["BeamSearch"]
 					
 					#Check which files have been completed
-					if self.progress_dict[cycle]["Candidate_State"] == "None":
+					if self.progress_dict[cycle]["Candidate_State"] == "Threshold":
 						check_files = self.Load.list_output(type = "candidates")
 						pop_list = []
 						for i in range(len(self.progress_dict[cycle]["Candidate"])):
@@ -253,7 +269,7 @@ class C2xG(object):
 						self.progress_dict[cycle]["Candidate_State"] = "Merge"
 						self.Load.save_file((self.progress_dict, self.data_dict), self.model_state_file)
 
-					#Merage and Save candidates
+					#Merge and Save candidates
 					if self.progress_dict[cycle]["Candidate_State"] == "Merge":
 						output_files = [filename + ".candidates.p" for filename in self.data_dict[cycle]["Candidate"]]
 						candidates = self.Candidates.merge_candidates(output_files, freq_threshold)
