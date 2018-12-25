@@ -57,8 +57,11 @@ def delta_grid_search(files, workers, association_dict, language, in_dir, out_di
 	else:
 		parse_workers = workers
 		
+	
+		
 	#Multi-process#
 	pool_instance = mp.Pool(processes = parse_workers, maxtasksperchild = 1)
+	distribute_list = [(x, candidate_file) for x in delta_thresholds]
 	pool_instance.map(partial(process_candidates, 
 											candidate_file = candidate_file,
 											association_dict = association_dict.copy(),
@@ -67,7 +70,7 @@ def delta_grid_search(files, workers, association_dict, language, in_dir, out_di
 											out_dir = out_dir,
 											s3 = s3, 
 											s3_bucket = s3_bucket
-											), delta_thresholds, chunksize = 1)
+											), distribute_list, chunksize = 1)
 	pool_instance.close()
 	pool_instance.join()
 				
@@ -103,8 +106,11 @@ def delta_grid_search(files, workers, association_dict, language, in_dir, out_di
 
 #------------------------------------------------------------
 
-def process_candidates(threshold, candidate_file, association_dict, language, in_dir, out_dir, s3, s3_bucket, mode = ""):
+def process_candidates(input_tuple, association_dict, language, in_dir, out_dir, s3, s3_bucket, mode = ""):
 
+	threshold =  input_tuple[0]
+	candidate_file = input_tuple[1]
+	
 	print("\tStarting " + str(threshold))
 	Load = Loader(in_dir, out_dir, language, s3, s3_bucket)
 	C = Candidates(language = language, Loader = Load, association_dict = association_dict)
@@ -362,17 +368,17 @@ class C2xG(object):
 							print("\n\tNow processing remaining files: " + str(len(self.progress_dict[cycle]["Candidate"])))
 							
 							#Multi-process#
-							pool_instance = mp.Pool(processes = parse_workers, maxtasksperchild = 1)
+							pool_instance = mp.Pool(processes = workers, maxtasksperchild = 1)
+							distribute_list = [(delta_threshold, x) for x in self.progress_dict[cycle]["Candidate"]]
 							pool_instance.map(partial(process_candidates, 
-																	association_dict = association_dict.copy(),
-																	language = language,
-																	in_dir = in_dir,
-																	out_dir = out_dir,
-																	s3 = s3, 
-																	s3_bucket = s3_bucket,
-																	threshold = delta_threshold,
+																	association_dict = self.association_dict.copy(),
+																	language = self.language,
+																	in_dir = self.in_dir,
+																	out_dir = self.out_dir,
+																	s3 = self.s3, 
+																	s3_bucket = self.s3_bucket,
 																	mode = "candidates"
-																	), self.progress_dict[cycle]["Candidate"], chunksize = 1)
+																	), distribute_list, chunksize = 1)
 							pool_instance.close()
 							pool_instance.join()
 							
