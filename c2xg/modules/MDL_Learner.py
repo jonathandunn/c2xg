@@ -145,7 +145,10 @@ class MDL_Learner(object):
 		for i in range(len(self.candidates)):
 			key = self.candidates[i]
 			cost_list.append(get_construction_encoding(key, self.lex_cost, self.pos_cost, self.domain_cost))
-			pointer_list.append(-math.log2(float(1.0/self.matches[i])))
+			if self.matches[i] > 0:
+				pointer_list.append(-math.log2(float(self.matches[i]/self.max_index)))
+			else:
+				pointer_list.append(0)
 			
 		self.costs = np.array(cost_list)
 		self.pointers = np.array(pointer_list)
@@ -346,14 +349,15 @@ class MDL_Learner(object):
 			unencoded_indexes = self.max_index - len(list(ct.unique(unencoded_indexes)))
 
 		#Use unencoded indexes to get regret cost
+		#Regret cost applied twice, once for encoding and once for grammar
 		if unencoded_indexes > 0:
 			if subset == False:
 				unencoded_cost = -math.log2(float(1.0/(unencoded_indexes)))
-				l2_regret_cost = unencoded_cost * unencoded_indexes
+				l2_regret_cost = (unencoded_cost * unencoded_indexes) * 2
 
 			else:
 				unencoded_cost = -math.log2(float(1.0/(unencoded_indexes + len(subset))))
-				l2_regret_cost = unencoded_cost * unencoded_indexes
+				l2_regret_cost = (unencoded_cost * unencoded_indexes) * 2
 		
 		else:
 			l2_regret_cost = 0

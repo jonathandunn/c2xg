@@ -159,24 +159,48 @@ class Association(object):
 		return output_files
 	#---------------------------------------------------------------------------------------------#
 	
-	def merge_ngrams(self, files = None):
+	def merge_ngrams(self, files = None, n_gram_threshold = 1):
 		
-		ngrams = []		#Initialize holding list
+		all_ngrams = []
 		
+		#Get a list of ngram files
 		if files == None:
 			files = self.Loader.list_output(type = "ngrams")
 			
-		#Load
-		for dict_file in files:
-			ngrams.append(self.Loader.load_file(dict_file))
+		#Break into lists of 20 files
+		file_list = ct.partition_all(20, files)
 		
-		#Merge
-		ngrams = ct.merge_with(sum, [x for x in ngrams])
+		for files in file_list:
+			
+			ngrams = []		#Initialize holding list
+			
+			#Load
+			for dict_file in files:
+				ngrams.append(self.Loader.load_file(dict_file))
 		
-		print("\tTOTAL NGRAMS: " + str(len(list(ngrams.keys()))))
-		print("\tTOTAL WORDS: " + str(ngrams["TOTAL"]))
+			#Merge
+			ngrams = ct.merge_with(sum, [x for x in ngrams])
 		
-		return ngrams
+			print("\tSUB-TOTAL NGRAMS: " + str(len(list(ngrams.keys()))))
+			print("\tSUB-TOTAL WORDS: " + str(ngrams["TOTAL"]))
+			print("\n")
+			
+			all_ngrams.append(ngrams)
+			
+		#Now merge everything
+		all_ngrams = ct.merge_with(sum, [x for x in all_ngrams])
+		
+		print("\tTOTAL NGRAMS: " + str(len(list(all_ngrams.keys()))))
+		print("\tTOTAL WORDS: " + str(all_ngrams["TOTAL"]))
+		
+		#Now enforce threshold
+		keepable = lambda x: x > n_gram_threshold
+		all_ngrams = ct.valfilter(keepable, all_ngrams)
+		
+		print("\tAfter pruning:")
+		print("\tTOTAL NGRAMS: " + str(len(list(all_ngrams.keys()))))
+		
+		return all_ngrams
 	#----------------------------------------------------------------------------------------------#
 
 	def calculate_association(self, ngrams, save = False):

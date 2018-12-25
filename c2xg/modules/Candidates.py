@@ -11,220 +11,37 @@ from collections import defaultdict
 from collections import deque
 import operator
 import difflib
+import copy
 
 try:
 	from modules.Encoder import Encoder
 	from modules.Association import Association
 	from modules.Association import calculate_measures
+
 except:
 	from c2xg.modules.Encoder import Encoder
 	from c2xg.modules.Association import Association
 	from c2xg.modules.Association import calculate_measures
 
 #--------------------------------------------------------------#
-def find_candidates(Loader, Encoder, language, workers = 1, files = "", save = True, association_dict = None):
 
-	if files == "":
-		files = Loader.list_input()
-		
-	print("Initializing module")
-	C = Candidates(language, Loader, association_dict)
+class BeamSearch(object):
 
-	print("Starting multi-process")
-	#Multi-process#
-	pool_instance = mp.Pool(processes = workers, maxtasksperchild = 1)		
-	pool_instance.map(partial(C.process_file), files, chunksize = 1)
-	pool_instance.close()
-	pool_instance.join()
+	def __init__(self, delta_threshold, association_dict):
 		
-	return
-#--------------------------------------------------------------#	
-#--------------------------------------------------------------#
-	
-def represent_line(original_line):
-	
-	Pairs = PairsData()					#Special class for accessing bigrams, best representations, indexes, and association values
-	line = [0 for x in original_line]	#Place selected representations in list
-		
-	#First, get initial pairs
-	for bigram in ct.sliding_window(2, original_line):
-			
-		#For each bigram, find its best representation and association value
-		best_key, best_value = get_pair(bigram)
-		Pairs.add(bigram, best_key, best_value)
-			
-	#Third, merge adjacent pairs until further mergers are not possible
-	while True:
-
-		#Find best candidate pair for merger and remove from further consideration
-		current_bigram, current_best, current_value, current_index = Pairs.pop_max()
-			
-		#Add best representations to line: current_index refers to rightmost member of bigram
-		#If 0 present in line, representation has not yet been added
-		if line[current_index] == 0:
-			line[current_index] = current_best[1]
-				
-		if line[current_index - 1] == 0:
-			line[current_index - 1] = current_best[0]
-				
-		#Keep going until all units have been represented	
-		if 0 not in line:
-			break
-				
-	return line
-#---------------------------------------------------------------#
-	
-def get_pair(bigram):
-		
-	#Tuples are indexes for (LEX, POS, CAT)
-	#Index types are 1 (LEX), 2 (POS), 3 (CAT)
-	candidate_list = [
-		((1, bigram[0][0]), (1, bigram[1][0])),	#lex_lex
-		((1, bigram[0][0]), (2, bigram[1][1])),	#lex_pos
-		((1, bigram[0][0]), (3, bigram[1][2])),	#lex_cat
-		((2, bigram[0][1]), (2, bigram[1][1])),	#pos_pos
-		((2, bigram[0][1]), (1, bigram[1][0])),	#pos_lex
-		((2, bigram[0][1]), (3, bigram[1][2])),	#pos_cat 
-		((3, bigram[0][2]), (3, bigram[1][2])),	#cat_cat
-		((3, bigram[0][2]), (2, bigram[1][1])),	#cat_pos
-		((3, bigram[0][2]), (1, bigram[1][0])),	#cat_lex
-		]
-		
-	#Check each candidate to see if it has the highest association
-	best_value = -2										#Lowest possible value
-	best_key = ((2, bigram[0][1]), (2, bigram[1][1]))	#Use POS by default
-		
-	for candidate in candidate_list:
-			
-		try:
-			if association_dict[candidate]["LR"] > best_value:
-				best_key = candidate
-				best_value = association_dict[candidate]["LR"]
-				
-			elif association_dict[candidate]["RL"] > best_value:
-				best_key = candidate
-				best_value = association_dict[candidate]["RL"]
-			
-		#Some pairs aren't in the dictionary b/c not frequent enough
-		except:
-			counter = 0
-		
-	return best_key, best_value
-#--------------------------------------------------------------------------------------------#
-
-#-------------------------------------------------------------------#
-class PairsData(object):
-	
-	def __init__(self):
-		self.index_to_association = {}
-		self.index_to_bigram = {}
-		self.index_to_best = {}
-
-	def add(self, bigram, best_key, best_value):
-		index = len(self.index_to_association) + 1
-		self.index_to_association[index] = best_value
-		self.index_to_bigram[index] = bigram
-		self.index_to_best[index] = best_key
-	
-	def update(self, bigram, best_key, best_value):
-		self.index_to_association[d["index"]] = best_value
-		self.index_to_bigram[d["index"]] = bigram
-		self.index_to_best[d["index"]] = best_key
-		
-	def pop_max(self):
-		top = max(self.index_to_association.items(), key=operator.itemgetter(1))[0]
-		association = self.index_to_association.pop(top)
-		bigram = self.index_to_bigram.pop(top)
-		best = self.index_to_best.pop(top)
-		return bigram, best, association, top
-		
-	def len(self):
-		return len(self.index_to_association)
-
-#------------------------------------------------------------------#
-class Candidates(object):
-
-	def __init__(self, language, Loader, delta_threshold, workers = 1, association_dict = ""):
-	
-		#Initialize Ingestor
-		self.language = language
-		self.Encoder = Encoder(Loader = Loader)
-		self.Loader = Loader
-		self.delta_threshold = delta_threshold
+		#Initialize empty candidate stack
+		self.candidate_stack = defaultdict(list)
+		self.candidates = []
 		self.search_monitor = deque(maxlen = 50)
-		self.workers = workers
+		self.association_dict = association_dict
+		self.delta_threshold = delta_threshold
 		
-		if association_dict != "":
-			self.association_dict = association_dict
-	
-	#------------------------------------------------------------------
-	def delta_grid_search(self, files, CxG, workers):
-	
-		candidate_file = files[0]
-		test_file = files[1]
-		result_dict = {}
-		
-		delta_thresholds = [0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 1.0]
-		
-		for threshold in delta_thresholds:
-			
-			candidates = self.process_file(candidate_file, save = False)
-			CxG.model = candidates
-			mdl_score = CxG.eval_mdl([test_file], workers = workers, report = True)
-			result_dict[threshold] = mdl_score
-			
-		#Get threshold with best score
-		best = min(result_dict.items(), key=operator.itemgetter(1))[0]
-		
-		return best
-
-	#------------------------------------------------------------------
-	
-	def process_file(self, filename, save = True):
-		
-		candidates = []
-		starting = time.time()
-
-		lines = self.Encoder.load_batch(filename):
-
-		#Get one-dimensional representation using the "best" version of each word (LEX, POS, CAT)
-		#line = represent_line(line)
-		#candidates += ngrams_from_line(line, ngrams)
-				
-		#Beam Search extraction, multi-process
-		pool_instance = mp.Pool(processes = self.workers, maxtasksperchild = 1)		
-		candidates = pool_instance.map(self.beam_search, lines, chunksize = 100)
-		pool_instance.close()
-		pool_instance.join()
-		
-		print(candidates)
-		candidates = ct.merge(candidates)
-		print(candidates)
-		sys.kill()
-				
-		#Count each candidate, get dictionary with candidate frequencies
-		candidates = ct.frequencies(candidates)
-			
-		#Reduce nonce candidates
-		above_zero = lambda x: x > 2
-		candidates = ct.valfilter(above_zero, candidates)		
-			
-		#Print time and number of remaining candidates
-		print("\t" + str(len(candidates)) + " candidates in " + str(time.time() - starting) + " seconds.")
-			
-		if save == True:
-			self.Loader.save_file(candidates, filename + ".candidates.p")
-			return os.path.join(self.Loader.output_dir, filename + ".candidates.p")
-				
-		else:
-			return candidates
+		return
 	#--------------------------------------------------------------#
 	
 	def beam_search(self, line):
 
-		#Initialize empty candidate stack
-		self.candidate_stack = defaultdict(list)
-		candidates = []
+		self.candidates = []
 		
 		#Loop left-to-right across the line
 		for i in range(len(line)):
@@ -244,15 +61,15 @@ class Candidates(object):
 					top_score = current_score
 					top_candidate = candidate
 					
-			candidates.append(top_candidate)
+			self.candidates.append(top_candidate)
 		
 		#Horizontal pruning
 		to_pop = []
-		for i in range(len(candidates)):
-			for j in range(len(candidates)):
+		for i in range(len(self.candidates)):
+			for j in range(len(self.candidates)):
 				if i != j and j > i:
-					candidate1 = candidates[i]
-					candidate2 = candidates[j]
+					candidate1 = self.candidates[i]
+					candidate2 = self.candidates[j]
 					
 					s = difflib.SequenceMatcher(None, candidate1, candidate2)
 					largest = max([x[2] for x in s.get_matching_blocks()])
@@ -270,9 +87,13 @@ class Candidates(object):
 							elif candidate2 not in to_pop:
 								to_pop.append(candidate2)
 		
-		candidates = [x for x in candidates if x not in to_pop]
+		self.candidates = [x for x in self.candidates if x not in to_pop]
+		
+		#Reset state
+		self.candidate_stack = defaultdict(list)
+		self.search_monitor = deque(maxlen = 50)
 
-		return candidates
+		return self.candidates
 	#--------------------------------------------------------------#
 	
 	def recursive_beam(self, previous_start, line, i, line_length):
@@ -284,7 +105,6 @@ class Candidates(object):
 			
 		if self.search_monitor.count(previous_start[0:2]) < 40:
 			go = True
-			
 			
 		if go == True:
 			self.search_monitor.append(previous_start[0:2])
@@ -339,6 +159,7 @@ class Candidates(object):
 								self.recursive_beam(current_path, line, i, line_length)
 								
 			return
+			
 	#--------------------------------------------------------------#
 	
 	def get_score(self, current_candidate):
@@ -353,15 +174,54 @@ class Candidates(object):
 		
 		return total_score
 	#--------------------------------------------------------------#
+
+class Candidates(object):
+
+	def __init__(self, language, Loader, workers = 1, association_dict = ""):
 	
-	def ngrams_from_line(line, ngrams):
-			
-		candidates = []	#Initialize candidate list
-			
-		for window_size in range(ngrams[0], ngrams[1]+1):
-			candidates += [x for x in ct.sliding_window(window_size, line)]
+		#Initialize Ingestor
+		self.language = language
+		self.Encoder = Encoder(Loader = Loader)
+		self.Loader = Loader
+		self.workers = workers
+		
+		if association_dict != "":
+			self.association_dict = association_dict
+	
+	#------------------------------------------------------------------
+	
+	def process_file(self, filename, delta_threshold = 0.05, save = True):
+		
+		candidates = []
+		starting = time.time()
+		
+		#Initialize Beam Search class
+		BS = BeamSearch(delta_threshold, self.association_dict)
+		
+		for line in self.Encoder.load_stream(filename):
+
+			if len(line) > 2:
 				
-		return candidates
+				#Beam Search extraction
+				candidates += BS.beam_search(line)
+			
+		#Count each candidate, get dictionary with candidate frequencies
+		candidates = ct.frequencies(candidates)
+			
+		#Reduce nonce candidates
+		above_zero = lambda x: x > 2
+		candidates = ct.valfilter(above_zero, candidates)		
+			
+		#Print time and number of remaining candidates
+		print("\t" + str(len(candidates)) + " candidates in " + str(time.time() - starting) + " seconds.")
+	
+		if save == True:
+			self.Loader.save_file(candidates, filename + ".candidates.p")
+			return os.path.join(self.Loader.output_dir, filename + ".candidates.p")
+				
+		else:
+			return candidates
+
 	#--------------------------------------------------------------#
 	
 	def merge_candidates(self, output_files, threshold):

@@ -1,7 +1,11 @@
 import os
 import random
 import pickle
+import copy
+import operator
 from collections import defaultdict
+import multiprocessing as mp
+from functools import partial
 
 #Depending on usage, may be importing from the same package
 #try:
@@ -10,7 +14,6 @@ from modules.Loader import Loader
 from modules.Parser import Parser
 from modules.Association import Association
 from modules.Candidates import Candidates
-from modules.Candidates import find_candidates
 from modules.MDL_Learner import MDL_Learner
 
 #Or from idNet package
@@ -23,10 +26,110 @@ from modules.MDL_Learner import MDL_Learner
 	# from c2xg.modules.Candidates import Candidates
 	# from c2xg.modules.MDL_Learner import MDL_Learner
 	# os.chdir(os.path.join(".", "c2xg"))
+	
+#------------------------------------------------------------
+
+def eval_mdl(files, workers, candidates, Load, Encode, Parse, report = False):
+	
+	print("Initiating MDL evaluation: " + str(files))
+		
+	for file in files:
+		print("\tStarting " + file)			
+		MDL = MDL_Learner(Load, Encode, Parse, freq_threshold = -1, vectors = {"na": 0}, candidates = candidates)
+		MDL.get_mdl_data([file], workers = workers, learn_flag = False)
+		current_mdl = MDL.evaluate_subset(subset = False)
+			
+	if report == True:
+		return current_mdl
+#------------------------------------------------------------		
+
+def delta_grid_search(files, workers, association_dict, language, in_dir, out_dir, s3, s3_bucket):
+	
+	print("\nStarting grid search for beam search settings.")
+	candidate_file = files[0]
+	test_file = files[1]
+	result_dict = {}
+		
+	delta_thresholds = [0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 1.0]
+	
+	if len(delta_thresholds) < workers:
+		parse_workers = len(delta_thresholds)
+	else:
+		parse_workers = workers
+		
+	#Multi-process#
+	pool_instance = mp.Pool(processes = parse_workers, maxtasksperchild = 1)
+	pool_instance.map(partial(process_candidates, 
+											candidate_file = candidate_file,
+											association_dict = association_dict.copy(),
+											language = language,
+											in_dir = in_dir,
+											out_dir = out_dir,
+											s3 = s3, 
+											s3_bucket = s3_bucket
+											), delta_thresholds, chunksize = 1)
+	pool_instance.close()
+	pool_instance.join()
+				
+	#Now MDL
+	if language == "zho":
+		zho_split = True
+	else:
+		zho_split = False
+		
+	Load = Loader(in_dir, out_dir, language, s3, s3_bucket)
+	Encode = Encoder(Loader = Load, zho_split = zho_split)
+	Parse = Parser(Load, Encode)
+	
+	for threshold in delta_thresholds:
+		print("\tStarting MDL search for " + str(threshold))
+		filename = str(candidate_file + ".delta." + str(threshold) + ".p")
+		candidates = Load.load_file(filename)
+		candidates = candidates[1]
+		
+		if len(candidates) < 5:
+			print("\tNot enough candidates!")
+		
+		else:		
+			mdl_score = eval_mdl(files = [test_file], candidates = candidates, workers = workers, Load = Load, Encode = Encode, Parse = Parse, report = True)
+			result_dict[threshold] = mdl_score
+			print("\tThreshold: " + str(threshold) + " and MDL: " + str(mdl_score))
+		
+	#Get threshold with best score
+	print(result_dict)
+	best = min(result_dict.items(), key=operator.itemgetter(1))[0]
+		
+	return best
+
+#------------------------------------------------------------
+
+def process_candidates(threshold, candidate_file, association_dict, language, in_dir, out_dir, s3, s3_bucket, mode = ""):
+
+	print("\tStarting " + str(threshold))
+	Load = Loader(in_dir, out_dir, language, s3, s3_bucket)
+	C = Candidates(language = language, Loader = Load, association_dict = association_dict)
+	
+	if mode == "candidates":
+		filename = str(candidate_file + ".candidates.p")
+		
+	else:
+		filename = str(candidate_file + ".delta." + str(threshold) + ".p")
+	
+	if filename not in Load.list_output():
+	
+		candidates = C.process_file(candidate_file, threshold, save = False)
+		candidates = (threshold, candidates)
+		Load.save_file(candidates, filename)
+	
+	#Clean
+	del association_dict
+	del C
+	
+	return
+
+#-------------------------------------------------------------------------------
 
 class C2xG(object):
-
-	#-------------------------------------------------------------------------------
 	
 	def __init__(self, data_dir, language, s3 = False, s3_bucket = "", nickname = "", model = "", zho_split = False):
 	
@@ -44,7 +147,12 @@ class C2xG(object):
 		self.Encode = Encoder(Loader = self.Load, zho_split = self.zho_split)
 		self.Association = Association(Loader = self.Load)
 		self.Candidates = Candidates(language = self.language, Loader = self.Load)
-		self.Parse = Parser(self.Load, self.Encode)	
+		self.Parse = Parser(self.Load, self.Encode)
+		
+		self.in_dir = in_dir
+		self.out_dir = out_dir
+		self.s3 = s3
+		self.s3_bucket = s3_bucket
 
 		#Try to load default or specified model
 		if model == "":
@@ -66,22 +174,7 @@ class C2xG(object):
 			
 		self.n_features = len(self.model)
 		
-	#-------------------------------------------------------------------------------
-	
-	def eval_mdl(self, files, workers, report = False):
-	
-		print("Initiating MDL evaluation: " + str(files))
-		
-		for file in files:
-			print("\tStarting " + file)
-			MDL = MDL_Learner(self.Load, self.Encode, self.Parse, freq_threshold = 10, vectors = {"na": 0}, candidates = self.model)
-			MDL.get_mdl_data([file], workers = workers, learn_flag = False)
-			current_mdl = MDL.evaluate_subset(subset = False)
-			
-		if report == True:
-			return current_mdl	
-		
-	#-------------------------------------------------------------------------------
+	#------------------------------------------------------------------
 		
 	def parse_return(self, input, mode = "files", workers = 1):
 
@@ -161,6 +254,7 @@ class C2xG(object):
 			print("Initializing learning state.")
 			self.data_dict = self.divide_data(cycles, cycle_size)
 			self.progress_dict = self.set_progress()
+			self.progress_dict["BeamSearch"] = "None"
 			self.Load.save_file((self.progress_dict, self.data_dict), self.model_state_file)
 			
 		#Learn each cycle
@@ -203,7 +297,7 @@ class C2xG(object):
 					if self.progress_dict[cycle]["Background_State"] == "Ngrams":
 						files = [filename + ".ngrams.p" for filename in self.data_dict[cycle]["Background"]]
 						print("\tNow merging ngrams for files: " + str(len(files)))
-						ngrams = self.Association.merge_ngrams(files)
+						ngrams = self.Association.merge_ngrams(files, freq_threshold)
 						
 						#Save data and state
 						self.Load.save_file(ngrams, nickname + ".Cycle-" + str(cycle) + ".Merged-Grams.p")
@@ -218,6 +312,7 @@ class C2xG(object):
 						self.Load.save_file(association_dict, nickname + ".Cycle-" + str(cycle) + ".Association_Dict.p")
 						self.progress_dict[cycle]["Background_State"] = "Complete"
 						self.Load.save_file((self.progress_dict, self.data_dict), self.model_state_file)
+						self.association_dict = association_dict
 						
 				else:
 					print("\tLoading association_dict.")
@@ -228,14 +323,15 @@ class C2xG(object):
 				#-----------------#	
 				
 				if self.progress_dict[cycle]["Candidate_State"] != "Complete":
-	
+
 					print("Initializing Candidates module")
-					C = Candidates(self.language, self.Load, self.workers, self.association_dict)
+					C = Candidates(self.language, self.Load, workers, self.association_dict)
 					
 					#Find beam search threshold
-					if self.progress_dict[cycle]["Candidate_State"] == "None":
-						delta_threshold = C.delta_grid_search(self.progress_dict[cycle]["Candidate"], self, self.workers)
-						self.progress_dict[cycle]["BeamSearch"] = delta_threshold
+					if self.progress_dict["BeamSearch"] == "None" or self.progress_dict["BeamSearch"] == {}:
+						print("Finding Beam Search settings.")
+						delta_threshold = delta_grid_search(self.progress_dict[cycle]["Candidate"], workers, self.association_dict, self.language, self.in_dir, self.out_dir, self.s3, self.s3_bucket)
+						self.progress_dict["BeamSearch"] = delta_threshold
 						self.progress_dict[cycle]["Candidate"] = self.progress_dict[cycle]["Candidate"][2:]
 						
 						self.progress_dict[cycle]["Candidate_State"] = "Threshold"
@@ -244,7 +340,9 @@ class C2xG(object):
 					
 					#If saved, load beam search threshold
 					else:
-						delta_threshold = self.progress_dict[cycle]["BeamSearch"]
+						print("Loading Beam Search settings.")
+						delta_threshold = self.progress_dict["BeamSearch"]
+						self.progress_dict[cycle]["Candidate_State"] = "Threshold"
 					
 					#Check which files have been completed
 					if self.progress_dict[cycle]["Candidate_State"] == "Threshold":
@@ -263,8 +361,20 @@ class C2xG(object):
 						if len(self.progress_dict[cycle]["Candidate"]) > 0:
 							print("\n\tNow processing remaining files: " + str(len(self.progress_dict[cycle]["Candidate"])))
 							
-							for file in self.progress_dict[cycle]["Candidate"]:
-								C.process_file(file)
+							#Multi-process#
+							pool_instance = mp.Pool(processes = parse_workers, maxtasksperchild = 1)
+							pool_instance.map(partial(process_candidates, 
+																	association_dict = association_dict.copy(),
+																	language = language,
+																	in_dir = in_dir,
+																	out_dir = out_dir,
+																	s3 = s3, 
+																	s3_bucket = s3_bucket,
+																	threshold = delta_threshold,
+																	mode = "candidates"
+																	), self.progress_dict[cycle]["Candidate"], chunksize = 1)
+							pool_instance.close()
+							pool_instance.join()
 							
 						self.progress_dict[cycle]["Candidate_State"] = "Merge"
 						self.Load.save_file((self.progress_dict, self.data_dict), self.model_state_file)
