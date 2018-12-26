@@ -60,15 +60,15 @@ def delta_grid_search(candidate_file, test_file, workers, association_dict, lang
 	#Multi-process#
 	pool_instance = mp.Pool(processes = parse_workers, maxtasksperchild = 1)
 	distribute_list = [(x, candidate_file) for x in delta_thresholds]
+
 	pool_instance.map(partial(process_candidates, 
-											candidate_file = candidate_file,
-											association_dict = association_dict.copy(),
-											language = language,
-											in_dir = in_dir,
-											out_dir = out_dir,
-											s3 = s3, 
-											s3_bucket = s3_bucket
-											), distribute_list, chunksize = 1)
+								association_dict = association_dict.copy(),
+								language = language,
+								in_dir = in_dir,
+								out_dir = out_dir,
+								s3 = s3, 
+								s3_bucket = s3_bucket
+								), distribute_list, chunksize = 1)
 	pool_instance.close()
 	pool_instance.join()
 				
@@ -116,7 +116,7 @@ def process_candidates(input_tuple, association_dict, language, in_dir, out_dir,
 		filename = str(candidate_file + ".candidates.p")
 		
 	else:
-		filename = str(candidate_file + ".delta." + str(threshold) + ".p")
+		filename = str(candidate_file) + ".delta." + str(threshold) + ".p"
 	
 	if filename not in Load.list_output():
 	
@@ -332,7 +332,17 @@ class C2xG(object):
 						#Find beam search threshold
 						if self.progress_dict["BeamSearch"] == "None" or self.progress_dict["BeamSearch"] == {}:
 							print("Finding Beam Search settings.")
-							delta_threshold = delta_grid_search(self.progress_dict["BeamCandidates"], self.progress_dict["BeamTest"], workers, self.association_dict, self.language, self.in_dir, self.out_dir, self.s3, self.s3_bucket)
+
+							delta_threshold = delta_grid_search(candidate_file = self.data_dict["BeamCandidates"], 
+																	test_file = self.data_dict["BeamTest"], 
+																	workers = workers, 
+																	association_dict = self.association_dict, 
+																	language = self.language, 
+																	in_dir = self.in_dir, 
+																	out_dir = self.out_dir, 
+																	s3 = self.s3, 
+																	s3_bucket = self.s3_bucket
+																	)
 							self.progress_dict["BeamSearch"] = delta_threshold
 							
 							self.progress_dict[cycle]["Candidate_State"] = "Threshold"
