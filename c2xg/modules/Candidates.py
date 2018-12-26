@@ -231,7 +231,11 @@ class Candidates(object):
 		
 		#Load
 		for dict_file in output_files:
-			candidates.append(self.Loader.load_file(dict_file))
+			try:
+				candidates.append(self.Loader.load_file(dict_file))
+			except Exception as e:
+				print("ERROR")
+				print(e)
 		
 		#Merge
 		candidates = ct.merge_with(sum, [x for x in candidates])

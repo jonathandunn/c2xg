@@ -43,11 +43,9 @@ def eval_mdl(files, workers, candidates, Load, Encode, Parse, report = False):
 		return current_mdl
 #------------------------------------------------------------		
 
-def delta_grid_search(files, workers, association_dict, language, in_dir, out_dir, s3, s3_bucket):
+def delta_grid_search(candidate_file, test_file, workers, association_dict, language, in_dir, out_dir, s3, s3_bucket):
 	
 	print("\nStarting grid search for beam search settings.")
-	candidate_file = files[0]
-	test_file = files[1]
 	result_dict = {}
 		
 	delta_thresholds = [0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 1.0]
@@ -88,7 +86,6 @@ def delta_grid_search(files, workers, association_dict, language, in_dir, out_di
 		print("\tStarting MDL search for " + str(threshold))
 		filename = str(candidate_file + ".delta." + str(threshold) + ".p")
 		candidates = Load.load_file(filename)
-		candidates = candidates[1]
 		
 		if len(candidates) < 5:
 			print("\tNot enough candidates!")
@@ -124,7 +121,6 @@ def process_candidates(input_tuple, association_dict, language, in_dir, out_dir,
 	if filename not in Load.list_output():
 	
 		candidates = C.process_file(candidate_file, threshold, save = False)
-		candidates = (threshold, candidates)
 		Load.save_file(candidates, filename)
 	
 	#Clean
@@ -336,9 +332,8 @@ class C2xG(object):
 					#Find beam search threshold
 					if self.progress_dict["BeamSearch"] == "None" or self.progress_dict["BeamSearch"] == {}:
 						print("Finding Beam Search settings.")
-						delta_threshold = delta_grid_search(self.progress_dict[cycle]["Candidate"], workers, self.association_dict, self.language, self.in_dir, self.out_dir, self.s3, self.s3_bucket)
+						delta_threshold = delta_grid_search(self.progress_dict["BeamCandidates"], self.progress_dict["BeamTest"], workers, self.association_dict, self.language, self.in_dir, self.out_dir, self.s3, self.s3_bucket)
 						self.progress_dict["BeamSearch"] = delta_threshold
-						self.progress_dict[cycle]["Candidate"] = self.progress_dict[cycle]["Candidate"][2:]
 						
 						self.progress_dict[cycle]["Candidate_State"] = "Threshold"
 						self.Load.save_file((self.progress_dict, self.data_dict), self.model_state_file)
@@ -368,7 +363,12 @@ class C2xG(object):
 							print("\n\tNow processing remaining files: " + str(len(self.progress_dict[cycle]["Candidate"])))
 							
 							#Multi-process#
-							pool_instance = mp.Pool(processes = workers, maxtasksperchild = 1)
+							if workers > len(self.progress_dict[cycle]["Candidate"]):
+								candidate_workers = len(self.progress_dict[cycle]["Candidate"])
+							else:
+								candidate_workers = workers
+								
+							pool_instance = mp.Pool(processes = candidate_workers, maxtasksperchild = 1)
 							distribute_list = [(delta_threshold, x) for x in self.progress_dict[cycle]["Candidate"]]
 							pool_instance.map(partial(process_candidates, 
 																	association_dict = self.association_dict.copy(),
@@ -418,7 +418,7 @@ class C2xG(object):
 				
 					#Prep test data for MDL
 					if self.progress_dict[cycle]["MDL_State"] == "None":
-						MDL = MDL_Learner(self.Load, self.Encode, self.Parse, freq_threshold = freq_threshold, vectors = candidate_dict, candidates = candidates)
+						MDL = MDL_Learner(self.Load, self.Encode, self.Parse, freq_threshold = 0, vectors = candidate_dict, candidates = candidates)
 						MDL.get_mdl_data(self.progress_dict[cycle]["Test"], workers = workers)
 						self.Load.save_file(MDL, nickname + ".Cycle-" + str(cycle) + ".MDL.p")
 						
@@ -512,16 +512,27 @@ class C2xG(object):
 	#-------------------------------------------------------------------------------
 	
 	def divide_data(self, cycles, cycle_size):
-				
+		
+		input_files = self.Load.list_input()		
+		
 		#Get number of files to use for each purpose
 		num_test_files = cycle_size[0]
 		num_candidate_files = cycle_size[1]
 		num_background_files = cycle_size[2]
 		num_cycle_files = cycle_size[0] + cycle_size[1] + cycle_size[2]
 		
+		#Get Beam Search tuning files
+		candidate_i = random.randint(0, len(input_files))
+		candidate_file = input_files.pop(candidate_i)
+		
+		test_i = random.randint(0, len(input_files))
+		test_file = input_files.pop(test_i)
+		
 		#Get and divide input data
 		data_dict = defaultdict(dict)
-		input_files = self.Load.list_input()
+		data_dict["BeamCandidates"] = candidate_file
+		data_dict["BeamTest"] = test_file
+		
 			
 		#Get unique data for each cycle
 		for cycle in range(cycles):
