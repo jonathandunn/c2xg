@@ -10,8 +10,8 @@ if __name__ == "__main__":
 		
 	#Start or resume learning
 	CxG.learn(nickname = language, 
-				cycles = 2, 
-				cycle_size = (1, 12, 120), 
+				cycles = 4, 
+				cycle_size = (1, 5, 60), 
 				ngram_range = (3,6),
 				freq_threshold = 25,
 				turn_limit = 10,

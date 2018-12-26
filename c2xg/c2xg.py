@@ -256,202 +256,202 @@ class C2xG(object):
 			print("Initializing learning state.")
 			self.data_dict = self.divide_data(cycles, cycle_size)
 			self.progress_dict = self.set_progress()
-			self.progress_dict["BeamSearch"] = "None"
 			self.Load.save_file((self.progress_dict, self.data_dict), self.model_state_file)
 			
 		#Learn each cycle
 		for cycle in self.progress_dict.keys():
+			if isinstance(cycle, int):
 			
-			if self.progress_dict[cycle]["State"] == "Complete":
-				print("\t Cycle " + str(cycle) + " already complete.")
-				
-			#This cycle is not yet finished
-			else:
-				
-				#-----------------#
-				#BACKGROUND STAGE
-				#-----------------#
-				if self.progress_dict[cycle]["Background_State"] != "Complete":
+				if self.progress_dict[cycle]["State"] == "Complete":
+					print("\t Cycle " + str(cycle) + " already complete.")
 					
-					#Check if ngram extraction is finished
-					if self.progress_dict[cycle]["Background_State"] == "None":
-						check_files = self.Load.list_output(type = "ngrams")
-						pop_list = []
-						for i in range(len(self.progress_dict[cycle]["Background"])):
-							if self.progress_dict[cycle]["Background"][i] + ".ngrams.p" in check_files:
-								pop_list.append(i)
-
-						#Pop items separately in reverse order
-						if len(pop_list) > 0:
-							for i in sorted(pop_list, reverse = True):
-								self.progress_dict[cycle]["Background"].pop(i)
-						
-						#If remaining background files, process them
-						if len(self.progress_dict[cycle]["Background"]) > 0:
-							print("\tNow processing remaining files: " + str(len(self.progress_dict[cycle]["Background"])))
-							self.Association.find_ngrams(self.progress_dict[cycle]["Background"], workers)
-							
-						#Change state
-						self.progress_dict[cycle]["Background_State"] = "Ngrams"
-						self.Load.save_file((self.progress_dict, self.data_dict), self.model_state_file)
-					
-					#Check if ngram merging is finished
-					if self.progress_dict[cycle]["Background_State"] == "Ngrams":
-						files = [filename + ".ngrams.p" for filename in self.data_dict[cycle]["Background"]]
-						print("\tNow merging ngrams for files: " + str(len(files)))
-						ngrams = self.Association.merge_ngrams(files, freq_threshold)
-						
-						#Save data and state
-						self.Load.save_file(ngrams, nickname + ".Cycle-" + str(cycle) + ".Merged-Grams.p")
-						self.progress_dict[cycle]["Background_State"] = "Merged"
-						self.Load.save_file((self.progress_dict, self.data_dict), self.model_state_file)
-					
-					#Check if association_dict has been made
-					if self.progress_dict[cycle]["Background_State"] == "Merged":
-						ngrams = self.Load.load_file(nickname + ".Cycle-" + str(cycle) + ".Merged-Grams.p")
-						association_dict = self.Association.calculate_association(ngrams = ngrams, save = False)
-						del ngrams
-						self.Load.save_file(association_dict, nickname + ".Cycle-" + str(cycle) + ".Association_Dict.p")
-						self.progress_dict[cycle]["Background_State"] = "Complete"
-						self.Load.save_file((self.progress_dict, self.data_dict), self.model_state_file)
-						self.association_dict = association_dict
-						
+				#This cycle is not yet finished
 				else:
-					print("\tLoading association_dict.")
-					self.association_dict = self.Load.load_file(nickname + ".Cycle-" + str(cycle) + ".Association_Dict.p")
 					
-				#-----------------#
-				#CANDIDATE STAGE
-				#-----------------#	
-				
-				if self.progress_dict[cycle]["Candidate_State"] != "Complete":
+					#-----------------#
+					#BACKGROUND STAGE
+					#-----------------#
+					if self.progress_dict[cycle]["Background_State"] != "Complete":
+						
+						#Check if ngram extraction is finished
+						if self.progress_dict[cycle]["Background_State"] == "None":
+							check_files = self.Load.list_output(type = "ngrams")
+							pop_list = []
+							for i in range(len(self.progress_dict[cycle]["Background"])):
+								if self.progress_dict[cycle]["Background"][i] + ".ngrams.p" in check_files:
+									pop_list.append(i)
 
-					print("Initializing Candidates module")
-					C = Candidates(self.language, self.Load, workers, self.association_dict)
-					
-					#Find beam search threshold
-					if self.progress_dict["BeamSearch"] == "None" or self.progress_dict["BeamSearch"] == {}:
-						print("Finding Beam Search settings.")
-						delta_threshold = delta_grid_search(self.progress_dict["BeamCandidates"], self.progress_dict["BeamTest"], workers, self.association_dict, self.language, self.in_dir, self.out_dir, self.s3, self.s3_bucket)
-						self.progress_dict["BeamSearch"] = delta_threshold
+							#Pop items separately in reverse order
+							if len(pop_list) > 0:
+								for i in sorted(pop_list, reverse = True):
+									self.progress_dict[cycle]["Background"].pop(i)
+							
+							#If remaining background files, process them
+							if len(self.progress_dict[cycle]["Background"]) > 0:
+								print("\tNow processing remaining files: " + str(len(self.progress_dict[cycle]["Background"])))
+								self.Association.find_ngrams(self.progress_dict[cycle]["Background"], workers)
+								
+							#Change state
+							self.progress_dict[cycle]["Background_State"] = "Ngrams"
+							self.Load.save_file((self.progress_dict, self.data_dict), self.model_state_file)
 						
-						self.progress_dict[cycle]["Candidate_State"] = "Threshold"
-						self.Load.save_file((self.progress_dict, self.data_dict), self.model_state_file)
+						#Check if ngram merging is finished
+						if self.progress_dict[cycle]["Background_State"] == "Ngrams":
+							files = [filename + ".ngrams.p" for filename in self.data_dict[cycle]["Background"]]
+							print("\tNow merging ngrams for files: " + str(len(files)))
+							ngrams = self.Association.merge_ngrams(files, freq_threshold)
+							
+							#Save data and state
+							self.Load.save_file(ngrams, nickname + ".Cycle-" + str(cycle) + ".Merged-Grams.p")
+							self.progress_dict[cycle]["Background_State"] = "Merged"
+							self.Load.save_file((self.progress_dict, self.data_dict), self.model_state_file)
 						
-					
-					#If saved, load beam search threshold
+						#Check if association_dict has been made
+						if self.progress_dict[cycle]["Background_State"] == "Merged":
+							ngrams = self.Load.load_file(nickname + ".Cycle-" + str(cycle) + ".Merged-Grams.p")
+							association_dict = self.Association.calculate_association(ngrams = ngrams, save = False)
+							del ngrams
+							self.Load.save_file(association_dict, nickname + ".Cycle-" + str(cycle) + ".Association_Dict.p")
+							self.progress_dict[cycle]["Background_State"] = "Complete"
+							self.Load.save_file((self.progress_dict, self.data_dict), self.model_state_file)
+							self.association_dict = association_dict
+							
 					else:
-						print("Loading Beam Search settings.")
-						delta_threshold = self.progress_dict["BeamSearch"]
-						self.progress_dict[cycle]["Candidate_State"] = "Threshold"
+						print("\tLoading association_dict.")
+						self.association_dict = self.Load.load_file(nickname + ".Cycle-" + str(cycle) + ".Association_Dict.p")
+						
+					#-----------------#
+					#CANDIDATE STAGE
+					#-----------------#	
 					
-					#Check which files have been completed
-					if self.progress_dict[cycle]["Candidate_State"] == "Threshold":
-						check_files = self.Load.list_output(type = "candidates")
-						pop_list = []
-						for i in range(len(self.progress_dict[cycle]["Candidate"])):
-							if self.progress_dict[cycle]["Candidate"][i] + ".candidates.p" in check_files:
-								pop_list.append(i)
-								
-						#Pop items separately in reverse order
-						if len(pop_list) > 0:
-							for i in sorted(pop_list, reverse = True):
-								self.progress_dict[cycle]["Candidate"].pop(i)
-							
-						#If remaining candidate files, process them
-						if len(self.progress_dict[cycle]["Candidate"]) > 0:
-							print("\n\tNow processing remaining files: " + str(len(self.progress_dict[cycle]["Candidate"])))
-							
-							#Multi-process#
-							if workers > len(self.progress_dict[cycle]["Candidate"]):
-								candidate_workers = len(self.progress_dict[cycle]["Candidate"])
-							else:
-								candidate_workers = workers
-								
-							pool_instance = mp.Pool(processes = candidate_workers, maxtasksperchild = 1)
-							distribute_list = [(delta_threshold, x) for x in self.progress_dict[cycle]["Candidate"]]
-							pool_instance.map(partial(process_candidates, 
-																	association_dict = self.association_dict.copy(),
-																	language = self.language,
-																	in_dir = self.in_dir,
-																	out_dir = self.out_dir,
-																	s3 = self.s3, 
-																	s3_bucket = self.s3_bucket,
-																	mode = "candidates"
-																	), distribute_list, chunksize = 1)
-							pool_instance.close()
-							pool_instance.join()
-							
-						self.progress_dict[cycle]["Candidate_State"] = "Merge"
-						self.Load.save_file((self.progress_dict, self.data_dict), self.model_state_file)
+					if self.progress_dict[cycle]["Candidate_State"] != "Complete":
 
-					#Merge and Save candidates
-					if self.progress_dict[cycle]["Candidate_State"] == "Merge":
-						output_files = [filename + ".candidates.p" for filename in self.data_dict[cycle]["Candidate"]]
-						candidates = self.Candidates.merge_candidates(output_files, freq_threshold)
-					
-						self.Load.save_file(candidates, nickname + ".Cycle-" + str(cycle) + ".Candidates.p")
-						self.progress_dict[cycle]["Candidate_State"] = "Dict"
-						self.Load.save_file((self.progress_dict, self.data_dict), self.model_state_file)
+						print("Initializing Candidates module")
+						C = Candidates(self.language, self.Load, workers, self.association_dict)
 						
-					#Make association vectors
-					if self.progress_dict[cycle]["Candidate_State"] == "Dict":
+						#Find beam search threshold
+						if self.progress_dict["BeamSearch"] == "None" or self.progress_dict["BeamSearch"] == {}:
+							print("Finding Beam Search settings.")
+							delta_threshold = delta_grid_search(self.progress_dict["BeamCandidates"], self.progress_dict["BeamTest"], workers, self.association_dict, self.language, self.in_dir, self.out_dir, self.s3, self.s3_bucket)
+							self.progress_dict["BeamSearch"] = delta_threshold
+							
+							self.progress_dict[cycle]["Candidate_State"] = "Threshold"
+							self.Load.save_file((self.progress_dict, self.data_dict), self.model_state_file)
+							
 						
-						candidates = self.Load.load_file(nickname + ".Cycle-" + str(cycle) + ".Candidates.p")
-						candidate_dict = self.Candidates.get_association(candidates, association_dict)
-						self.Load.save_file(candidate_dict, nickname + ".Cycle-" + str(cycle) + ".Candidate_Dict.p")
+						#If saved, load beam search threshold
+						else:
+							print("Loading Beam Search settings.")
+							delta_threshold = self.progress_dict["BeamSearch"]
+							self.progress_dict[cycle]["Candidate_State"] = "Threshold"
 						
-						self.progress_dict[cycle]["Candidate_State"] == "Complete"
-						self.Load.save_file((self.progress_dict, self.data_dict), self.model_state_file)
-						
-					
-				else:
-					print("\tLoading candidate_dict.")
-					candidate_dict = self.Load.load_file(nickname + ".Cycle-" + str(cycle) + ".Candidate_Dict.p")
-					candidates = self.Load.load_file(nickname + ".Cycle-" + str(cycle) + ".Candidates.p")
-				
-				del association_dict
-				#-----------------#
-				#MDL STAGE
-				#-----------------#
-				if self.progress_dict[cycle]["MDL_State"] != "Complete":
-				
-					#Prep test data for MDL
-					if self.progress_dict[cycle]["MDL_State"] == "None":
-						MDL = MDL_Learner(self.Load, self.Encode, self.Parse, freq_threshold = 0, vectors = candidate_dict, candidates = candidates)
-						MDL.get_mdl_data(self.progress_dict[cycle]["Test"], workers = workers)
-						self.Load.save_file(MDL, nickname + ".Cycle-" + str(cycle) + ".MDL.p")
-						
-						self.progress_dict[cycle]["MDL_State"] = "EM"
-						self.Load.save_file((self.progress_dict, self.data_dict), self.model_state_file)
-					
-					#Run EM-based Tabu Search
-					if self.progress_dict[cycle]["MDL_State"] == "EM":
-						
-						MDL = self.Load.load_file(nickname + ".Cycle-" + str(cycle) + ".MDL.p")
-						MDL.search_em(turn_limit, workers)
-						self.Load.save_file(MDL, nickname + ".Cycle-" + str(cycle) + ".MDL.p")
-						
-						self.progress_dict[cycle]["MDL_State"] = "Direct"
-						self.Load.save_file((self.progress_dict, self.data_dict), self.model_state_file)
-						
-					#Run direct Tabu Search
-					if self.progress_dict[cycle]["MDL_State"] == "Direct":
-						MDL = self.Load.load_file(nickname + ".Cycle-" + str(cycle) + ".MDL.p")
-						MDL.search_direct(turn_limit*3, workers)
-						
-						#Get grammar to save
-						grammar_dict = defaultdict(dict)
-						for i in range(len(MDL.candidates)):
-							grammar_dict[i]["Constructions"] = MDL.candidates[i]
-							grammar_dict[i]["Matches"] = MDL.matches[i]
+						#Check which files have been completed
+						if self.progress_dict[cycle]["Candidate_State"] == "Threshold":
+							check_files = self.Load.list_output(type = "candidates")
+							pop_list = []
+							for i in range(len(self.progress_dict[cycle]["Candidate"])):
+								if self.progress_dict[cycle]["Candidate"][i] + ".candidates.p" in check_files:
+									pop_list.append(i)
+									
+							#Pop items separately in reverse order
+							if len(pop_list) > 0:
+								for i in sorted(pop_list, reverse = True):
+									self.progress_dict[cycle]["Candidate"].pop(i)
 								
-						#Save grammar
-						self.Load.save_file(grammar_dict, nickname + ".Cycle-" + str(cycle) + ".Final_Grammar.p")
+							#If remaining candidate files, process them
+							if len(self.progress_dict[cycle]["Candidate"]) > 0:
+								print("\n\tNow processing remaining files: " + str(len(self.progress_dict[cycle]["Candidate"])))
+								
+								#Multi-process#
+								if workers > len(self.progress_dict[cycle]["Candidate"]):
+									candidate_workers = len(self.progress_dict[cycle]["Candidate"])
+								else:
+									candidate_workers = workers
+									
+								pool_instance = mp.Pool(processes = candidate_workers, maxtasksperchild = 1)
+								distribute_list = [(delta_threshold, x) for x in self.progress_dict[cycle]["Candidate"]]
+								pool_instance.map(partial(process_candidates, 
+																		association_dict = self.association_dict.copy(),
+																		language = self.language,
+																		in_dir = self.in_dir,
+																		out_dir = self.out_dir,
+																		s3 = self.s3, 
+																		s3_bucket = self.s3_bucket,
+																		mode = "candidates"
+																		), distribute_list, chunksize = 1)
+								pool_instance.close()
+								pool_instance.join()
+								
+							self.progress_dict[cycle]["Candidate_State"] = "Merge"
+							self.Load.save_file((self.progress_dict, self.data_dict), self.model_state_file)
+
+						#Merge and Save candidates
+						if self.progress_dict[cycle]["Candidate_State"] == "Merge":
+							output_files = [filename + ".candidates.p" for filename in self.data_dict[cycle]["Candidate"]]
+							candidates = self.Candidates.merge_candidates(output_files, freq_threshold)
 						
-						self.progress_dict[cycle]["MDL_State"] = "Complete"
-						self.progress_dict[cycle]["State"] = "Complete"
-						self.Load.save_file((self.progress_dict, self.data_dict), self.model_state_file)			
+							self.Load.save_file(candidates, nickname + ".Cycle-" + str(cycle) + ".Candidates.p")
+							self.progress_dict[cycle]["Candidate_State"] = "Dict"
+							self.Load.save_file((self.progress_dict, self.data_dict), self.model_state_file)
+							
+						#Make association vectors
+						if self.progress_dict[cycle]["Candidate_State"] == "Dict":
+							
+							candidates = self.Load.load_file(nickname + ".Cycle-" + str(cycle) + ".Candidates.p")
+							candidate_dict = self.Candidates.get_association(candidates, association_dict)
+							self.Load.save_file(candidate_dict, nickname + ".Cycle-" + str(cycle) + ".Candidate_Dict.p")
+							
+							self.progress_dict[cycle]["Candidate_State"] == "Complete"
+							self.Load.save_file((self.progress_dict, self.data_dict), self.model_state_file)
+							
+						
+					else:
+						print("\tLoading candidate_dict.")
+						candidate_dict = self.Load.load_file(nickname + ".Cycle-" + str(cycle) + ".Candidate_Dict.p")
+						candidates = self.Load.load_file(nickname + ".Cycle-" + str(cycle) + ".Candidates.p")
+					
+					del association_dict
+					#-----------------#
+					#MDL STAGE
+					#-----------------#
+					if self.progress_dict[cycle]["MDL_State"] != "Complete":
+					
+						#Prep test data for MDL
+						if self.progress_dict[cycle]["MDL_State"] == "None":
+							MDL = MDL_Learner(self.Load, self.Encode, self.Parse, freq_threshold = 0, vectors = candidate_dict, candidates = candidates)
+							MDL.get_mdl_data(self.progress_dict[cycle]["Test"], workers = workers)
+							self.Load.save_file(MDL, nickname + ".Cycle-" + str(cycle) + ".MDL.p")
+							
+							self.progress_dict[cycle]["MDL_State"] = "EM"
+							self.Load.save_file((self.progress_dict, self.data_dict), self.model_state_file)
+						
+						#Run EM-based Tabu Search
+						if self.progress_dict[cycle]["MDL_State"] == "EM":
+							
+							MDL = self.Load.load_file(nickname + ".Cycle-" + str(cycle) + ".MDL.p")
+							MDL.search_em(turn_limit, workers)
+							self.Load.save_file(MDL, nickname + ".Cycle-" + str(cycle) + ".MDL.p")
+							
+							self.progress_dict[cycle]["MDL_State"] = "Direct"
+							self.Load.save_file((self.progress_dict, self.data_dict), self.model_state_file)
+							
+						#Run direct Tabu Search
+						if self.progress_dict[cycle]["MDL_State"] == "Direct":
+							MDL = self.Load.load_file(nickname + ".Cycle-" + str(cycle) + ".MDL.p")
+							MDL.search_direct(turn_limit*3, workers)
+							
+							#Get grammar to save
+							grammar_dict = defaultdict(dict)
+							for i in range(len(MDL.candidates)):
+								grammar_dict[i]["Constructions"] = MDL.candidates[i]
+								grammar_dict[i]["Matches"] = MDL.matches[i]
+									
+							#Save grammar
+							self.Load.save_file(grammar_dict, nickname + ".Cycle-" + str(cycle) + ".Final_Grammar.p")
+							
+							self.progress_dict[cycle]["MDL_State"] = "Complete"
+							self.progress_dict[cycle]["State"] = "Complete"
+							self.Load.save_file((self.progress_dict, self.data_dict), self.model_state_file)			
 				
 		#-----------------#
 		#MERGING STAGE
@@ -577,16 +577,18 @@ class C2xG(object):
 	def set_progress(self):
 	
 		progress_dict = defaultdict(dict)
+		progress_dict["BeamSearch"] = "None"
 		
 		for cycle in self.data_dict.keys():
-		
-			progress_dict[cycle]["State"] = "Incomplete"
-			progress_dict[cycle]["Background"] = self.data_dict[cycle]["Background"].copy()
-			progress_dict[cycle]["Background_State"] = "None"
-			progress_dict[cycle]["Candidate"] = self.data_dict[cycle]["Candidate"].copy()
-			progress_dict[cycle]["Candidate_State"] = "None"
-			progress_dict[cycle]["Test"] = self.data_dict[cycle]["Test"].copy()
-			progress_dict[cycle]["MDL_State"] = "None"
+			if isinstance(cycle, int):
+				
+				progress_dict[cycle]["State"] = "Incomplete"
+				progress_dict[cycle]["Background"] = self.data_dict[cycle]["Background"].copy()
+				progress_dict[cycle]["Background_State"] = "None"
+				progress_dict[cycle]["Candidate"] = self.data_dict[cycle]["Candidate"].copy()
+				progress_dict[cycle]["Candidate_State"] = "None"
+				progress_dict[cycle]["Test"] = self.data_dict[cycle]["Test"].copy()
+				progress_dict[cycle]["MDL_State"] = "None"
 			
 		return progress_dict
 	
