@@ -2,6 +2,7 @@ import math
 import time
 import itertools
 import random
+import copy
 from collections import deque
 import cytoolz as ct
 import numpy as np
@@ -295,9 +296,9 @@ class MDL_Learner(object):
 				best_search = [1 if i in search else 0 for i in range(12)]
 				improvement_counter = 0
 				print("\tNew best search: " + str(best_search) + " with " + str(len(turn_subset)) + " candidates.")
-				return_mdl = best_mdl.copy()
-				return_search = best_search.copy()
-				return_subset = turn_subset.copy()
+				return_mdl = copy.deepcopy(best_mdl)
+				return_search = copy.deepcopy(best_search)
+				return_subset = copy.deepcopy(turn_subset)
 				
 			else:
 				best_mdl = turn_mdl

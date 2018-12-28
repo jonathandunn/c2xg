@@ -408,7 +408,7 @@ class C2xG(object):
 						if self.progress_dict[cycle]["Candidate_State"] == "Dict":
 							
 							candidates = self.Load.load_file(nickname + ".Cycle-" + str(cycle) + ".Candidates.p")
-							candidate_dict = self.Candidates.get_association(candidates, association_dict)
+							candidate_dict = self.Candidates.get_association(candidates, self.association_dict)
 							self.Load.save_file(candidate_dict, nickname + ".Cycle-" + str(cycle) + ".Candidate_Dict.p")
 							
 							self.progress_dict[cycle]["Candidate_State"] == "Complete"
@@ -420,7 +420,7 @@ class C2xG(object):
 						candidate_dict = self.Load.load_file(nickname + ".Cycle-" + str(cycle) + ".Candidate_Dict.p")
 						candidates = self.Load.load_file(nickname + ".Cycle-" + str(cycle) + ".Candidates.p")
 					
-					del association_dict
+					del self.association_dict
 					#-----------------#
 					#MDL STAGE
 					#-----------------#
