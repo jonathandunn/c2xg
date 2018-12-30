@@ -15,5 +15,5 @@ if __name__ == "__main__":
 				ngram_range = (3,6),
 				freq_threshold = 25,
 				turn_limit = 10,
-				workers = 30,
+				workers = 25,
 				)

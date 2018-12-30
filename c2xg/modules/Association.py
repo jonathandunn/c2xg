@@ -176,7 +176,10 @@ class Association(object):
 			
 			#Load
 			for dict_file in files:
-				ngrams.append(self.Loader.load_file(dict_file))
+				try:
+					ngrams.append(self.Loader.load_file(dict_file))
+				except:
+					print("Not loading " + str(dict_file))
 		
 			#Merge
 			ngrams = ct.merge_with(sum, [x for x in ngrams])

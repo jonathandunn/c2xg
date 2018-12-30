@@ -298,6 +298,7 @@ class C2xG(object):
 						#Check if ngram merging is finished
 						if self.progress_dict[cycle]["Background_State"] == "Ngrams":
 							files = [filename + ".ngrams.p" for filename in self.data_dict[cycle]["Background"]]
+						
 							print("\tNow merging ngrams for files: " + str(len(files)))
 							ngrams = self.Association.merge_ngrams(files, freq_threshold)
 							

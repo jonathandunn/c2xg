@@ -1,6 +1,7 @@
 import os
 import pickle
 import codecs
+import time
 from random import randint
 
 #The loader object handles all file access to enable local or S3 bucket support
@@ -29,7 +30,7 @@ class Loader(object):
 	#---------------------------------------------------------------#
 	
 	def save_file(self, file, filename):
-	
+		print("\t\tSaving " + filename)
 		if self.s3 == True:
 			print("\t\tSaving " + filename + " to S3 as " + str(self.output_dir + "/" + filename))
 			
@@ -38,7 +39,7 @@ class Loader(object):
 			client = boto3.client("s3")
 		
 			#Write file to disk
-			temp_name = "temp." + str(randint(1,10000000)) + ".p"	#Have to avoid conflicts across cores
+			temp_name = "temp." + str(randint(1,10000000000)) + ".p"	#Have to avoid conflicts across cores
 			with open(os.path.join(temp_name), "wb") as handle:
 				pickle.dump(file, handle, protocol = pickle.HIGHEST_PROTOCOL)
 				
@@ -49,8 +50,14 @@ class Loader(object):
 		else:
 		
 			#Write file to disk
-			with open(os.path.join(self.output_dir, filename), "wb") as handle:
-				pickle.dump(file, handle, protocol = pickle.HIGHEST_PROTOCOL)
+			try:
+				with open(os.path.join(self.output_dir, filename), "wb") as handle:
+					pickle.dump(file, handle, protocol = pickle.HIGHEST_PROTOCOL)
+					
+			except:
+				time.sleep(100)
+				with open(os.path.join(self.output_dir, filename), "wb") as handle:
+					pickle.dump(file, handle, protocol = pickle.HIGHEST_PROTOCOL)
 				
 	#---------------------------------------------------------------#
 	
@@ -187,9 +194,15 @@ class Loader(object):
 
 		#If reading local file	
 		else:
-		
-			with open(os.path.join(self.output_dir, filename), "rb") as handle:
-					return_file = pickle.load(handle)
+			
+			try:
+				with open(os.path.join(self.output_dir, filename), "rb") as handle:
+						return_file = pickle.load(handle)
+			except Exception as e:
+				print(filename, e)
+				
+				with open(os.path.join(self.output_dir, filename), "rb") as handle:
+						return_file = pickle.load(handle)
 				
 			return return_file
 			
