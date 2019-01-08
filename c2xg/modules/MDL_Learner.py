@@ -272,7 +272,7 @@ class MDL_Learner(object):
 				search_list.append(search_space)
 			
 			#Multi-process MDL evaluation
-			pool_instance = mp.Pool(processes = workers, maxtasksperchild = 1)
+			pool_instance = mp.Pool(processes = workers, maxtasksperchild = None)
 			mdl_list = pool_instance.map(self.evaluate_subset, subset_list, chunksize = 1)
 			pool_instance.close()
 			pool_instance.join()		

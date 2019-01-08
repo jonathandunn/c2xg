@@ -29,13 +29,13 @@ from modules.MDL_Learner import MDL_Learner
 	
 #------------------------------------------------------------
 
-def eval_mdl(files, workers, candidates, Load, Encode, Parse, report = False):
+def eval_mdl(files, workers, candidates, Load, Encode, Parse, freq_threshold = -1, report = False):
 	
 	print("Initiating MDL evaluation: " + str(files))
 		
 	for file in files:
 		print("\tStarting " + file)			
-		MDL = MDL_Learner(Load, Encode, Parse, freq_threshold = -1, vectors = {"na": 0}, candidates = candidates)
+		MDL = MDL_Learner(Load, Encode, Parse, freq_threshold = freq_threshold, vectors = {"na": 0}, candidates = candidates)
 		MDL.get_mdl_data([file], workers = workers, learn_flag = False)
 		current_mdl = MDL.evaluate_subset(subset = False)
 			
@@ -43,7 +43,7 @@ def eval_mdl(files, workers, candidates, Load, Encode, Parse, report = False):
 		return current_mdl
 #------------------------------------------------------------		
 
-def delta_grid_search(candidate_file, test_file, workers, association_dict, language, in_dir, out_dir, s3, s3_bucket):
+def delta_grid_search(candidate_file, test_file, workers, mdl_workers, association_dict, freq_threshold, language, in_dir, out_dir, s3, s3_bucket):
 	
 	print("\nStarting grid search for beam search settings.")
 	result_dict = {}
@@ -55,8 +55,6 @@ def delta_grid_search(candidate_file, test_file, workers, association_dict, lang
 	else:
 		parse_workers = workers
 		
-	
-		
 	#Multi-process#
 	pool_instance = mp.Pool(processes = parse_workers, maxtasksperchild = 1)
 	distribute_list = [(x, candidate_file) for x in delta_thresholds]
@@ -64,6 +62,7 @@ def delta_grid_search(candidate_file, test_file, workers, association_dict, lang
 	pool_instance.map(partial(process_candidates, 
 								association_dict = association_dict.copy(),
 								language = language,
+								freq_threshold = freq_threshold,
 								in_dir = in_dir,
 								out_dir = out_dir,
 								s3 = s3, 
@@ -91,7 +90,16 @@ def delta_grid_search(candidate_file, test_file, workers, association_dict, lang
 			print("\tNot enough candidates!")
 		
 		else:		
-			mdl_score = eval_mdl(files = [test_file], candidates = candidates, workers = workers, Load = Load, Encode = Encode, Parse = Parse, report = True)
+			mdl_score = eval_mdl(files = [test_file], 
+									candidates = candidates, 
+									workers = mdl_workers, 
+									Load = Load, 
+									Encode = Encode, 
+									Parse = Parse, 
+									freq_threshold = freq_threshold, 
+									report = True
+									)
+			
 			result_dict[threshold] = mdl_score
 			print("\tThreshold: " + str(threshold) + " and MDL: " + str(mdl_score))
 		
@@ -103,7 +111,7 @@ def delta_grid_search(candidate_file, test_file, workers, association_dict, lang
 
 #------------------------------------------------------------
 
-def process_candidates(input_tuple, association_dict, language, in_dir, out_dir, s3, s3_bucket, mode = ""):
+def process_candidates(input_tuple, association_dict, language, in_dir, out_dir, s3, s3_bucket, freq_threshold = 1, mode = ""):
 
 	threshold =  input_tuple[0]
 	candidate_file = input_tuple[1]
@@ -120,7 +128,7 @@ def process_candidates(input_tuple, association_dict, language, in_dir, out_dir,
 	
 	if filename not in Load.list_output():
 	
-		candidates = C.process_file(candidate_file, threshold, save = False)
+		candidates = C.process_file(candidate_file, threshold, freq_threshold, save = False)
 		Load.save_file(candidates, filename)
 	
 	#Clean
@@ -231,7 +239,18 @@ class C2xG(object):
 			
 	#-------------------------------------------------------------------------------
 		
-	def learn(self, nickname, cycles = 1, cycle_size = (1, 5, 20), ngram_range = (3,6), freq_threshold = 10, turn_limit = 10, workers = 1, states = None):
+	def learn(self, 
+				nickname, 
+				cycles = 1, 
+				cycle_size = (1, 5, 20), 
+				ngram_range = (3,6), 
+				freq_threshold = 10, 
+				beam_freq_threshold = 10,
+				turn_limit = 10, 
+				workers = 1,
+				mdl_workers = 1,
+				states = None
+				):
 	
 		self.nickname = nickname
 
@@ -337,7 +356,9 @@ class C2xG(object):
 							delta_threshold = delta_grid_search(candidate_file = self.data_dict["BeamCandidates"], 
 																	test_file = self.data_dict["BeamTest"], 
 																	workers = workers, 
+																	mdl_workers = mdl_workers,
 																	association_dict = self.association_dict, 
+																	freq_threshold = beam_freq_threshold,
 																	language = self.language, 
 																	in_dir = self.in_dir, 
 																	out_dir = self.out_dir, 
@@ -429,8 +450,8 @@ class C2xG(object):
 					
 						#Prep test data for MDL
 						if self.progress_dict[cycle]["MDL_State"] == "None":
-							MDL = MDL_Learner(self.Load, self.Encode, self.Parse, freq_threshold = 0, vectors = candidate_dict, candidates = candidates)
-							MDL.get_mdl_data(self.progress_dict[cycle]["Test"], workers = workers)
+							MDL = MDL_Learner(self.Load, self.Encode, self.Parse, freq_threshold = 1, vectors = candidate_dict, candidates = candidates)
+							MDL.get_mdl_data(self.progress_dict[cycle]["Test"], workers = mdl_workers)
 							self.Load.save_file(MDL, nickname + ".Cycle-" + str(cycle) + ".MDL.p")
 							
 							self.progress_dict[cycle]["MDL_State"] = "EM"
@@ -440,7 +461,7 @@ class C2xG(object):
 						if self.progress_dict[cycle]["MDL_State"] == "EM":
 							
 							MDL = self.Load.load_file(nickname + ".Cycle-" + str(cycle) + ".MDL.p")
-							MDL.search_em(turn_limit, workers)
+							MDL.search_em(turn_limit, mdl_workers)
 							self.Load.save_file(MDL, nickname + ".Cycle-" + str(cycle) + ".MDL.p")
 							
 							self.progress_dict[cycle]["MDL_State"] = "Direct"
@@ -449,7 +470,7 @@ class C2xG(object):
 						#Run direct Tabu Search
 						if self.progress_dict[cycle]["MDL_State"] == "Direct":
 							MDL = self.Load.load_file(nickname + ".Cycle-" + str(cycle) + ".MDL.p")
-							MDL.search_direct(turn_limit*3, workers)
+							MDL.search_direct(turn_limit*3, mdl_workers)
 							
 							#Get grammar to save
 							grammar_dict = defaultdict(dict)

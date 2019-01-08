@@ -3,7 +3,7 @@ import os
 
 if __name__ == "__main__":
 
-	language = "ara"
+	language = "eng"
 	
 	#Initialize C2xG object
 	CxG = C2xG(data_dir = "../../../Data", language = language)
@@ -14,6 +14,8 @@ if __name__ == "__main__":
 				cycle_size = (1, 5, 60), 
 				ngram_range = (3,6),
 				freq_threshold = 25,
+				beam_freq_threshold = 10,
 				turn_limit = 10,
-				workers = 25,
+				workers = 30,
+				mdl_workers = 5
 				)

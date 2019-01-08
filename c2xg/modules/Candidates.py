@@ -190,7 +190,7 @@ class Candidates(object):
 	
 	#------------------------------------------------------------------
 	
-	def process_file(self, filename, delta_threshold = 0.05, save = True):
+	def process_file(self, filename, delta_threshold = 0.05, freq_threshold = 1, save = True):
 		
 		candidates = []
 		starting = time.time()
@@ -207,9 +207,10 @@ class Candidates(object):
 			
 		#Count each candidate, get dictionary with candidate frequencies
 		candidates = ct.frequencies(candidates)
-			
+		print("\t" + str(len(candidates)) + " candidates before pruning.")
+		
 		#Reduce nonce candidates
-		above_zero = lambda x: x > 2
+		above_zero = lambda x: x > freq_threshold
 		candidates = ct.valfilter(above_zero, candidates)		
 			
 		#Print time and number of remaining candidates
