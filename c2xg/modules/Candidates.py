@@ -52,8 +52,6 @@ class BeamSearch(object):
 				#Recursive search from each available path
 				self.recursive_beam(current_start, line, i, len(line))
 				
-		starting_size = len(self.candidates)
-		
 		#Evaluate candidate stack
 		for index in self.candidate_stack.keys():
 			top_score = 0.0
@@ -90,9 +88,6 @@ class BeamSearch(object):
 								to_pop.append(candidate2)
 		
 		self.candidates = [x for x in self.candidates if x not in to_pop]
-		ending_size = len(self.candidates)
-		
-		print("\tHorizontal pruning reduced " + str(starting_size) + " to " + str(ending_size) + " candidates.")
 		
 		#Reset state
 		self.candidate_stack = defaultdict(list)

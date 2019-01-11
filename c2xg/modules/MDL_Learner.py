@@ -484,10 +484,11 @@ class MDL_Learner(object):
 				direct_workers = len(subset_list)
 				
 			print("\t\tGenerated moves in " + str(time.time() - starting) + ". Starting MDL evaluation with n workers = " + str(direct_workers))
-			pool_instance = mp.Pool(processes = direct_workers, maxtasksperchild = 1)
-			mdl_list = pool_instance.map(self.evaluate_subset, subset_list, chunksize = 1)
-			pool_instance.close()
-			pool_instance.join()		
+			# pool_instance = mp.Pool(processes = direct_workers, maxtasksperchild = 1)
+			# mdl_list = pool_instance.map(self.evaluate_subset, subset_list, chunksize = 1)
+			# pool_instance.close()
+			# pool_instance.join()
+			mdl_list = [self.evaluate_subset(x) for x in subset_list]
 			print("\t\tDone multi-processing; MDL_Learner line 486")
 			
 			#Find lowest turn of all evaluated moves

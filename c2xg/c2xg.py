@@ -483,7 +483,9 @@ class C2xG(object):
 							
 							self.progress_dict[cycle]["MDL_State"] = "Complete"
 							self.progress_dict[cycle]["State"] = "Complete"
-							self.Load.save_file((self.progress_dict, self.data_dict), self.model_state_file)			
+							self.Load.save_file((self.progress_dict, self.data_dict), self.model_state_file)	
+							
+							del MDL
 				
 		#-----------------#
 		#MERGING STAGE
