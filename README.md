@@ -48,17 +48,18 @@ Usage: Learning New Grammars
 -----------------------------
 The second task is to learn a new CxG. Most users will not need to train a new model.
 
-		CxG.learn(nickname, cycles, cycle_size, ngram_range, freq_threshold, turn_limit, workers)
+		CxG.learn(nickname, cycles, cycle_size, freq_threshold, beam_freq_threshold, turn_limit, workers, mdl_workers)
 	
 This references the following variables:
 
 	nickname (str): Creates a unique namespace for saving temp files
 	cycles (int): Number of unique folds to use; final grammars are merged across fold-specific grammars
 	cycle_size (tuple of ints): The number of files to use for optimization data, for candidate extraction, and for background data
-	ngram_range (tuple of ints): The minimum and maximum possible length for constructional representations
 	freq_threshold (int): The number of occurrences required before a candidate construction is considered
+	beam_freq_threshold (int): The frequency threshold used when searching for the best beam search parameters
 	turn_limit (int): For the tabu search, how many turns to evaluate for making each move (x3 for the direct tabu search)
 	workers (int): Number of processes to use; not every stage distributes well.
+	mdl_workers (int): Number of processes to use for evaluating MDL during construction search; uses more memory
 
 Each learning fold consists of three tasks: (i) estimating association values from background data; this requires a large amount of data (e.g., 20 files); (ii) extracting candidate constructions; this requires a moderate amount of data (e.g., 5 files); (iii) evaluating potential grammars against a test set; this requires a small amount of data (e.g., 1 file or 10 mil words).
 

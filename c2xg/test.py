@@ -3,7 +3,7 @@ import os
 
 if __name__ == "__main__":
 
-	language = "eng"
+	language = "fra"
 	
 	#Initialize C2xG object
 	CxG = C2xG(data_dir = "../../../Data", language = language)
@@ -12,10 +12,14 @@ if __name__ == "__main__":
 	CxG.learn(nickname = language, 
 				cycles = 4, 
 				cycle_size = (1, 5, 60), 
-				ngram_range = (3,6),
 				freq_threshold = 25,
 				beam_freq_threshold = 10,
 				turn_limit = 10,
-				workers = 30,
-				mdl_workers = 5
+				workers = 20,
+				mdl_workers = 1,
+				# states = [
+							# [2, "Background_State", "None"],
+							# [2, "Candidate_State", "Threshold"],
+							# [2, "MDL_State", "None"],
+							# ]
 				)

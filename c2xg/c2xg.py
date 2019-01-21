@@ -243,7 +243,6 @@ class C2xG(object):
 				nickname, 
 				cycles = 1, 
 				cycle_size = (1, 5, 20), 
-				ngram_range = (3,6), 
 				freq_threshold = 10, 
 				beam_freq_threshold = 10,
 				turn_limit = 10, 
@@ -286,7 +285,7 @@ class C2xG(object):
 					
 				#This cycle is not yet finished
 				else:
-					
+
 					#-----------------#
 					#BACKGROUND STAGE
 					#-----------------#
@@ -383,7 +382,7 @@ class C2xG(object):
 							pop_list = []
 							for i in range(len(self.progress_dict[cycle]["Candidate"])):
 								if self.progress_dict[cycle]["Candidate"][i] + ".candidates.p" in check_files:
-									pop_list.append(i)
+									pop_list.append(i)							
 									
 							#Pop items separately in reverse order
 							if len(pop_list) > 0:
@@ -460,17 +459,24 @@ class C2xG(object):
 						#Run EM-based Tabu Search
 						if self.progress_dict[cycle]["MDL_State"] == "EM":
 							
-							MDL = self.Load.load_file(nickname + ".Cycle-" + str(cycle) + ".MDL.p")
-							MDL.search_em(turn_limit, mdl_workers)
+							try:
+								MDL.search_em(turn_limit, mdl_workers)
+							except:
+								MDL = self.Load.load_file(nickname + ".Cycle-" + str(cycle) + ".MDL.p")
+								MDL.search_em(turn_limit, mdl_workers)
+								
 							self.Load.save_file(MDL, nickname + ".Cycle-" + str(cycle) + ".MDL.p")
-							
 							self.progress_dict[cycle]["MDL_State"] = "Direct"
 							self.Load.save_file((self.progress_dict, self.data_dict), self.model_state_file)
 							
 						#Run direct Tabu Search
 						if self.progress_dict[cycle]["MDL_State"] == "Direct":
-							MDL = self.Load.load_file(nickname + ".Cycle-" + str(cycle) + ".MDL.p")
-							MDL.search_direct(turn_limit*3, mdl_workers)
+							
+							try:
+								MDL.search_direct(turn_limit*3, mdl_workers)
+							except:
+								MDL = self.Load.load_file(nickname + ".Cycle-" + str(cycle) + ".MDL.p")
+								MDL.search_direct(turn_limit*3, mdl_workers)
 							
 							#Get grammar to save
 							grammar_dict = defaultdict(dict)
