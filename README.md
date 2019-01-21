@@ -68,7 +68,7 @@ The freq_threshold is used to control the number of potential constructions to c
 Installation
 --------------
 
-Installation files will be provided in the **c2xg/install** directory.
+Installation files will be provided in the **c2xg/whl** directory.
 
 		pip install <whl file>
 		
