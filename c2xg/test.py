@@ -3,7 +3,7 @@ import os
 
 if __name__ == "__main__":
 
-	language = "fra"
+	language = "por"
 	
 	#Initialize C2xG object
 	CxG = C2xG(data_dir = "../../../Data", language = language)
