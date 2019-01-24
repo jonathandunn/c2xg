@@ -166,7 +166,7 @@ class C2xG(object):
 
 		#Try to load default or specified model
 		if model == "":
-			model = self.language + ".Grammar.p"
+			model = self.language + ".Grammar.v1.p"
 		
 		try:
 			modelname = os.path.join(".", "data", "models", model)
