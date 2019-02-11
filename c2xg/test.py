@@ -12,7 +12,7 @@ if __name__ == "__main__":
 	CxG.learn(nickname = language, 
 				cycles = 4, 
 				cycle_size = (1, 5, 60), 
-				freq_threshold = 25,
+				freq_threshold = 75,
 				beam_freq_threshold = 10,
 				turn_limit = 10,
 				workers = 20,
