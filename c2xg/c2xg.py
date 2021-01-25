@@ -3,30 +3,20 @@ import random
 import pickle
 import copy
 import operator
+import codecs
 from collections import defaultdict
 import multiprocessing as mp
 from functools import partial
+from pathlib import Path
 
-#Depending on usage, may be importing from the same package
-#try:
-from modules.Encoder import Encoder
-from modules.Loader import Loader
-from modules.Parser import Parser
-from modules.Association import Association
-from modules.Candidates import Candidates
-from modules.MDL_Learner import MDL_Learner
+from .modules.Encoder import Encoder
+from .modules.Loader import Loader
+from .modules.Parser import Parser
+from .modules.Association import Association
+from .modules.Candidates import Candidates
+from .modules.MDL_Learner import MDL_Learner
+from .modules.Parser import parse_examples
 
-#Or from idNet package
-# except:
-
-	# from c2xg.modules.Encoder import Encoder
-	# from c2xg.modules.Loader import Loader
-	# from c2xg.modules.Parser import Parser
-	# from c2xg.modules.Association import Association
-	# from c2xg.modules.Candidates import Candidates
-	# from c2xg.modules.MDL_Learner import MDL_Learner
-	# os.chdir(os.path.join(".", "c2xg"))
-	
 #------------------------------------------------------------
 
 def eval_mdl(files, workers, candidates, Load, Encode, Parse, freq_threshold = -1, report = False):
@@ -169,20 +159,16 @@ class C2xG(object):
 			model = self.language + ".Grammar.v1.p"
 		
 		try:
-			modelname = os.path.join(".", "data", "models", model)
+			modelname = Path(__file__).parent / os.path.join("data", "models", model)
 			with open(modelname, "rb") as handle:
 				self.model = pickle.load(handle)
+		
 		except:
-			try:
-				modelname = os.path.join("..", "c2xg", "c2xg", "data", "models", model)
-				with open(modelname, "rb") as handle:
-					self.model = pickle.load(handle)
-
-			except:
-				print("No model exists, loading empty model.")
-				self.model = None
+			print("No model exists, loading empty model.")
+			self.model = None
 			
 		self.n_features = len(self.model)
+		self.Encode.build_decoder()
 		
 	#------------------------------------------------------------------
 		
@@ -237,6 +223,72 @@ class C2xG(object):
 				line = self.Parse.parse_line_yield(line, self.model)
 				yield line			
 			
+	#-------------------------------------------------------------------------------
+	def print_constructions(self):
+
+		for i in range(len(self.model)):
+			
+			x = self.model[i]
+			printed_examples = []
+
+			#Prune to actual constraints
+			x = [y for y in x if y[0] != 0]
+			length = len(x)
+			construction = self.Encode.decode_construction(x)
+
+			print(i, construction)
+
+		return
+	#-------------------------------------------------------------------------------
+	def print_examples(self, input_file, output_file, n):
+
+		#Read and write in the default data directories
+		output_file = os.path.join(self.out_dir, output_file)
+
+		#Save the pre-processed lines, to save time later
+		line_list = []
+		for line, encoding in self.Encode.load_examples(input_file):
+			line_list.append([line, encoding])
+
+		with codecs.open(output_file, "w", encoding = "utf-8") as fw:
+			for i in range(len(self.model)):
+			
+				x = self.model[i]
+				printed_examples = []
+
+				#Prune to actual constraints
+				x = [y for y in x if y[0] != 0]
+				length = len(x)
+				construction = self.Encode.decode_construction(x)
+
+				print(i, construction)
+				fw.write(str(i) + "\t")
+				fw.write(construction)
+				fw.write("\n")
+
+				#Track how many examples have been found
+				counter = 0
+
+				for line, encoding in line_list:
+
+					construction_thing, indexes, matches = parse_examples(x, encoding)
+
+					if matches > 0:
+						for index in indexes:
+							
+							text = line.split()[index:index+length]
+
+							if text not in printed_examples:
+								counter += 1
+								printed_examples.append(text)
+								fw.write("\t" + str(counter) + "\t" + str(text) + "\n")
+					
+					#Stop looking for examples at threshold
+					if counter > n:
+						break
+				
+				#End of examples for this construction
+				fw.write("\n\n")
 	#-------------------------------------------------------------------------------
 		
 	def learn(self, 

@@ -1,6 +1,7 @@
 import os
 import pickle
 import re
+from pathlib import Path
 import collections
 import cytoolz as ct
 import numpy as np
@@ -10,22 +11,9 @@ from sklearn.utils import murmurhash3_32
 #Changes the generation of lexicon / dictionary used
 DICT_CONSTANT = ".POS.2000dim.2000min.20iter.POS_Clusters.p"
 
-try:
-	from modules.rdrpos_tagger.Utility.Utils import readDictionary
-	from modules.rdrpos_tagger.pSCRDRtagger.RDRPOSTagger import RDRPOSTagger
-	from modules.rdrpos_tagger.pSCRDRtagger.RDRPOSTagger import unwrap_self_RDRPOSTagger
-	from modules.rdrpos_tagger.pSCRDRtagger.RDRPOSTagger import printHelp
-		
-except:
-	from c2xg.modules.rdrpos_tagger.Utility.Utils import readDictionary
-	from c2xg.modules.rdrpos_tagger.pSCRDRtagger.RDRPOSTagger import RDRPOSTagger
-	from c2xg.modules.rdrpos_tagger.pSCRDRtagger.RDRPOSTagger import unwrap_self_RDRPOSTagger
-	from c2xg.modules.rdrpos_tagger.pSCRDRtagger.RDRPOSTagger import printHelp
-	
-#Fix RDRPos import
-current_dir = os.getcwd()
-if current_dir == "Utility":
-	os.chdir(os.path.join("..", "..", ".."))
+from .rdrpos_tagger.pSCRDRtagger.RDRPOSTagger import RDRPOSTagger
+from .rdrpos_tagger.Utility.Utils import getWordTag, getRawText, readDictionary
+from .rdrpos_tagger.InitialTagger.InitialTagger import initializeCorpus, initializeSentence
 
 #-------------------------------------------------------------------------------------------#
 
@@ -38,10 +26,10 @@ class Encoder(object):
 		self.zho_split = zho_split
 		self.Loader = Loader
 		
-		MODEL_STRING = os.path.join(".", "data", "pos_rdr", self.language + ".RDR")
-		DICT_STRING = os.path.join(".", "data", "pos_rdr", self.language + ".DICT")
-		DICTIONARY_FILE = os.path.join(".", "data", "dictionaries", self.language + DICT_CONSTANT)
-		
+		MODEL_STRING = Path(__file__).parent / os.path.join("..", "data", "pos_rdr", self.language + ".RDR")
+		DICT_STRING = Path(__file__).parent / os.path.join("..", "data", "pos_rdr", self.language + ".DICT")
+		DICTIONARY_FILE = Path(__file__).parent / os.path.join("..", "data", "dictionaries", self.language + DICT_CONSTANT)
+
 		#zho needs an additional tokenizer
 		if self.language == "zho":
 			
@@ -138,6 +126,20 @@ class Encoder(object):
 					line = self.load(line, word_classes)
 					yield line
 					
+	#---------------------------------------------------------------------------#
+
+	def load_examples(self, input_files, word_classes = False):
+
+		#If only got one file, wrap in list
+		if isinstance(input_files, str):
+			input_files = [input_files]
+	
+		for file in input_files:
+			for line in self.Loader.read_file(file):
+				if len(line) > 1:
+					line2 = self.load(line, word_classes)
+					yield line, line2
+
 	#---------------------------------------------------------------------------#
 	
 	def load_batch(self, input_lines, word_classes = False):	

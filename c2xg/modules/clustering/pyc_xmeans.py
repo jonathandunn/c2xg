@@ -35,10 +35,6 @@ from math import log
 from numba import jit
 from numba import int32, float32
 
-from modules.clustering.pyc_encoder import type_encoding
-from modules.clustering.pyc_utils import euclidean_distance_sqrt, euclidean_distance
-from modules.clustering.pyc_utils import list_math_addition_number, list_math_addition, list_math_division_number
-
 @jit(nopython = True)
 def minimum_noiseless_description_length(clusters, centers, pointer_data):
 	"""!

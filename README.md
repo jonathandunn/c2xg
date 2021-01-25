@@ -44,6 +44,16 @@ This references the following settings:
     input (str / list of [strs])	The input, either filenames or texts, specified using **mode**
 	mode (str)						"files" assumes input as filenames; "lines" takes a list of texts
 
+Usage: Showing Constructions
+----------------------------
+This function will show each construction, together with its index. The index corresponds with the column when extracting construction frequencies.
+
+	CxG.print_constructions()
+
+This function will read a text file and write a different text file with examples of each construction from that file. $n$ refers to the number of tokens per construction.
+
+	CxG.print_examples(input_file, output_file, n)
+
 Usage: Learning New Grammars
 -----------------------------
 The second task is to learn a new CxG. Most users will not need to train a new model.

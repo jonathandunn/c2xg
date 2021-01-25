@@ -6,12 +6,49 @@ from functools import partial
 from numba import jit, int64
 from scipy.sparse import coo_matrix
 
-try:
-	from modules.Encoder import Encoder
-	from modules.Loader import Loader
-except:
-	from c2xg.modules.Encoder import Encoder
-	from c2xg.modules.Loader import Loader
+
+#--------------------------------------------------------------#
+#@jit(nopython = True, nogil = True)
+def parse_examples(construction, line):
+
+	indexes = [-1]
+	matches = 0
+	
+	#Iterate over line from left to right
+	for i in range(len(line)):
+		
+		unit = line[i]
+
+		#Check if the first unit matches, to merit further consideration
+		if construction[0][1] == unit[construction[0][0]-1]:
+						
+			match = True	#Initiate match flag to True
+
+			#Check each future unit in candidate
+			for j in range(1, len(construction)):
+							
+				#If we reach the padded part of the construction, break it off
+				if construction[j] == (0,0):
+					break
+							
+				#If this unit doesn't match, stop looking
+				if i+j < len(line):
+					if line[i+j][construction[j][0] - 1] != construction[j][1]:
+										
+						match = False
+						break
+						
+				#This construction is longer than the remaining line
+				else:
+					match = False
+					break
+
+			#Done with candidate
+			if match == True:
+				matches += 1
+				indexes.append(i)	#Save indexes covered by construction match
+				
+	return construction, indexes[1:], matches
 
 #--------------------------------------------------------------#
 

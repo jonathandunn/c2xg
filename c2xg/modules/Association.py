@@ -7,10 +7,7 @@ from functools import partial
 import multiprocessing as mp
 from numba import jit
 
-try:
-	from modules.Encoder import Encoder
-except:
-	from c2xg.modules.Encoder import Encoder
+from .Encoder import Encoder
 
 #-------------------------------------------------------------------#
 #The main calculation function is outside of the class for jitting

@@ -4,32 +4,11 @@ from multiprocessing import Pool
 import cytoolz as ct
 from sklearn.utils import murmurhash3_32
 
-try:
-	sys.setrecursionlimit(100000)
-	sys.path.append(os.path.abspath(""))
-	os.chdir("./modules/rdrpos_tagger/pSCRDRtagger")
+from ..SCRDRlearner.SCRDRTree import SCRDRTree
+from ..InitialTagger.InitialTagger import initializeCorpus, initializeSentence
+from ..SCRDRlearner.Object import FWObject
+from ..Utility.Utils import getWordTag, getRawText, readDictionary
 
-	from modules.rdrpos_tagger.InitialTagger.InitialTagger import initializeCorpus, initializeSentence
-	from modules.rdrpos_tagger.SCRDRlearner.Object import FWObject
-	from modules.rdrpos_tagger.SCRDRlearner.SCRDRTree import SCRDRTree
-	from modules.rdrpos_tagger.SCRDRlearner.SCRDRTreeLearner import SCRDRTreeLearner
-	from modules.rdrpos_tagger.Utility.Config import NUMBER_OF_PROCESSES, THRESHOLD
-	from modules.rdrpos_tagger.Utility.Utils import getWordTag, getRawText, readDictionary
-	from modules.rdrpos_tagger.Utility.LexiconCreator import createLexicon
-
-	#Done with imports, return to main directory
-	os.chdir("../../../")
-
-except:
-	sys.setrecursionlimit(100000)
-	from c2xg.modules.rdrpos_tagger.InitialTagger.InitialTagger import initializeCorpus, initializeSentence
-	from c2xg.modules.rdrpos_tagger.SCRDRlearner.Object import FWObject
-	from c2xg.modules.rdrpos_tagger.SCRDRlearner.SCRDRTree import SCRDRTree
-	from c2xg.modules.rdrpos_tagger.SCRDRlearner.SCRDRTreeLearner import SCRDRTreeLearner
-	from c2xg.modules.rdrpos_tagger.Utility.Config import NUMBER_OF_PROCESSES, THRESHOLD
-	from c2xg.modules.rdrpos_tagger.Utility.Utils import getWordTag, getRawText, readDictionary
-	from c2xg.modules.rdrpos_tagger.Utility.LexiconCreator import createLexicon
-	
 def unwrap_self_RDRPOSTagger(arg, **kwarg):
 	return RDRPOSTagger.tagRawSentence(*arg, **kwarg)
 

@@ -31,7 +31,6 @@
 import random
 import copy
 
-from modules.clustering.pyc_utils import euclidean_distance
 from numba import jit
 from numba import int32, float32
 

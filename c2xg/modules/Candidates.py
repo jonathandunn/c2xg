@@ -13,15 +13,7 @@ import operator
 import difflib
 import copy
 
-try:
-	from modules.Encoder import Encoder
-	from modules.Association import Association
-	from modules.Association import calculate_measures
-
-except:
-	from c2xg.modules.Encoder import Encoder
-	from c2xg.modules.Association import Association
-	from c2xg.modules.Association import calculate_measures
+from .Encoder import Encoder
 
 #--------------------------------------------------------------#
 

@@ -11,16 +11,6 @@ from sklearn.neighbors import kneighbors_graph
 from sklearn.cluster import AgglomerativeClustering
 from sklearn.neighbors import BallTree
 
-try:
-	from modules.Encoder import Encoder
-	from modules.clustering.pyc_xmeans import xmeans
-	from modules.clustering.pyc_center_initializer import kmeans_plusplus_initializer
-except:
-	from c2xg.modules.Encoder import Encoder
-	from c2xg.modules.clustering.pyc_xmeans import xmeans
-	from c2xg.modules.clustering.pyc_center_initializer import kmeans_plusplus_initializer
-
-
 class Word_Classes(object):
 
 	def __init__(self, Loader, use_pos = "POS"):

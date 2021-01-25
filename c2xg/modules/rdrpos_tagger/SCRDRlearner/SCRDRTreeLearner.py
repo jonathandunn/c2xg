@@ -1,11 +1,4 @@
-try:
-	from modules.rdrpos_tagger.SCRDRlearner.Node import Node
-	from modules.rdrpos_tagger.SCRDRlearner.Object import getObjectDictionary
-	from modules.rdrpos_tagger.SCRDRlearner.SCRDRTree import SCRDRTree
-except:
-	from c2xg.modules.rdrpos_tagger.SCRDRlearner.Node import Node
-	from c2xg.modules.rdrpos_tagger.SCRDRlearner.Object import getObjectDictionary
-	from c2xg.modules.rdrpos_tagger.SCRDRlearner.SCRDRTree import SCRDRTree
+from .SCRDRTree import SCRDRTree
 
 #Generate concrete rules based on input object of 5-word window context object
 def generateRules(object):  

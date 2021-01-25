@@ -4,15 +4,6 @@ import os
 import sys
 import re
 
-try:
-	os.chdir("../")
-	sys.setrecursionlimit(100000)
-	sys.path.append(os.path.abspath(""))
-	os.chdir("./Utility")
-	
-except:
-	from c2xg.modules.rdrpos_tagger.Utility.Utils import getWordTag
-
 def add2WordTagFreqDict(word, tag, inDict):
     if word not in inDict:
         inDict[word] = {}
