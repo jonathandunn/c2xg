@@ -1,10 +1,11 @@
-import codecs
-import os
+# -*- coding: utf-8 -*-
 
 def getWordTag(wordTag):
     if wordTag == "///":
         return "/", "/"
     index = wordTag.rfind("/")
+    if index == -1:
+        return wordTag, None
     word = wordTag[:index].strip()
     tag = wordTag[index + 1:].strip()
     return word, tag
@@ -22,11 +23,7 @@ def getRawText(inputFile, outFile):
     
 def readDictionary(inputFile):
     dictionary = {}
-    try:
-        lines = codecs.open(inputFile, "r", encoding = "utf-8").readlines()
-    except:
-        lines = codecs.open(os.path.join("..", "c2xg", "c2xg", inputFile), "r", encoding = "utf-8").readlines()
-
+    lines = open(inputFile, "r").readlines()
     for line in lines:
         wordtag = line.strip().split()
         dictionary[wordtag[0]] = wordtag[1]

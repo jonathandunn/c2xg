@@ -1643,7 +1643,7 @@ zone X
 一半 NUM
 一反其道 VERB
 一同 ADV
-一向 ADV
+一向 ADJ
 一字一句 NOUN
 一定 ADJ
 一帶 NOUN
@@ -1671,7 +1671,7 @@ zone X
 一直 ADV
 一等 NOUN
 一而再、再而三 ADJ
-一致 ADV
+一致 ADJ
 一舉 ADV
 一般 ADJ
 一落千丈 VERB
@@ -1730,7 +1730,7 @@ zone X
 上下 NOUN
 上下行 NOUN
 上下車 NOUN
-上任 VERB
+上任 NOUN
 上佳 ADJ
 上傳 VERB
 上升 VERB
@@ -1859,12 +1859,12 @@ zone X
 不問 VERB
 不均 ADJ
 不多 ADJ
-不夠 AUX
+不夠 ADJ
 不大 ADJ
 不好 ADJ
 不如 VERB
 不定 ADJ
-不宜 ADV
+不宜 ADJ
 不實 ADJ
 不少 ADJ
 不已 ADJ
@@ -1956,7 +1956,7 @@ zone X
 世祿 NOUN
 世紀 NOUN
 世綱 PROPN
-世襲 VERB
+世襲 ADJ
 世貿 PROPN
 世道 NOUN
 世銘 PROPN
@@ -2074,7 +2074,7 @@ zone X
 主炮 NOUN
 主犯 NOUN
 主筆 NOUN
-主管 VERB
+主管 NOUN
 主線 NOUN
 主編 VERB
 主義 NOUN
@@ -2091,7 +2091,7 @@ zone X
 久經 VERB
 久藏 PROPN
 之 PART
-之上 NOUN
+之上 ADP
 之下 ADP
 之中 ADP
 之內 ADP
@@ -2112,7 +2112,7 @@ zone X
 乘撘 VERB
 乘船 VERB
 乘裝 VERB
-乘車 VERB
+乘車 NOUN
 乙 PROPN
 乙二胺 NOUN
 乙未 NOUN
@@ -2192,7 +2192,7 @@ zone X
 互作 VERB
 互利 VERB
 互助 PROPN
-互動 VERB
+互動 NOUN
 互惠 VERB
 互相 ADV
 互聯 VERB
@@ -2206,7 +2206,7 @@ zone X
 五十 NUM
 五十一 NUM
 五十六 NUM
-五四 PROPN
+五四 NUM
 五峰 PROPN
 五常 PROPN
 五弟 NOUN
@@ -2292,7 +2292,7 @@ zone X
 交道 NOUN
 交配 VERB
 交錯 VERB
-交響 VERB
+交響 NOUN
 亦 ADV
 亦即 VERB
 亦是 AUX
@@ -2612,7 +2612,7 @@ zone X
 作怪 VERB
 作戰 VERB
 作曲 VERB
-作業 VERB
+作業 NOUN
 作次郎 PROPN
 作法 NOUN
 作為 NOUN
@@ -2660,7 +2660,7 @@ zone X
 來館 VERB
 侈談 VERB
 例 NOUN
-例外 NOUN
+例外 ADJ
 例如 VERB
 例子 NOUN
 侍奉 VERB
@@ -2735,7 +2735,7 @@ zone X
 保有 VERB
 保溫 NOUN
 保留 VERB
-保級 AUX
+保級 VERB
 保羅 PROPN
 保羅費雷拉 PROPN
 保育 NOUN
@@ -2805,7 +2805,7 @@ zone X
 們 PART
 倒下 VERB
 倒入 VERB
-倒台 VERB
+倒台 NOUN
 倒掛 VERB
 倖免 VERB
 倖存 VERB
@@ -2910,7 +2910,7 @@ zone X
 傑斐遜 PROPN
 備 PROPN
 備受 VERB
-備忘 VERB
+備忘 NOUN
 備戰 NOUN
 備案 VERB
 備用 NOUN
@@ -2923,7 +2923,7 @@ zone X
 傳來 VERB
 傳入 VERB
 傳到 VERB
-傳動 VERB
+傳動 NOUN
 傳奇 NOUN
 傳媒 NOUN
 傳導 NOUN
@@ -2964,7 +2964,7 @@ zone X
 僅用 VERB
 像 VERB
 像差 NOUN
-像是 ADV
+像是 VERB
 僑 PART
 僕人 NOUN
 僖 PROPN
@@ -3110,13 +3110,13 @@ zone X
 克里斯托弗 PROPN
 克里波門 PROPN
 克里米亞 PROPN
-克隆 VERB
+克隆 NOUN
 克魯 PROPN
 兌換 VERB
 免 VERB
 免疫 NOUN
 免職 VERB
-免費 ADV
+免費 ADJ
 免遭 VERB
 免除 VERB
 兒女 NOUN
@@ -3154,7 +3154,7 @@ zone X
 內地 NOUN
 內埔 PROPN
 內壁 NOUN
-內外 NOUN
+內外 ADP
 內容 NOUN
 內心 NOUN
 內戰 NOUN
@@ -3342,7 +3342,7 @@ zone X
 再造 VERB
 冒 VERB
 冒險 NOUN
-冠 PART
+冠 VERB
 冠上 VERB
 冠峰 PROPN
 冠狀 NOUN
@@ -3358,7 +3358,7 @@ zone X
 冬季 NOUN
 冬眠 NOUN
 冬青 PROPN
-冰 PROPN
+冰 NOUN
 冰兄 PROPN
 冰冰 PROPN
 冰塔 NOUN
@@ -3398,7 +3398,7 @@ zone X
 凍傷 NOUN
 凝結 VERB
 凝集 VERB
-凡 ADV
+凡 PROPN
 凡爾登 PROPN
 凡爾賽 PROPN
 凱倫 PROPN
@@ -3438,7 +3438,7 @@ zone X
 出國 VERB
 出土 VERB
 出城 VERB
-出場 VERB
+出場 NOUN
 出奇 ADJ
 出嫁 VERB
 出家 VERB
@@ -3463,7 +3463,7 @@ zone X
 出色 ADJ
 出血 NOUN
 出訪 VERB
-出賽 VERB
+出賽 NOUN
 出路 NOUN
 出身 VERB
 出逃 VERB
@@ -3477,7 +3477,7 @@ zone X
 分享 VERB
 分佈 VERB
 分別 ADV
-分化 VERB
+分化 NOUN
 分區 NOUN
 分契 NOUN
 分子 NOUN
@@ -3508,10 +3508,10 @@ zone X
 分組 NOUN
 分缺 VERB
 分行 NOUN
-分裂 VERB
+分裂 NOUN
 分解 VERB
 分貝 NOUN
-分辨 VERB
+分辨 NOUN
 分部 NOUN
 分配 VERB
 分鏡 NOUN
@@ -3561,7 +3561,7 @@ zone X
 初次 ADV
 初步 ADV
 初稿 NOUN
-初級 ADJ
+初級 NOUN
 初見 NOUN
 初賽 NOUN
 判 VERB
@@ -3572,7 +3572,7 @@ zone X
 判決 NOUN
 判處 VERB
 判詞 NOUN
-別 ADV
+別 DET
 別人 NOUN
 別克 PROPN
 別列佐夫斯基 PROPN
@@ -3619,7 +3619,7 @@ zone X
 刷到 VERB
 券 PART
 券頂 NOUN
-刺 VERB
+刺 NOUN
 刺客 NOUN
 刺死 VERB
 刺殺 VERB
@@ -3640,7 +3640,7 @@ zone X
 削弱 VERB
 削減 VERB
 前 ADP
-前任 NOUN
+前任 DET
 前來 VERB
 前傾 VERB
 前去 VERB
@@ -3695,7 +3695,7 @@ zone X
 創始 VERB
 創建 VERB
 創意 NOUN
-創新 ADJ
+創新 NOUN
 創業 VERB
 創煥 PROPN
 創生 NOUN
@@ -3718,7 +3718,7 @@ zone X
 劇場 NOUN
 劇情 NOUN
 劇本 NOUN
-劇烈 ADV
+劇烈 ADJ
 劇目 NOUN
 劇組 NOUN
 劇院 NOUN
@@ -3969,7 +3969,7 @@ zone X
 升值 VERB
 升到 VERB
 升天 VERB
-升學 VERB
+升學 NOUN
 升格 VERB
 升級 NOUN
 升越 VERB
@@ -4057,7 +4057,7 @@ zone X
 博義 PROPN
 博覽 VERB
 占 VERB
-占卜 VERB
+占卜 NOUN
 占星 VERB
 卡 PART
 卡亞尼 PROPN
@@ -4093,7 +4093,7 @@ zone X
 卧底 NOUN
 卧病 VERB
 卧薪嘗膽 VERB
-印 PROPN
+印 VERB
 印信 NOUN
 印刷 NOUN
 印加 PROPN
@@ -4114,12 +4114,12 @@ zone X
 危機 NOUN
 危殆 ADJ
 危險 ADJ
-即 ADV
+即 AUX
 即位 VERB
 即使 ADP
 即場 ADV
 即將 ADV
-即時 ADV
+即時 ADJ
 即有 VERB
 即期 ADJ
 即興 ADV
@@ -4127,7 +4127,7 @@ zone X
 卷 NOUN
 卸任 VERB
 卻 ADV
-卻是 ADV
+卻是 VERB
 卿 PART
 卿雲 NOUN
 厄運 NOUN
@@ -4194,7 +4194,7 @@ zone X
 及 CCONJ
 及後 ADV
 及時 ADV
-及格 VERB
+及格 NOUN
 友 PART
 友好 ADJ
 友情 NOUN
@@ -4202,7 +4202,7 @@ zone X
 友邦 PROPN
 反 VERB
 反共 VERB
-反動 VERB
+反動 ADJ
 反叛 VERB
 反右 NOUN
 反向 ADJ
@@ -4386,8 +4386,8 @@ zone X
 各國 NOUN
 各地 NOUN
 各州 DET
-各式 NOUN
-各式各樣 NOUN
+各式 DET
+各式各樣 ADJ
 各方 NOUN
 各球 NOUN
 各界 NOUN
@@ -4396,7 +4396,7 @@ zone X
 各科 NOUN
 各種 DET
 各種各樣 DET
-各級 DET
+各級 NOUN
 各職 NOUN
 各自 PRON
 各處 NOUN
@@ -4459,7 +4459,7 @@ zone X
 同名 NOUN
 同型 NOUN
 同學 NOUN
-同居 VERB
+同居 NOUN
 同工 NOUN
 同年 NOUN
 同志 NOUN
@@ -4590,7 +4590,7 @@ zone X
 呼 VERB
 呼倫貝爾 PROPN
 呼叫 VERB
-呼吸 VERB
+呼吸 NOUN
 呼和浩特 PROPN
 呼籲 VERB
 呼聲 NOUN
@@ -4615,9 +4615,9 @@ zone X
 和美 PART
 和衷 ADV
 和親 NOUN
-和解 VERB
+和解 NOUN
 和記 PROPN
-和談 VERB
+和談 NOUN
 和諧 NOUN
 和議 NOUN
 和階 ADJ
@@ -4696,7 +4696,7 @@ zone X
 售賣 VERB
 唯 ADV
 唯一 ADJ
-唯有 VERB
+唯有 ADP
 唯獨 ADV
 唯美 ADJ
 唱 VERB
@@ -4731,7 +4731,7 @@ zone X
 問題 NOUN
 啟 PROPN
 啟傑 PROPN
-啟動 VERB
+啟動 NOUN
 啟明 PROPN
 啟用 VERB
 啟發 NOUN
@@ -4879,8 +4879,8 @@ zone X
 回復 VERB
 回想 VERB
 回憶 VERB
-回應 VERB
-回收 VERB
+回應 NOUN
+回收 NOUN
 回教 PROPN
 回歸 VERB
 回生 NOUN
@@ -4944,7 +4944,7 @@ zone X
 國策 NOUN
 國籍 NOUN
 國訊 NOUN
-國語 PROPN
+國語 NOUN
 國諱 NOUN
 國軍 NOUN
 國鋒 PROPN
@@ -4988,7 +4988,7 @@ zone X
 圖稿 NOUN
 團 PART
 團圓 VERB
-團結 VERB
+團結 ADJ
 團聚 VERB
 團長 NOUN
 團隊 NOUN
@@ -5004,7 +5004,7 @@ zone X
 在 ADP
 在任 VERB
 在位 VERB
-在來 NOUN
+在來 ADJ
 在內 ADP
 在場 VERB
 在崗 NOUN
@@ -5144,7 +5144,7 @@ zone X
 堅 PROPN
 堅固 ADJ
 堅城 NOUN
-堅定 VERB
+堅定 ADJ
 堅尼地 PROPN
 堅強 ADJ
 堅拒 VERB
@@ -5160,7 +5160,7 @@ zone X
 堪薩斯 PROPN
 報 PART
 報仇 VERB
-報分 VERB
+報分 NOUN
 報刊 NOUN
 報到 VERB
 報名 NOUN
@@ -5252,7 +5252,7 @@ zone X
 壓力 NOUN
 壓強 NOUN
 壓縮 VERB
-壓迫 VERB
+壓迫 NOUN
 壘 NOUN
 壞球 NOUN
 壩上 NOUN
@@ -5300,7 +5300,7 @@ zone X
 外匯 NOUN
 外國 NOUN
 外圍 NOUN
-外在 VERB
+外在 NOUN
 外地 NOUN
 外壁 NOUN
 外套 NOUN
@@ -5336,7 +5336,7 @@ zone X
 多謝 VERB
 多達 VERB
 多雨 ADJ
-夜 PART
+夜 NOUN
 夜夜 NOUN
 夜戰 NOUN
 夜晚 NOUN
@@ -5360,7 +5360,7 @@ zone X
 大佛 NOUN
 大使 NOUN
 大儒 NOUN
-大公 ADJ
+大公 NOUN
 大力 ADV
 大勝 VERB
 大區 NOUN
@@ -5536,7 +5536,7 @@ zone X
 太湖 PROPN
 太炎 PROPN
 太監 NOUN
-太祖 PROPN
+太祖 NOUN
 太空 NOUN
 太行 PROPN
 太近 ADJ
@@ -5709,7 +5709,7 @@ zone X
 姑娘 NOUN
 姑家 NOUN
 姑母 NOUN
-姓 VERB
+姓 NOUN
 姓名 NOUN
 姓氏 NOUN
 委任 VERB
@@ -5825,9 +5825,9 @@ zone X
 季軍 NOUN
 季風 NOUN
 季龍 PROPN
-孤僻 NOUN
+孤僻 ADJ
 孤島 NOUN
-孤獨 VERB
+孤獨 NOUN
 孤芳自賞 VERB
 孤身 ADV
 孩子 NOUN
@@ -5937,7 +5937,7 @@ zone X
 宏偉 ADJ
 宏坤 PROPN
 宏聲 PROPN
-宏觀 ADJ
+宏觀 NOUN
 宏道 PROPN
 宏量 ADJ
 宗 PART
@@ -6058,7 +6058,7 @@ zone X
 宿根 NOUN
 宿舍 NOUN
 寄存 VERB
-寄宿 VERB
+寄宿 NOUN
 寄送 VERB
 寅成 PROPN
 密 PROPN
@@ -6114,7 +6114,7 @@ zone X
 實驗 NOUN
 實體 NOUN
 寧波 PROPN
-審 PART
+審 NOUN
 審判 NOUN
 審批 VERB
 審查 NOUN
@@ -6198,7 +6198,7 @@ zone X
 專家 NOUN
 專指 VERB
 專政 NOUN
-專有 NOUN
+專有 ADJ
 專業 NOUN
 專機 NOUN
 專橫 ADJ
@@ -6281,7 +6281,7 @@ zone X
 小小 ADJ
 小島 NOUN
 小平 PROPN
-小心 ADV
+小心 ADJ
 小息 NOUN
 小數 NOUN
 小時 NOUN
@@ -6344,7 +6344,7 @@ zone X
 就 ADV
 就任 VERB
 就是 AUX
-就業 VERB
+就業 NOUN
 就此 ADV
 就熟 ADJ
 就算 ADP
@@ -6797,10 +6797,10 @@ zone X
 幫助 VERB
 幫忙 VERB
 干擾 NOUN
-干涉 VERB
+干涉 NOUN
 干王 PROPN
-干預 VERB
-平 VERB
+干預 NOUN
+平 NOUN
 平原 NOUN
 平反 VERB
 平台 NOUN
@@ -6810,7 +6810,7 @@ zone X
 平坦 ADJ
 平安 PROPN
 平帝 PROPN
-平常 NOUN
+平常 ADJ
 平息 VERB
 平成 PROPN
 平手 NOUN
@@ -7018,7 +7018,7 @@ zone X
 建威 PROPN
 建州 PROPN
 建市 VERB
-建康 PROPN
+建康 NOUN
 建御名方 PROPN
 建御雷 PROPN
 建成 VERB
@@ -7119,7 +7119,7 @@ zone X
 彌補 VERB
 彌賽亞 PROPN
 彌迦 PROPN
-彎曲 NOUN
+彎曲 ADJ
 彗差 NOUN
 彗星 NOUN
 彙編 NOUN
@@ -7194,7 +7194,7 @@ zone X
 很差 ADJ
 很強 ADJ
 很忙 ADJ
-很快 ADV
+很快 ADJ
 很懶 ADJ
 很是 ADV
 很深 ADJ
@@ -7335,7 +7335,7 @@ zone X
 徹底 ADV
 徽 PART
 徽章 NOUN
-心 PART
+心 NOUN
 心中 NOUN
 心境 NOUN
 心宿 PROPN
@@ -7383,7 +7383,7 @@ zone X
 怒 NOUN
 怕 VERB
 思侯 PROPN
-思念 VERB
+思念 NOUN
 思想 NOUN
 思成 PROPN
 思明 PROPN
@@ -7424,7 +7424,7 @@ zone X
 恆鳳 PROPN
 恐嚇 NOUN
 恐怖 NOUN
-恐慌 ADJ
+恐慌 NOUN
 恐懼 VERB
 恐龍 NOUN
 恢復 VERB
@@ -7436,7 +7436,7 @@ zone X
 恩 PROPN
 恩來 PROPN
 恩南伽 PROPN
-恩寵 PROPN
+恩寵 NOUN
 恩慈 NOUN
 恩秀 PROPN
 恩賜 NOUN
@@ -7461,7 +7461,7 @@ zone X
 悲慘 ADJ
 悲痛 ADJ
 悲痛欲絕 VERB
-悲觀 ADJ
+悲觀 NOUN
 悲鴻 PROPN
 悼念 VERB
 情 NOUN
@@ -7558,7 +7558,7 @@ zone X
 感 PART
 感冒 VERB
 感到 AUX
-感動 VERB
+感動 ADJ
 感受 NOUN
 感召 VERB
 感情 NOUN
@@ -7622,7 +7622,7 @@ zone X
 應許 VERB
 應該 AUX
 應邀 VERB
-懊惱 NOUN
+懊惱 ADJ
 懲罰 NOUN
 懶爪龍 NOUN
 懷 PROPN
@@ -7636,7 +7636,7 @@ zone X
 懷水 PROPN
 懷疑 VERB
 懷聖 PROPN
-懷舊 ADJ
+懷舊 NOUN
 懸崖 NOUN
 懸掛 VERB
 懸浮 NOUN
@@ -7792,7 +7792,7 @@ zone X
 打人 VERB
 打出 VERB
 打包 VERB
-打工 VERB
+打工 NOUN
 打撈 VERB
 打擊 VERB
 打敗 VERB
@@ -7817,7 +7817,7 @@ zone X
 托茂 PROPN
 托馬斯 PROPN
 扣上 VERB
-扭曲 NOUN
+扭曲 VERB
 扮演 VERB
 扶手 NOUN
 扶植 VERB
@@ -7947,7 +7947,7 @@ zone X
 拓撲 PROPN
 拔出 VERB
 拔刀 VERB
-拖 PART
+拖 VERB
 拖延 VERB
 拖進 VERB
 拖鞋 NOUN
@@ -7972,7 +7972,7 @@ zone X
 拳擊 NOUN
 拳賽 NOUN
 拷問 NOUN
-拷貝 VERB
+拷貝 NOUN
 拼寫 NOUN
 拼音 NOUN
 拾糞 VERB
@@ -7994,7 +7994,7 @@ zone X
 指定 VERB
 指導 VERB
 指引 NOUN
-指控 VERB
+指控 NOUN
 指揮 VERB
 指數 NOUN
 指標 NOUN
@@ -8010,7 +8010,7 @@ zone X
 挑選 VERB
 挖 VERB
 挖子 PROPN
-挖掘 VERB
+挖掘 NOUN
 挖角 VERB
 挪動 VERB
 挪威 PROPN
@@ -8040,7 +8040,7 @@ zone X
 捕殺 VERB
 捕獲 VERB
 捕獵 NOUN
-捕食 VERB
+捕食 NOUN
 捕魚 VERB
 捕鼠 VERB
 捲入 VERB
@@ -8092,7 +8092,7 @@ zone X
 採樣 NOUN
 採用 VERB
 採納 VERB
-採訪 VERB
+採訪 NOUN
 採購 VERB
 採集 NOUN
 採食 VERB
@@ -8109,7 +8109,7 @@ zone X
 接力 NOUN
 接受 VERB
 接唱 VERB
-接待 VERB
+接待 NOUN
 接掌 VERB
 接收 VERB
 接替 VERB
@@ -8154,7 +8154,7 @@ zone X
 掩 VERB
 掩蓋 VERB
 措施 NOUN
-描寫 VERB
+描寫 NOUN
 描摹 VERB
 描繪 VERB
 描述 VERB
@@ -8236,7 +8236,7 @@ zone X
 搶劫 VERB
 搶奪 NOUN
 搶救 VERB
-搶險 VERB
+搶險 NOUN
 摒棄 VERB
 摔 VERB
 摘下 VERB
@@ -8414,7 +8414,7 @@ zone X
 改穿 VERB
 改組 VERB
 改編 VERB
-改良 VERB
+改良 NOUN
 改裝 VERB
 改變 VERB
 改造 NOUN
@@ -8429,7 +8429,7 @@ zone X
 攻勢 NOUN
 攻堅 VERB
 攻打 VERB
-攻擊 VERB
+攻擊 NOUN
 攻方 NOUN
 攻殺 VERB
 攻訐 VERB
@@ -8558,7 +8558,7 @@ zone X
 整所 DET
 整架 DET
 整片 DET
-整理 VERB
+整理 NOUN
 整篇 NOUN
 整軍 VERB
 整顆 DET
@@ -8713,7 +8713,7 @@ zone X
 新羅 PROPN
 新義 PROPN
 新聞 NOUN
-新興 ADJ
+新興 NOUN
 新舊 ADJ
 新華 PROPN
 新製 NOUN
@@ -8853,7 +8853,7 @@ zone X
 明視 PROPN
 明顯 ADJ
 昏迷 VERB
-易 ADV
+易 NOUN
 易卜拉欣 PROPN
 易名 VERB
 易守 VERB
@@ -8910,7 +8910,7 @@ zone X
 時 ADP
 時事 NOUN
 時代 NOUN
-時任 VERB
+時任 NOUN
 時份 NOUN
 時候 NOUN
 時值 VERB
@@ -8961,7 +8961,7 @@ zone X
 普選 VERB
 普陀 PROPN
 普魯士 PROPN
-景 PROPN
+景 NOUN
 景帝 PROPN
 景德 PROPN
 景泰 PROPN
@@ -9009,7 +9009,7 @@ zone X
 暴斂 VERB
 暴死 VERB
 暴行 NOUN
-暴露 NOUN
+暴露 ADJ
 暴風雪 NOUN
 暹羅 PROPN
 曄之 PROPN
@@ -9315,7 +9315,7 @@ zone X
 杜蘭特 PROPN
 杜隆坦 PROPN
 束 PART
-束縛 VERB
+束縛 NOUN
 杭 PROPN
 杭州 PROPN
 杯 PART
@@ -9491,7 +9491,7 @@ zone X
 根 NOUN
 根培烏孜 PROPN
 根據 ADP
-根本 ADV
+根本 NOUN
 根深柢固 ADV
 根生 PROPN
 根莖 NOUN
@@ -9784,7 +9784,7 @@ zone X
 檢查 VERB
 檢測 NOUN
 檢索 NOUN
-檢討 VERB
+檢討 NOUN
 檢驗 VERB
 檨仔林 PROPN
 檳榔 NOUN
@@ -9817,7 +9817,7 @@ zone X
 次郎 PROPN
 次長 NOUN
 欣快 NOUN
-欣賞 VERB
+欣賞 NOUN
 欲 AUX
 欺 VERB
 欺騙 VERB
@@ -9825,7 +9825,7 @@ zone X
 款 NOUN
 款式 NOUN
 歆 PROPN
-歌 PART
+歌 NOUN
 歌人 NOUN
 歌仔 NOUN
 歌劇 NOUN
@@ -9870,7 +9870,7 @@ zone X
 正當 ADJ
 正直 ADJ
 正確 ADJ
-正統 NOUN
+正統 ADJ
 正經 ADJ
 正義 NOUN
 正負粒子 NOUN
@@ -10075,7 +10075,7 @@ zone X
 比賽 NOUN
 比起 ADP
 比較 ADV
-毗鄰 VERB
+毗鄰 NOUN
 毛 PROPN
 毛利 PROPN
 毛色 NOUN
@@ -10273,7 +10273,7 @@ zone X
 決定 VERB
 決心 VERB
 決意 VERB
-決戰 VERB
+決戰 NOUN
 決擇 NOUN
 決然 ADV
 決策 NOUN
@@ -10444,7 +10444,7 @@ zone X
 泥塑 NOUN
 泥潭 NOUN
 注入 VERB
-注射 VERB
+注射 NOUN
 注意 NOUN
 注資 VERB
 注重 VERB
@@ -10634,7 +10634,7 @@ zone X
 消極 NOUN
 消滅 VERB
 消耗 NOUN
-消費 VERB
+消費 NOUN
 消退 VERB
 消除 VERB
 涉世 AUX
@@ -10722,7 +10722,7 @@ zone X
 清明 PROPN
 清晨 NOUN
 清朝 PROPN
-清楚 VERB
+清楚 ADJ
 清洗 VERB
 清潔 VERB
 清理 NOUN
@@ -10785,7 +10785,7 @@ zone X
 湛恩 PROPN
 湧現 VERB
 湮滅 VERB
-湯 PROPN
+湯 NOUN
 湯姆 PROPN
 湯姆萊利 PROPN
 湯料 NOUN
@@ -10854,7 +10854,7 @@ zone X
 滴下 VERB
 滾動 VERB
 滾石 PROPN
-滿 PROPN
+滿 VERB
 滿分 NOUN
 滿意 ADJ
 滿洲 PROPN
@@ -11114,7 +11114,7 @@ zone X
 煥 PROPN
 煦 PROPN
 照射 NOUN
-照料 VERB
+照料 NOUN
 照片 NOUN
 照相 VERB
 照顧 VERB
@@ -11198,7 +11198,7 @@ zone X
 爭占 VERB
 爭取 VERB
 爭吵 NOUN
-爭執 VERB
+爭執 NOUN
 爭奪 VERB
 爭寵 VERB
 爭得 VERB
@@ -11208,10 +11208,10 @@ zone X
 爭競 VERB
 爭論 NOUN
 爭議 NOUN
-爭辯 AUX
+爭辯 NOUN
 爭霸 VERB
 爭鬥 NOUN
-爲 AUX
+爲 VERB
 爵士 NOUN
 父 NOUN
 父子 NOUN
@@ -11223,7 +11223,7 @@ zone X
 爺爺 NOUN
 爽 PROPN
 爽文 PROPN
-爾後 ADV
+爾後 NOUN
 爾炘 PROPN
 牆 NOUN
 牆上 NOUN
@@ -11251,7 +11251,7 @@ zone X
 牙醫 NOUN
 牙齒 NOUN
 牛 PROPN
-牛仔 PROPN
+牛仔 NOUN
 牛奶 NOUN
 牛池 PROPN
 牛津 PROPN
@@ -11332,7 +11332,7 @@ zone X
 犬隻 NOUN
 犬髖 NOUN
 犬齒 NOUN
-犯 PART
+犯 VERB
 犯人 NOUN
 犯罪 NOUN
 狀 PART
@@ -11357,7 +11357,7 @@ zone X
 狼堡 PROPN
 狼影 PROPN
 狼群 NOUN
-猛烈 ADV
+猛烈 ADJ
 猛虎 NOUN
 猜忌 NOUN
 猜想 NOUN
@@ -11367,7 +11367,7 @@ zone X
 猶他 PROPN
 猶大 PROPN
 猶太 PROPN
-猶豫 ADJ
+猶豫 NOUN
 獅 PART
 獅子 NOUN
 獅心 PROPN
@@ -11567,7 +11567,7 @@ zone X
 環境 NOUN
 環島 NOUN
 環帶 NOUN
-環形 NOUN
+環形 ADJ
 環狀 NOUN
 環球 PROPN
 環礁 NOUN
@@ -11609,7 +11609,7 @@ zone X
 甜兒 PROPN
 甜度 NOUN
 甜甜 PROPN
-生 PART
+生 VERB
 生下 VERB
 生主 NOUN
 生出 VERB
@@ -11687,7 +11687,7 @@ zone X
 由 VERB
 由來 NOUN
 由於 ADP
-由衷 ADV
+由衷 ADJ
 甲 NUM
 甲山 PROPN
 甲板 NOUN
@@ -11785,7 +11785,7 @@ zone X
 當晚 NOUN
 當期 NOUN
 當歸 NOUN
-當然 ADV
+當然 ADJ
 當選 VERB
 當面 ADV
 疆域 NOUN
@@ -11837,7 +11837,7 @@ zone X
 登記 VERB
 登輝 PROPN
 登陸 VERB
-發 VERB
+發 NOUN
 發佈 VERB
 發作 VERB
 發兵 VERB
@@ -11994,7 +11994,7 @@ zone X
 監獄 NOUN
 監督 NOUN
 監禁 VERB
-監管 AUX
+監管 VERB
 監聽 VERB
 監製 VERB
 監視 VERB
@@ -12054,7 +12054,7 @@ zone X
 相異 ADJ
 相當 ADV
 相稱 VERB
-相等 VERB
+相等 ADJ
 相約 VERB
 相繼 ADV
 相聲 NOUN
@@ -12104,7 +12104,7 @@ zone X
 真北 NOUN
 真名 NOUN
 真好 ADJ
-真宗 PROPN
+真宗 NOUN
 真實 ADJ
 真希 PROPN
 真情 NOUN
@@ -12127,7 +12127,7 @@ zone X
 眼皮 NOUN
 眼睛 NOUN
 眼神 NOUN
-眼鏡 PROPN
+眼鏡 NOUN
 眾 NOUN
 眾人 NOUN
 眾多 NUM
@@ -12182,7 +12182,7 @@ zone X
 矮星 NOUN
 石 PROPN
 石像 NOUN
-石化 VERB
+石化 NOUN
 石原 PROPN
 石器 NOUN
 石塊 NOUN
@@ -12220,7 +12220,7 @@ zone X
 硫 NOUN
 硫化氫 NOUN
 硫化鉛 NOUN
-硫磺 PROPN
+硫磺 NOUN
 硫酸銨 NOUN
 硬 ADJ
 硬幣 NOUN
@@ -12383,7 +12383,7 @@ zone X
 私立 ADJ
 私財 NOUN
 秉國 PROPN
-秋 PROPN
+秋 NOUN
 秋人 PROPN
 秋天 NOUN
 秋山 PROPN
@@ -12394,7 +12394,7 @@ zone X
 科多爾 PROPN
 科學 NOUN
 科屬 NOUN
-科幻 NOUN
+科幻 ADJ
 科恩 PROPN
 科技 NOUN
 科教 NOUN
@@ -12467,7 +12467,7 @@ zone X
 稱號 NOUN
 稱許 NOUN
 稱謂 NOUN
-稱讚 VERB
+稱讚 NOUN
 稱銜 NOUN
 稻子 NOUN
 稻盛 PROPN
@@ -12484,7 +12484,7 @@ zone X
 穆薩 PROPN
 積分 VERB
 積山 PROPN
-積極 ADV
+積極 ADJ
 積良 PROPN
 穎珊 PROPN
 穩 ADJ
@@ -12595,7 +12595,7 @@ zone X
 符合 VERB
 符桐 PROPN
 符號 NOUN
-笨 PART
+笨 ADJ
 第 NUM
 第1 NUM
 第10 NUM
@@ -12809,7 +12809,7 @@ zone X
 紅 NOUN
 紅旗 PROPN
 紅日 NOUN
-紅木 PROPN
+紅木 NOUN
 紅杏出牆 VERB
 紅樓 NOUN
 紅樓夢 PROPN
@@ -12853,9 +12853,9 @@ zone X
 純凈 ADJ
 純樸 ADJ
 純淨 ADJ
-純粹 ADV
+純粹 ADJ
 純陽 PROPN
-紙 PART
+紙 NOUN
 紙上 NOUN
 紙幣 NOUN
 紙條 NOUN
@@ -12942,7 +12942,7 @@ zone X
 絕大 ADJ
 絕對 ADJ
 絕後 VERB
-絕望 ADJ
+絕望 NOUN
 絕版 NOUN
 絕罰 NOUN
 絞刑 VERB
@@ -12988,7 +12988,7 @@ zone X
 經過 ADP
 經驗 NOUN
 綜 PART
-綜合 ADJ
+綜合 NOUN
 綜理 NOUN
 綜藝 NOUN
 綜錄 NOUN
@@ -13096,7 +13096,7 @@ zone X
 縣 PART
 縣城 NOUN
 縣市 NOUN
-縣治 ADJ
+縣治 NOUN
 縣裡 NOUN
 縣長 NOUN
 縫 VERB
@@ -13223,14 +13223,14 @@ zone X
 羅曼什 PROPN
 羅柔 PROPN
 羅森費爾德 PROPN
-羅漢 PROPN
+羅漢 NOUN
 羅爾夫 PROPN
 羅素 PROPN
 羅貝爾 PROPN
 羅隆基 PROPN
 羅馬 PROPN
 羅馬尼亞 PROPN
-羊 PART
+羊 NOUN
 羊圈 NOUN
 羊曲 PROPN
 羊毛 NOUN
@@ -13297,7 +13297,7 @@ zone X
 翁 PROPN
 翌年 NOUN
 翌日 NOUN
-習 PROPN
+習 VERB
 習俗 NOUN
 習性 NOUN
 習慣 NOUN
@@ -13310,7 +13310,7 @@ zone X
 翦 PROPN
 翻新 NOUN
 翻覆 VERB
-翻譯 VERB
+翻譯 NOUN
 翻越 VERB
 翼 NOUN
 翼手龍 NOUN
@@ -13327,7 +13327,7 @@ zone X
 老少 NOUN
 老師 NOUN
 老年 NOUN
-老式 NOUN
+老式 ADJ
 老弱 ADJ
 老橋 PROPN
 老漢 NOUN
@@ -13366,7 +13366,7 @@ zone X
 耐航 ADJ
 耕作 PROPN
 耕地 NOUN
-耕種 VERB
+耕種 NOUN
 耳光 NOUN
 耳勺 NOUN
 耳孔 NOUN
@@ -13418,7 +13418,7 @@ zone X
 聘問 VERB
 聘用 VERB
 聘請 VERB
-聚 PROPN
+聚 VERB
 聚合 VERB
 聚居 VERB
 聚會 NOUN
@@ -13430,7 +13430,7 @@ zone X
 聚體 NOUN
 聞名 VERB
 聞言 VERB
-聯 PROPN
+聯 VERB
 聯合 VERB
 聯名 ADV
 聯姻 NOUN
@@ -13449,7 +13449,7 @@ zone X
 聯軍 NOUN
 聯邦 NOUN
 聰敏 ADJ
-聰明 NOUN
+聰明 ADJ
 聲勢 NOUN
 聲名 NOUN
 聲恆 PROPN
@@ -13509,7 +13509,7 @@ zone X
 肢 NOUN
 肥牛 NOUN
 肥田 VERB
-肥胖 ADJ
+肥胖 NOUN
 肩 NOUN
 肩高 NOUN
 肯 AUX
@@ -13521,7 +13521,7 @@ zone X
 育新 PROPN
 育有 VERB
 育樂 NOUN
-育種 VERB
+育種 NOUN
 育空 PROPN
 肺炎 NOUN
 肺病 NOUN
@@ -13538,7 +13538,7 @@ zone X
 背鰭 NOUN
 胎 PART
 胎兒 NOUN
-胖子 PROPN
+胖子 NOUN
 胚 PART
 胚胎 NOUN
 胞 NOUN
@@ -14075,7 +14075,7 @@ zone X
 蒸氣 NOUN
 蒸汽 NOUN
 蒸發 VERB
-蒸餾 VERB
+蒸餾 NOUN
 蒼白 NOUN
 蓄水 VERB
 蓄電 VERB
@@ -14228,7 +14228,7 @@ zone X
 虎鯨 NOUN
 虐待 VERB
 虔信 VERB
-虔誠 ADV
+虔誠 ADJ
 處 PART
 處之泰然 VERB
 處境 NOUN
@@ -14500,7 +14500,7 @@ zone X
 西部 NOUN
 西鄉 PROPN
 西鄰 VERB
-西鐵 PROPN
+西鐵 NOUN
 西門 PROPN
 西門子 PROPN
 西關 PROPN
@@ -14556,7 +14556,7 @@ zone X
 親臨 VERB
 親自 ADV
 親身 ADV
-親近 ADJ
+親近 NOUN
 覺察 VERB
 覺得 VERB
 覽 NOUN
@@ -14579,7 +14579,7 @@ zone X
 角膜 NOUN
 角色 NOUN
 角逐 VERB
-解 VERB
+解 NOUN
 解僱 VERB
 解夢 VERB
 解放 VERB
@@ -14591,7 +14591,7 @@ zone X
 解脫 NOUN
 解說 NOUN
 解釋 VERB
-解鎖 VERB
+解鎖 NOUN
 解體 VERB
 觸怒 VERB
 觸手可及 ADJ
@@ -14625,7 +14625,7 @@ zone X
 記憶 NOUN
 記者 NOUN
 記號 NOUN
-記載 VERB
+記載 NOUN
 記述 VERB
 記錄 NOUN
 記集 NOUN
@@ -14665,7 +14665,7 @@ zone X
 評定 NOUN
 評審 NOUN
 評論 VERB
-評議 VERB
+評議 NOUN
 評選 NOUN
 評鑑 VERB
 詛咒 VERB
@@ -14769,7 +14769,7 @@ zone X
 誠意 NOUN
 誤 ADV
 誤信 AUX
-誤導 VERB
+誤導 NOUN
 誤差 NOUN
 誤會 VERB
 誤槍 VERB
@@ -14890,7 +14890,7 @@ zone X
 警備 NOUN
 警務 NOUN
 警句 NOUN
-警告 VERB
+警告 NOUN
 警員 NOUN
 警報 NOUN
 警官 NOUN
@@ -14902,7 +14902,7 @@ zone X
 警覺 NOUN
 警鐘 NOUN
 警長 NOUN
-譯 VERB
+譯 NOUN
 譯作 VERB
 譯名 NOUN
 譯員 NOUN
@@ -14919,7 +14919,7 @@ zone X
 護城 VERB
 護墊 NOUN
 護士 NOUN
-護法 VERB
+護法 NOUN
 護照 NOUN
 護送 VERB
 譽 VERB
@@ -15009,7 +15009,7 @@ zone X
 貞昌 PROPN
 貞潔 NOUN
 貞觀 PROPN
-負 VERB
+負 NOUN
 負擔 NOUN
 負芻 PROPN
 負荷 VERB
@@ -15200,7 +15200,7 @@ zone X
 起建 VERB
 起止 VERB
 起死回生 VERB
-起源 VERB
+起源 NOUN
 起碼 ADV
 起端 NOUN
 起義 NOUN
@@ -15254,9 +15254,9 @@ zone X
 趙氏 PROPN
 趟 NOUN
 趣事 NOUN
-趨 AUX
+趨 VERB
 趨勢 NOUN
-趨同 ADV
+趨同 NOUN
 趨於 AUX
 足 NOUN
 足不出戶 VERB
@@ -15352,7 +15352,7 @@ zone X
 車廂 NOUN
 車廠 NOUN
 車手 NOUN
-車票 PROPN
+車票 NOUN
 車程 NOUN
 車窗 NOUN
 車站 NOUN
@@ -15428,11 +15428,11 @@ zone X
 輔導 NOUN
 輔政 VERB
 輔音 NOUN
-輕 PART
+輕 ADJ
 輕傷 NOUN
 輕型 NOUN
 輕微 ADJ
-輕易 ADV
+輕易 ADJ
 輕盈 ADJ
 輕視 VERB
 輕軌 NOUN
@@ -15453,7 +15453,7 @@ zone X
 輯 NOUN
 輯錄 VERB
 輸 VERB
-輸入 VERB
+輸入 NOUN
 輸出 NOUN
 輸掉 VERB
 輸精 VERB
@@ -15500,7 +15500,7 @@ zone X
 轎車 NOUN
 轟動一時 VERB
 轟炸 VERB
-辛亥 PROPN
+辛亥 NOUN
 辛普朗 PROPN
 辛普森 PROPN
 辛辛那提 PROPN
@@ -15675,7 +15675,7 @@ zone X
 通用 PROPN
 通知 VERB
 通稱 VERB
-通航 VERB
+通航 NOUN
 通行 VERB
 通訊 NOUN
 通貨 NOUN
@@ -15729,7 +15729,7 @@ zone X
 連續 ADJ
 連通 VERB
 連進 VERB
-連鎖 ADJ
+連鎖 NOUN
 連餓 VERB
 逮捕 VERB
 週 NOUN
@@ -15749,7 +15749,7 @@ zone X
 進口 VERB
 進士 NOUN
 進攻 VERB
-進步 VERB
+進步 NOUN
 進犯 VERB
 進球 NOUN
 進程 NOUN
@@ -15796,7 +15796,7 @@ zone X
 運用 VERB
 運算 VERB
 運糧 PROPN
-運行 VERB
+運行 NOUN
 運補 VERB
 運載 NOUN
 運輸 NOUN
@@ -15808,7 +15808,7 @@ zone X
 過來 VERB
 過冷 ADJ
 過剩 VERB
-過勞 VERB
+過勞 ADJ
 過去 NOUN
 過多 ADJ
 過年 VERB
@@ -15923,7 +15923,7 @@ zone X
 選區 NOUN
 選定 VERB
 選手 NOUN
-選拔 VERB
+選拔 NOUN
 選擇 VERB
 選民 NOUN
 選為 VERB
@@ -15963,7 +15963,7 @@ zone X
 還擊 VERB
 還是 ADV
 還有 VERB
-還珠 PROPN
+還珠 NOUN
 邊 NOUN
 邊區 NOUN
 邊境 NOUN
@@ -15980,7 +15980,7 @@ zone X
 那裏 PRON
 那裡 PRON
 那麼 ADV
-邦 PROPN
+邦 PART
 邦初 PROPN
 邦國 NOUN
 邦德 PROPN
@@ -16061,7 +16061,7 @@ zone X
 鄰國 NOUN
 鄰域 NOUN
 鄰居 NOUN
-鄰近 VERB
+鄰近 NOUN
 鄰里 NOUN
 酃縣 PROPN
 酆 PROPN
@@ -16133,7 +16133,7 @@ zone X
 重創 VERB
 重力 NOUN
 重回 VERB
-重型 NOUN
+重型 ADJ
 重大 ADJ
 重建 VERB
 重復 ADV
@@ -16183,7 +16183,7 @@ zone X
 量子 NOUN
 量度 VERB
 量表 NOUN
-金 PROPN
+金 PART
 金剛 NOUN
 金字 NOUN
 金寶 PROPN
@@ -16306,7 +16306,7 @@ zone X
 鍛煉 VERB
 鍛鍊 NOUN
 鍝 PROPN
-鍵 PROPN
+鍵 PART
 鍵盤 NOUN
 鍾 PROPN
 鎊 NOUN
@@ -16425,7 +16425,7 @@ zone X
 開光 NOUN
 開入 VERB
 開創 VERB
-開口 AUX
+開口 NOUN
 開啟 VERB
 開場 VERB
 開墾 VERB
@@ -16440,7 +16440,7 @@ zone X
 開拍 VERB
 開拓 VERB
 開挖 VERB
-開採 VERB
+開採 NOUN
 開播 VERB
 開支 NOUN
 開放 VERB
@@ -16479,8 +16479,8 @@ zone X
 閣 PART
 閩侯 PROPN
 閩南 PROPN
-閱讀 VERB
-闊 ADJ
+閱讀 NOUN
+闊 NOUN
 闖進 VERB
 關 PROPN
 關中 PROPN
@@ -16493,7 +16493,7 @@ zone X
 關節 NOUN
 關羽 PROPN
 關聯 NOUN
-關說 VERB
+關說 NOUN
 關連 VERB
 關鍵 NOUN
 關門 NOUN
@@ -16600,7 +16600,7 @@ zone X
 降級 VERB
 降臨 VERB
 降落 VERB
-降解 AUX
+降解 VERB
 降魔 VERB
 限 VERB
 限制 VERB
@@ -16671,11 +16671,11 @@ zone X
 隊長 NOUN
 隋 PROPN
 隋代 PROPN
-階 PART
+階 NOUN
 階層 NOUN
 階段 NOUN
 階級 NOUN
-隔 VERB
+隔 ADP
 隔日 NOUN
 隔開 VERB
 隔離 VERB
@@ -16729,7 +16729,7 @@ zone X
 集成 NOUN
 集結 VERB
 集聚 VERB
-集資 VERB
+集資 NOUN
 集雨 NOUN
 集體 NOUN
 雌性 NOUN
@@ -16765,7 +16765,7 @@ zone X
 離婚 VERB
 離子 NOUN
 離島 NOUN
-離心 VERB
+離心 NOUN
 離群索居 VERB
 離職 VERB
 離開 VERB
@@ -16957,7 +16957,7 @@ zone X
 韶之 PROPN
 韻律 NOUN
 響號 VERB
-頂 VERB
+頂 NOUN
 頂上 VERB
 頂尖 ADJ
 頂層 NOUN
@@ -16968,7 +16968,7 @@ zone X
 項 NOUN
 項目 NOUN
 項鏈 NOUN
-順 PROPN
+順 VERB
 順位 NOUN
 順利 ADV
 順宗 NOUN
@@ -17073,7 +17073,7 @@ zone X
 顯 AUX
 顯光 PROPN
 顯徑 PROPN
-顯得 AUX
+顯得 VERB
 顯現 VERB
 顯示 VERB
 顯聖 VERB
@@ -17179,7 +17179,7 @@ zone X
 首府 NOUN
 首戰 NOUN
 首批 NUM
-首播 VERB
+首播 NOUN
 首日 NUM
 首映 NOUN
 首條 DET
@@ -17190,7 +17190,7 @@ zone X
 首腦 NOUN
 首艦 NOUN
 首讀 NOUN
-首部 NUM
+首部 DET
 首都 NOUN
 首領 NOUN
 香 PROPN
@@ -17393,7 +17393,7 @@ zone X
 鬥雞 NOUN
 鬧 VERB
 鬧出 VERB
-鬼 PART
+鬼 NOUN
 鬼影 NOUN
 鬼怪 NOUN
 鬼道 NOUN
@@ -17611,60 +17611,69 @@ zone X
 龐特佛雷特 PROPN
 龐貝 PROPN
 龜茲 PROPN
-.*ology X
-.*le X
-.*ll X
-.*pipe X
-.*in X
-.*ame X
-.*me X
-.*tulus X
-.*ria X
-.*ell X
-.*.com SYM
-.*hen X
-.*ng X
-.*ne X
-.*nt X
-.*ion X
-.*llips X
-.*on X
-.*tion X
-.*or X
-.*ing X
-.*an X
-.*al X
-.*ar X
-.*ark X
-.*ation X
-.*iano X
-.*ment X
-.*ce X
-.*rs X
-.*st X
-.*ipe X
-.*en X
-.*ey X
-.*es X
 .*er X
-.*et X
-.*ty X
-.*th X
-.*ine X
-.*liano X
-.*us X
-.*rian X
-.*nment X
-.*tor X
-.*ton X
-.*is X
-.*ity X
-.*ia X
-.*man X
-.*tin X
-.*est X
-.*com SYM
-.*rt X
-.*ector X
+.*爾德 PROPN
+.*西亞 PROPN
 .*ers X
+.*rs X
+.*al X
+.*中全會 PROPN
+.*ark X
+.*ty X
+.*on X
+.*le X
+.*斯堡 PROPN
+.*man X
+.*an X
+.*ia X
+.*is X
+.*利亞 PROPN
+.*夫斯基 PROPN
+.*斯基 PROPN
+.*en X
+.*克斯 PROPN
+.*尼亞 PROPN
+.*rt X
+.*tor X
+.*or X
+.*est X
+.*st X
+.*ity X
+.*ector X
+.*ion X
+.*tion X
+.*ation X
+.*ey X
+.*ing X
+.*ng X
+.*ell X
+.*ll X
+.*in X
+.*llips X
+.*ne X
+.*et X
+.*nt X
+.*hen X
+.*us X
+.*tulus X
+.*th X
+.*rian X
+.*es X
+.*ipe X
+.*pipe X
+.*ton X
+.*com SYM
+.*.com SYM
+.*iano X
+.*ria X
 .*aria X
+.*tin X
+.*ine X
+.*ar X
+.*ce X
+.*ment X
+.*nment X
+.*ology X
+.*me X
+.*liano X
+.*ame X

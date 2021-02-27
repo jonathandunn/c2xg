@@ -41,6 +41,8 @@ def getWordTag(wordTag):
     if wordTag == "///":
         return "/", "/"
     index = wordTag.rfind("/")
+    if index == -1:
+        return None, None
     word = wordTag[:index].strip()
     tag = wordTag[index + 1:].strip()
     return word, tag
@@ -51,12 +53,12 @@ def getObject(wordTags, index):#Sequence of "Word/Tag"
     nextWord1 = nextTag1 = nextWord2 = nextTag2 = "" 
     suffixL2 = suffixL3 = suffixL4 = ""
     
-    decodedW = word.decode("utf-8")
+    decodedW = word
     if len(decodedW) >= 4:
-        suffixL3 = decodedW[-3:].encode("utf-8")
-        suffixL2 = decodedW[-2:].encode("utf-8")
+        suffixL3 = decodedW[-3:]
+        suffixL2 = decodedW[-2:]
     if len(decodedW) >= 5:
-        suffixL4 = decodedW[-4:].encode("utf-8")
+        suffixL4 = decodedW[-4:]
     
     if index > 0:
         preWord1, preTag1 = getWordTag(wordTags[index - 1])
@@ -76,7 +78,7 @@ def getObjectDictionary(initializedCorpus, goldStandardCorpus):
     objects = {}
     
     j = 0
-    for i in xrange(len(initializedSens)):
+    for i in range(len(initializedSens)):
         init = initializedSens[i].strip()
         if len(init) == 0:
             continue
@@ -98,7 +100,9 @@ def getObjectDictionary(initializedCorpus, goldStandardCorpus):
             goldWord, correctTag = getWordTag(goldWordTags[k])
             
             if initWord != goldWord:
-                print("\nERROR ==> Raw texts extracted from the gold standard corpus and the initialized corpus are not the same!")
+                print("\nERROR (Raw texts are mismatched || Some sentence is incorrectly formatted):")
+                print(str(i+1) + "th initialized sentence:   " + " ".join(initWordTags))
+                print(str(i+1) + "th gold standard sentence: " + " ".join(goldWordTags))
                 return None
             
             if initTag not in objects.keys():
@@ -138,12 +142,12 @@ class FWObject:
         object.context[4] = word
         object.context[5] = tag
         
-        decodedW = word #.decode("utf-8")
+        decodedW = word
         if len(decodedW) >= 4:
-            object.context[10] = decodedW[-2:] #.encode("utf-8")
-            object.context[11] = decodedW[-3:] #.encode("utf-8")
+            object.context[10] = decodedW[-2:]
+            object.context[11] = decodedW[-3:]
         if len(decodedW) >= 5:
-            object.context[12] = decodedW[-4:] #.encode("utf-8")
+            object.context[12] = decodedW[-4:]
         
         if index > 0:
             preWord1, preTag1 = getWordTag(startWordTags[index - 1])
@@ -168,7 +172,7 @@ class FWObject:
         return object
     
 #    def isSatisfied(self, fwObject):
-#        for i in xrange(13):
+#        for i in range(13):
 #            key = self.context[i]
 #            if (key is not None):
 #                if key != fwObject.context[i]:

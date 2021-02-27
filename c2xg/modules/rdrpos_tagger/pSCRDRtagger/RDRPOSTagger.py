@@ -1,9 +1,10 @@
+# -*- coding: utf-8 -*-
+
 import os
 import sys
-from multiprocessing import Pool
 import cytoolz as ct
 from sklearn.utils import murmurhash3_32
-
+from multiprocessing import Pool
 from ..SCRDRlearner.SCRDRTree import SCRDRTree
 from ..InitialTagger.InitialTagger import initializeCorpus, initializeSentence
 from ..SCRDRlearner.Object import FWObject
@@ -18,39 +19,7 @@ class RDRPOSTagger(SCRDRTree):
 	"""
 	def __init__(self):
 		self.root = None
-		
-	def tagRawSentenceList(self, DICT, rawLine):
-		line = initializeSentence(DICT, rawLine)
-
-		sen = []
-		wordTags = line.split()
-
-		for i in range(len(wordTags)):
-			fwObject = FWObject.getFWObject(wordTags, i)
-			word, tag = getWordTag(wordTags[i])
-			node = self.findFiredNode(fwObject)
-			if node.depth > 0:
-				sen.append((word + "/" + node.conclusion, node.conclusion))
-			else:# Fired at root, return initialized tag
-				sen.append((word + "/" + tag, tag))
-		return sen
-		
-	def tagRawSentenceOriginal(self, DICT, rawLine):
-		line = initializeSentence(DICT, rawLine)
-
-		sen = []
-		wordTags = line.split()
-
-		for i in range(len(wordTags)):
-			fwObject = FWObject.getFWObject(wordTags, i)
-			word, tag = getWordTag(wordTags[i])
-			node = self.findFiredNode(fwObject)
-			if node.depth > 0:
-				sen.append(word + "/" + node.conclusion)
-			else:# Fired at root, return initialized tag
-				sen.append(word + "/" + tag)
-		return " ".join(sen)
-		
+	
 	def tagRawSentenceGenSim(self, DICT, rawLine):
 		line = initializeSentence(DICT, rawLine)
 
@@ -81,20 +50,32 @@ class RDRPOSTagger(SCRDRTree):
 			#Format and return tagged word
 			if node.depth > 0:
 				tag = node.conclusion
+
+			#Special units
+			if "<" in word:
+				if word in ["<url>", "<email>" "<phone>", "<cur>"]:
+					tag = "NOUN"
+				elif word == "<number>":
+					tag = "NUM"				
 	
 			#Hash word / tag
 			word = word + "/" + tag
 			tag_hash = murmurhash3_32(tag, seed=0)
 			word_hash = murmurhash3_32(word, seed=0)
 			
-			#Get semantic category
-			try:
-				word_cat = word_dict[word_hash]
-				
-			except:
-				word_cat = 0
-				word_hash = 0
+			#Get semantic category, if it is an open-class word
+			if tag in ["ADJ", "ADV", "INTJ", "NOUN", "PROPN", "VERB"]:
+				try:
+					word_cat = word_dict[word]
+					
+				except:
+					word_cat = 0
 			
+			#Closed class words don't have a semantic category
+			else:
+				word_cat = 0
+
+			print(word, tag, word_cat)
 			#Add to list
 			sen.append((word_hash, tag_hash, word_cat))
 
@@ -121,7 +102,23 @@ class RDRPOSTagger(SCRDRTree):
 				else:
 					sen.append((ct.get("index", current_dict), ct.get(tag.lower(), pos_dict, default = 0), ct.get("domain", current_dict)))
 		return sen
-		
+
+	def tagRawSentenceList(self, DICT, rawLine):
+		line = initializeSentence(DICT, rawLine)
+
+		sen = []
+		wordTags = line.split()
+
+		for i in range(len(wordTags)):
+			fwObject = FWObject.getFWObject(wordTags, i)
+			word, tag = getWordTag(wordTags[i])
+			node = self.findFiredNode(fwObject)
+			if node.depth > 0:
+				sen.append((word + "/" + node.conclusion, node.conclusion))
+			else:# Fired at root, return initialized tag
+				sen.append((word + "/" + tag, tag))
+		return sen
+
 	def tagRawCorpus(self, DICT, rawCorpusPath):
 		lines = open(rawCorpusPath, "r").readlines()
 		#Change the value of NUMBER_OF_PROCESSES to obtain faster tagging process!
@@ -131,10 +128,10 @@ class RDRPOSTagger(SCRDRTree):
 		for line in taggedLines:
 			outW.write(line + "\n")  
 		outW.close()
-		print("\nOutput file:", rawCorpusPath + ".TAGGED")
+		print("\nOutput file: " + rawCorpusPath + ".TAGGED")
 
 def printHelp():
-	print("\n===== Usage ====="  )
+	print("\n===== Usage =====")  
 	print('\n#1: To train RDRPOSTagger on a gold standard training corpus:')
 	print('\npython RDRPOSTagger.py train PATH-TO-GOLD-STANDARD-TRAINING-CORPUS')
 	print('\nExample: python RDRPOSTagger.py train ../data/goldTrain')
@@ -148,19 +145,19 @@ def run(args = sys.argv[1:]):
 		printHelp()
 	elif args[0].lower() == "train":
 		try: 
-			print("\n====== Start ======")   
-			print("\nGenerate from the gold standard training corpus a lexicon", args[1] + ".DICT")
+			print("\n====== Start ======")		  
+			print("\nGenerate from the gold standard training corpus a lexicon " + args[1] + ".DICT")
 			createLexicon(args[1], 'full')
 			createLexicon(args[1], 'short')		
-			print("\nExtract from the gold standard training corpus a raw text corpus", args[1] + ".RAW")
+			print("\nExtract from the gold standard training corpus a raw text corpus " + args[1] + ".RAW")
 			getRawText(args[1], args[1] + ".RAW")
-			print("\nPerform initially POS tagging on the raw text corpus, to generate", args[1] + ".INIT")
+			print("\nPerform initially POS tagging on the raw text corpus, to generate " + args[1] + ".INIT")
 			DICT = readDictionary(args[1] + ".sDict")
 			initializeCorpus(DICT, args[1] + ".RAW", args[1] + ".INIT")
-			print('\nLearn a tree model of rules for POS tagging from %s and %s' % (args[1], args[1] + ".INIT")	)   
+			print('\nLearn a tree model of rules for POS tagging from %s and %s' % (args[1], args[1] + ".INIT"))	   
 			rdrTree = SCRDRTreeLearner(THRESHOLD[0], THRESHOLD[1]) 
 			rdrTree.learnRDRTree(args[1] + ".INIT", args[1])
-			print("\nWrite the learned tree model to file ", args[1] + ".RDR")
+			print("\nWrite the learned tree model to file " + args[1] + ".RDR")
 			rdrTree.writeToFile(args[1] + ".RDR")				
 			print('\nDone!')
 			os.remove(args[1] + ".INIT")
@@ -172,11 +169,11 @@ def run(args = sys.argv[1:]):
 	elif args[0].lower() == "tag":
 		try:
 			r = RDRPOSTagger()
-			print("\n=> Read a POS tagging model from", args[1])
+			print("\n=> Read a POS tagging model from " + args[1])
 			r.constructSCRDRtreeFromRDRfile(args[1])
-			print("\n=> Read a lexicon from", args[2])
+			print("\n=> Read a lexicon from " + args[2])
 			DICT = readDictionary(args[2])
-			print("\n=> Perform POS tagging on", args[3])
+			print("\n=> Perform POS tagging on " + args[3])
 			r.tagRawCorpus(DICT, args[3])
 		except Exception as e:
 			print("\nERROR ==> ", e)

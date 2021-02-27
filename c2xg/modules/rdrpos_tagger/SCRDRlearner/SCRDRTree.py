@@ -1,8 +1,7 @@
-import codecs
-import os
-from .Node import Node
-from .Object import getObjectDictionary
-from .Object import FWObject
+# -*- coding: utf-8 -*-
+
+from .Node import Node 
+from .Object import FWObject 
 
 class SCRDRTree:
     """
@@ -37,7 +36,7 @@ class SCRDRTree:
         currentNode = self.root
         currentDepth = 0
         
-        rulesFile = codecs.open(rulesFilePath, "r", encoding = "utf-8")
+        rulesFile = open(rulesFilePath, "r")
         lines = rulesFile.readlines()
         
         for i in range(1, len(lines)):

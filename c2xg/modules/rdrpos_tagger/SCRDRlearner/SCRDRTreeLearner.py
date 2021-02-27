@@ -1,3 +1,7 @@
+# -*- coding: utf-8 -*-
+
+from .Node import Node
+from .Object import getObjectDictionary
 from .SCRDRTree import SCRDRTree
 
 #Generate concrete rules based on input object of 5-word window context object

@@ -3,18 +3,25 @@
 import re
 
 def initializeSentence(FREQDICT, sentence):
-    words = sentence.split()
-
+    words = sentence.strip().split()
     taggedSen = []
     for word in words:
-        word = word.replace(" ", "")
         if word in ["“", "”", "\""]:
-            taggedSen.append("''/" + FREQDICT["''"])
+            #taggedSen.append("''/" + FREQDICT["''"])
+            if "''" in FREQDICT:
+                taggedSen.append("''/" + FREQDICT["''"])
+            elif "." in FREQDICT:
+                taggedSen.append("''/" + FREQDICT["."])
+            elif "," in FREQDICT:
+                taggedSen.append("''/" + FREQDICT[","])
+            else:
+                print("\n'' is not in the dictionary \nManually add '' with a possible POS tag into the .DICT file!")
+                taggedSen.append("''/" + FREQDICT["''"])   
             continue
         
         tag = ''
-        decodedW = word #.decode("utf-8")
-        lowerW = decodedW.lower().encode("utf-8")
+        decodedW = word
+        lowerW = decodedW.lower()
         if word in FREQDICT:
             tag = FREQDICT[word]
         elif lowerW in FREQDICT:
@@ -26,12 +33,12 @@ def initializeSentence(FREQDICT, sentence):
                 suffixL2 = suffixL3 = suffixL4 = suffixL5 = None
                 wLength = len(decodedW)
                 if wLength >= 4:
-                    suffixL3 = ".*" + decodedW[-3:] #.encode("utf-8")
-                    suffixL2 = ".*" + decodedW[-2:] #.encode("utf-8")
+                    suffixL3 = ".*" + decodedW[-3:]
+                    suffixL2 = ".*" + decodedW[-2:]
                 if wLength >= 5:
-                    suffixL4 = ".*" + decodedW[-4:] #.encode("utf-8")
+                    suffixL4 = ".*" + decodedW[-4:]
                 if wLength >= 6:
-                    suffixL5 = ".*" + decodedW[-5:] #.encode("utf-8")
+                    suffixL5 = ".*" + decodedW[-5:]
                 
                 if suffixL5 in FREQDICT:
                     tag = FREQDICT[suffixL5]

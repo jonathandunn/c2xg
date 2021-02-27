@@ -5,7 +5,7 @@ from pathlib import Path
 import collections
 import cytoolz as ct
 import numpy as np
-from gensim.parsing import preprocessing
+from cleantext import clean
 from sklearn.utils import murmurhash3_32
 
 #Changes the generation of lexicon / dictionary used
@@ -47,22 +47,6 @@ class Encoder(object):
 		self.r.constructSCRDRtreeFromRDRfile(MODEL_STRING) 
 		self.DICT = readDictionary(DICT_STRING) 
 				
-		# #Initialize emoji remover
-		try:
-		# Wide UCS-4 build
-			self.myre = re.compile(u'['
-				u'\U0001F300-\U0001F64F'
-				u'\U0001F680-\U0001F6FF'
-				u'\u2600-\u26FF\u2700-\u27BF]+', 
-				re.UNICODE)
-		except re.error:
-			# Narrow UCS-2 build
-				self.myre = re.compile(u'('
-				u'\ud83c[\udf00-\udfff]|'
-				u'\ud83d[\udc00-\ude4f\ude80-\udeff]|'
-				u'[\u2600-\u26FF\u2700-\u27BF])+', 
-				re.UNICODE)
-		
 		#Universal POS Tags are fixed across languages
 		pos_list = ["PROPN", "SYM", "VERB", "DET", "CCONJ", "AUX", "ADJ", "INTJ", "SCONJ", "PRON", "NUM", "PUNCT", "ADV", "ADP", "X", "NOUN", "PART"]
 		self.pos_dict = {murmurhash3_32(pos, seed=0): pos for pos in pos_list}
@@ -162,31 +146,32 @@ class Encoder(object):
 			line = [x for x in self.tk.cut(line, cut_all = True, HMM = True) if x != ""]
 			line = " ".join(line)
 
-		#Remove links, hashtags, at-mentions, mark-up, and "RT"
-		line = re.sub(r"http\S+", "", line)
-		line = re.sub(r"@\S+", "", line)
-		line = re.sub(r"#\S+", "", line)
-		line = re.sub("<[^>]*>", "", line)
-		line = line.replace(" RT", "").replace("RT ", "")
-								
-		#Remove emojis
-		line = re.sub(self.myre, "", line)
-									
-		#Remove punctuation and extra spaces
-		line = ct.pipe(line, 
-						preprocessing.strip_tags, 
-						preprocessing.strip_punctuation, 
-						preprocessing.split_alphanum,
-						preprocessing.strip_non_alphanum,
-						preprocessing.strip_multiple_whitespaces
+		#Use clean-text
+		line = clean(line,
+						fix_unicode = True,
+						to_ascii = False,
+						lower = True,
+						no_line_breaks = True,
+						no_urls = True,
+						no_emails = True,
+						no_phone_numbers = True,
+						no_numbers = True,
+						no_digits = True,
+						no_currency_symbols = True,
+						no_punct = True,
+						replace_with_punct = "",
+						replace_with_url = "<URL>",
+						replace_with_email = "<EMAIL>",
+						replace_with_phone_number = "<PHONE>",
+						replace_with_number = "<NUMBER>",
+						replace_with_digit = "0",
+						replace_with_currency_symbol = "<CUR>"
 						)
-									
-		#Strip and reduce to max training length
-		line = line.lower().strip().lstrip()
 
 		if word_classes == False:
 			line = self.r.tagRawSentenceHash(rawLine = line, DICT = self.DICT, word_dict = self.domain_dict)
 			#Array of tuples (LEX, POS, CAT)
+
 
 		#For training word embeddings, just return the list
 		else:
