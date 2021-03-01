@@ -5,11 +5,12 @@ from pathlib import Path
 import collections
 import cytoolz as ct
 import numpy as np
+import pandas as pd
 from cleantext import clean
 from sklearn.utils import murmurhash3_32
 
 #Changes the generation of lexicon / dictionary used
-DICT_CONSTANT = ".POS.2000dim.2000min.20iter.POS_Clusters.p"
+DICT_CONSTANT = ".clusters.fastText.v1.gz"
 
 from .rdrpos_tagger.pSCRDRtagger.RDRPOSTagger import RDRPOSTagger
 from .rdrpos_tagger.Utility.Utils import getWordTag, getRawText, readDictionary
@@ -42,30 +43,22 @@ class Encoder(object):
 			self.tk.initialize()
 			self.tk.lock = True
 
-		#Initialize tagger
-		self.r = RDRPOSTagger()
-		self.r.constructSCRDRtreeFromRDRfile(MODEL_STRING) 
-		self.DICT = readDictionary(DICT_STRING) 
-				
 		#Universal POS Tags are fixed across languages
 		pos_list = ["PROPN", "SYM", "VERB", "DET", "CCONJ", "AUX", "ADJ", "INTJ", "SCONJ", "PRON", "NUM", "PUNCT", "ADV", "ADP", "X", "NOUN", "PART"]
 		self.pos_dict = {murmurhash3_32(pos, seed=0): pos for pos in pos_list}
 		
-		#Get semantic dict, unless currently training those dicts
-		if word_classes == False:
-			
-			try:
-				with open(DICTIONARY_FILE, "rb") as fo:
-					self.word_dict = pickle.load(fo)
-			except:
-				with open(os.path.join("..", "c2xg", "c2xg", DICTIONARY_FILE), "rb") as fo:
-					self.word_dict = pickle.load(fo)
+		#Get semantic dict
+		self.word_dict = pd.read_csv(DICTIONARY_FILE, index_col = 0).to_dict()["Cluster"]
+		self.domain_dict = {murmurhash3_32(str(key), seed=0): self.word_dict[key] for key in self.word_dict.keys()}
+		self.word_dict = {murmurhash3_32(str(key), seed=0): key for key in self.word_dict.keys()}
 
-			self.domain_dict = {murmurhash3_32(key, seed=0): self.word_dict[key] for key in self.word_dict.keys()}
-			self.word_dict = {murmurhash3_32(key, seed=0): key for key in self.word_dict.keys()}
-			
-			#Build decoder
-			self.build_decoder()
+		#Build decoder
+		self.build_decoder()
+
+		#Initialize tagger
+		self.DICT = readDictionary(DICT_STRING)
+		self.r = RDRPOSTagger(word_dict = self.domain_dict, DICT = self.DICT)
+		self.r.constructSCRDRtreeFromRDRfile(MODEL_STRING)
 
 	#-----------------------------------------------------------------------------------#
 		
@@ -138,7 +131,7 @@ class Encoder(object):
 		
 	#---------------------------------------------------------------------------#
 		
-	def load(self, line, word_classes = False):
+	def load(self, line):
 
 		#Tokenize zho
 		if self.language == "zho" and self.zho_split == True:
@@ -168,13 +161,7 @@ class Encoder(object):
 						replace_with_currency_symbol = "<CUR>"
 						)
 
-		if word_classes == False:
-			line = self.r.tagRawSentenceHash(rawLine = line, DICT = self.DICT, word_dict = self.domain_dict)
-			#Array of tuples (LEX, POS, CAT)
-
-
-		#For training word embeddings, just return the list
-		else:
-			line = self.r.tagRawSentenceGenSim(rawLine = line, DICT = self.DICT)
+		line = self.r.tagRawSentenceHash(rawLine = line)
+		#Array of tuples (LEX, POS, CAT)
 
 		return np.array(line)

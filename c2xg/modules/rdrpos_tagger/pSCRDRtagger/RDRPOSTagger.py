@@ -17,27 +17,13 @@ class RDRPOSTagger(SCRDRTree):
 	"""
 	RDRPOSTagger for a particular language
 	"""
-	def __init__(self):
+	def __init__(self, DICT, word_dict = None):
 		self.root = None
+		self.word_dict = word_dict
+		self.DICT = DICT
 	
-	def tagRawSentenceGenSim(self, DICT, rawLine):
-		line = initializeSentence(DICT, rawLine)
-
-		sen = []
-		wordTags = line.split()
-
-		for i in range(len(wordTags)):
-			fwObject = FWObject.getFWObject(wordTags, i)
-			word, tag = getWordTag(wordTags[i])
-			node = self.findFiredNode(fwObject)
-			if node.depth > 0:
-				sen.append(word + "/" + node.conclusion)
-			else:# Fired at root, return initialized tag
-				sen.append(word + "/" + tag)
-		return sen
-		
-	def tagRawSentenceHash(self, rawLine, DICT, word_dict):
-		line = initializeSentence(DICT, rawLine)
+	def tagRawSentenceHash(self, rawLine):
+		line = initializeSentence(self.DICT, rawLine)
 
 		sen = []
 		wordTags = line.split()
@@ -59,30 +45,24 @@ class RDRPOSTagger(SCRDRTree):
 					tag = "NUM"				
 	
 			#Hash word / tag
-			word = word + "/" + tag
 			tag_hash = murmurhash3_32(tag, seed=0)
 			word_hash = murmurhash3_32(word, seed=0)
 			
 			#Get semantic category, if it is an open-class word
 			if tag in ["ADJ", "ADV", "INTJ", "NOUN", "PROPN", "VERB"]:
-				try:
-					word_cat = word_dict[word]
-					
-				except:
-					word_cat = 0
+				word_cat = self.word_dict.get(word_hash, -1)
 			
 			#Closed class words don't have a semantic category
 			else:
-				word_cat = 0
+				word_cat = -1
 
-			print(word, tag, word_cat)
 			#Add to list
 			sen.append((word_hash, tag_hash, word_cat))
 
 		return sen
 	
-	def tagRawSentence(self, rawLine, DICT, word_dict, pos_dict):
-		line = initializeSentence(DICT, rawLine)
+	def tagRawSentence(self, rawLine, pos_dict):
+		line = initializeSentence(self.DICT, rawLine)
 		sen = []
 		wordTags = line.split()
 		for i in range(len(wordTags)):
@@ -90,21 +70,21 @@ class RDRPOSTagger(SCRDRTree):
 			word, tag = getWordTag(wordTags[i])
 			node = self.findFiredNode(fwObject)
 			if node.depth > 0:
-				current_dict = ct.get(word.lower(), word_dict, default = 0)
+				current_dict = ct.get(word.lower(), self.word_dict, default = 0)
 				if current_dict == 0:
 					sen.append((0, ct.get(node.conclusion.lower(), pos_dict, default = 0), 0))
 				else:
 					sen.append((ct.get("index", current_dict), ct.get(node.conclusion.lower(), pos_dict, default = 0), ct.get("domain", current_dict)))
 			else:# Fired at root, return initialized tag
-				current_dict = ct.get(word.lower(), word_dict, default = 0)
+				current_dict = ct.get(word.lower(), self.word_dict, default = 0)
 				if current_dict == 0:
 					sen.append((0, ct.get(tag.lower(), pos_dict), 0))
 				else:
 					sen.append((ct.get("index", current_dict), ct.get(tag.lower(), pos_dict, default = 0), ct.get("domain", current_dict)))
 		return sen
 
-	def tagRawSentenceList(self, DICT, rawLine):
-		line = initializeSentence(DICT, rawLine)
+	def tagRawSentenceList(self, rawLine):
+		line = initializeSentence(self.DICT, rawLine)
 
 		sen = []
 		wordTags = line.split()
@@ -119,16 +99,6 @@ class RDRPOSTagger(SCRDRTree):
 				sen.append((word + "/" + tag, tag))
 		return sen
 
-	def tagRawCorpus(self, DICT, rawCorpusPath):
-		lines = open(rawCorpusPath, "r").readlines()
-		#Change the value of NUMBER_OF_PROCESSES to obtain faster tagging process!
-		pool = Pool(processes = NUMBER_OF_PROCESSES)
-		taggedLines = pool.map(unwrap_self_RDRPOSTagger, zip([self] * len(lines), [DICT] * len(lines), lines))
-		outW = open(rawCorpusPath + ".TAGGED", "w")
-		for line in taggedLines:
-			outW.write(line + "\n")  
-		outW.close()
-		print("\nOutput file: " + rawCorpusPath + ".TAGGED")
 
 def printHelp():
 	print("\n===== Usage =====")  
