@@ -14,6 +14,8 @@ import difflib
 import copy
 
 from .Encoder import Encoder
+from .Association import Association
+from .Association import calculate_measures
 
 #--------------------------------------------------------------#
 

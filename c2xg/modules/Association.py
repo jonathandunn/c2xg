@@ -137,7 +137,7 @@ class Association(object):
 
 	def find_ngrams(self, files = None, workers = 1):
 
-		print("Starting to find ngrams.")
+		print("Starting to find ngrams: ", files)
 		starting = time.time()
 		
 		if files == None:

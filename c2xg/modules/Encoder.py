@@ -100,7 +100,7 @@ class Encoder(object):
 		for file in input_files:
 			for line in self.Loader.read_file(file):
 				if len(line) > 1:
-					line = self.load(line, word_classes)
+					line = self.load(line)
 					yield line
 					
 	#---------------------------------------------------------------------------#
@@ -114,7 +114,7 @@ class Encoder(object):
 		for file in input_files:
 			for line in self.Loader.read_file(file):
 				if len(line) > 1:
-					line2 = self.load(line, word_classes)
+					line2 = self.load(line)
 					yield line, line2
 
 	#---------------------------------------------------------------------------#

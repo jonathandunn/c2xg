@@ -8,6 +8,7 @@ from collections import defaultdict
 import multiprocessing as mp
 from functools import partial
 from pathlib import Path
+from cleantext import clean
 
 from .modules.Encoder import Encoder
 from .modules.Loader import Loader
@@ -22,9 +23,11 @@ from .modules.Parser import parse_examples
 def eval_mdl(files, workers, candidates, Load, Encode, Parse, freq_threshold = -1, report = False):
 	
 	print("Initiating MDL evaluation: " + str(files))
+
+	
 		
 	for file in files:
-		print("\tStarting " + file)			
+		print("\tStarting " + str(file))		
 		MDL = MDL_Learner(Load, Encode, Parse, freq_threshold = freq_threshold, vectors = {"na": 0}, candidates = candidates)
 		MDL.get_mdl_data([file], workers = workers, learn_flag = False)
 		current_mdl = MDL.evaluate_subset(subset = False)
@@ -38,7 +41,7 @@ def delta_grid_search(candidate_file, test_file, workers, mdl_workers, associati
 	print("\nStarting grid search for beam search settings.")
 	result_dict = {}
 		
-	delta_thresholds = [0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 1.0]
+	delta_thresholds = [0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1]
 	
 	if len(delta_thresholds) < workers:
 		parse_workers = len(delta_thresholds)
@@ -73,14 +76,15 @@ def delta_grid_search(candidate_file, test_file, workers, mdl_workers, associati
 	
 	for threshold in delta_thresholds:
 		print("\tStarting MDL search for " + str(threshold))
-		filename = str(candidate_file + ".delta." + str(threshold) + ".p")
+		filename = str(candidate_file) + ".delta." + str(threshold) + ".p"
 		candidates = Load.load_file(filename)
 		
 		if len(candidates) < 5:
 			print("\tNot enough candidates!")
 		
-		else:		
-			mdl_score = eval_mdl(files = [test_file], 
+		else:
+
+			mdl_score = eval_mdl(files = test_file, 
 									candidates = candidates, 
 									workers = mdl_workers, 
 									Load = Load, 
@@ -106,7 +110,7 @@ def process_candidates(input_tuple, association_dict, language, in_dir, out_dir,
 	threshold =  input_tuple[0]
 	candidate_file = input_tuple[1]
 	
-	print("\tStarting " + str(threshold))
+	print("\tStarting " + str(threshold) + " with freq threshold: " + str(freq_threshold))
 	Load = Loader(in_dir, out_dir, language, s3, s3_bucket)
 	C = Candidates(language = language, Loader = Load, association_dict = association_dict)
 	
@@ -134,6 +138,7 @@ class C2xG(object):
 	def __init__(self, data_dir, language, s3 = False, s3_bucket = "", nickname = "", model = "", zho_split = False):
 	
 		#Initialize
+		print("Initializing C2xG")
 		in_dir = os.path.join(data_dir, "IN")
 		
 		if nickname == "":
@@ -290,7 +295,46 @@ class C2xG(object):
 				#End of examples for this construction
 				fw.write("\n\n")
 	#-------------------------------------------------------------------------------
-		
+	
+	def get_lexicon(self, files):
+
+		vocab = []
+
+		for file in files:
+			file = os.path.join(self.in_dir, self.language, file)
+
+			with codecs.open(file, "r", encoding = "utf-8") as fo:
+				for line in fo:
+			
+					#Use clean-text
+					line = clean(line,
+									fix_unicode = True,
+									to_ascii = False,
+									lower = True,
+									no_line_breaks = True,
+									no_urls = True,
+									no_emails = True,
+									no_phone_numbers = True,
+									no_numbers = True,
+									no_digits = True,
+									no_currency_symbols = True,
+									no_punct = True,
+									replace_with_punct = "",
+									replace_with_url = "<URL>",
+									replace_with_email = "<EMAIL>",
+									replace_with_phone_number = "<PHONE>",
+									replace_with_number = "<NUMBER>",
+									replace_with_digit = "0",
+									replace_with_currency_symbol = "<CUR>"
+									)
+
+					line = line.split()
+					vocab += line
+
+		return set(vocab)
+
+	#-------------------------------------------------------------------------------		
+	
 	def learn(self, 
 				nickname, 
 				cycles = 1, 
@@ -300,7 +344,9 @@ class C2xG(object):
 				turn_limit = 10, 
 				workers = 1,
 				mdl_workers = 1,
-				states = None
+				states = None,
+				fixed_set = [],
+				beam_threshold = None,
 				):
 	
 		self.nickname = nickname
@@ -324,10 +370,14 @@ class C2xG(object):
 			
 		else:
 			print("Initializing learning state.")
-			self.data_dict = self.divide_data(cycles, cycle_size)
+			self.data_dict = self.divide_data(cycles, cycle_size, fixed_set)
 			self.progress_dict = self.set_progress()
 			self.Load.save_file((self.progress_dict, self.data_dict), self.model_state_file)
-			
+		
+		#Check beam setting
+		if beam_threshold != None:
+			self.progress_dict["BeamSearch"] = beam_threshold
+
 		#Learn each cycle
 		for cycle in self.progress_dict.keys():
 			if isinstance(cycle, int):
@@ -603,64 +653,79 @@ class C2xG(object):
 			
 	#-------------------------------------------------------------------------------
 	
-	def divide_data(self, cycles, cycle_size):
+	def divide_data(self, cycles, cycle_size, fixed_set = []):
 		
-		input_files = self.Load.list_input()		
-		
-		#Get number of files to use for each purpose
-		num_test_files = cycle_size[0]
-		num_candidate_files = cycle_size[1]
-		num_background_files = cycle_size[2]
-		num_cycle_files = cycle_size[0] + cycle_size[1] + cycle_size[2]
-		
-		#Get Beam Search tuning files
-		candidate_i = random.randint(0, len(input_files))
-		candidate_file = input_files.pop(candidate_i)
-		
-		test_i = random.randint(0, len(input_files))
-		test_file = input_files.pop(test_i)
-		
-		#Get and divide input data
 		data_dict = defaultdict(dict)
-		data_dict["BeamCandidates"] = candidate_file
-		data_dict["BeamTest"] = test_file
-		
+
+		#For a fixed set experiment, we use the same data for all simulations
+		if fixed_set != []:
+
+			data_dict["BeamCandidates"] = fixed_set
+			data_dict["BeamTest"] = fixed_set
 			
-		#Get unique data for each cycle
-		for cycle in range(cycles):
+			for cycle in range(cycles):
+				data_dict[cycle]["Test"] = fixed_set
+				data_dict[cycle]["Candidate"] = fixed_set
+				data_dict[cycle]["Background"] = fixed_set
+
+		#Otherwise we get unique data
+		else:
+
+			input_files = self.Load.list_input()		
+			
+			#Get number of files to use for each purpose
+			num_test_files = cycle_size[0]
+			num_candidate_files = cycle_size[1]
+			num_background_files = cycle_size[2]
+			num_cycle_files = cycle_size[0] + cycle_size[1] + cycle_size[2]
+			
+			#Get Beam Search tuning files
+			candidate_i = random.randint(0, len(input_files))
+			candidate_file = input_files.pop(candidate_i)
+			
+			test_i = random.randint(0, len(input_files))
+			test_file = input_files.pop(test_i)
+			
+			#Get and divide input data
+			data_dict["BeamCandidates"] = candidate_file
+			data_dict["BeamTest"] = test_file
+			
 				
-			#Randomize remaining files
-			random.shuffle(input_files)
-			cycle_files = []
-				
-			#Gather as many files as required
-			for segment in range(num_cycle_files):
-				current_file = input_files.pop()
-				cycle_files.append(current_file)
+			#Get unique data for each cycle
+			for cycle in range(cycles):
 					
-			#Assign files as final MDL test data
-			random.shuffle(cycle_files)
-			test_files = []
-			for file in range(num_test_files):
-				current_file = cycle_files.pop()
-				test_files.append(current_file)
-			data_dict[cycle]["Test"] = test_files
-				
-			#Assign files as candidate estimation data
-			random.shuffle(cycle_files)
-			candidate_files = []
-			for file in range(num_candidate_files):
-				current_file = cycle_files.pop()
-				candidate_files.append(current_file)
-			data_dict[cycle]["Candidate"] = candidate_files
-				
-			#Assign files as candidate estimation data
-			random.shuffle(cycle_files)
-			background_files = []
-			for file in range(num_background_files):
-				current_file = cycle_files.pop()
-				background_files.append(current_file)
-			data_dict[cycle]["Background"] = background_files
+				#Randomize remaining files
+				random.shuffle(input_files)
+				cycle_files = []
+					
+				#Gather as many files as required
+				for segment in range(num_cycle_files):
+					current_file = input_files.pop()
+					cycle_files.append(current_file)
+						
+				#Assign files as final MDL test data
+				random.shuffle(cycle_files)
+				test_files = []
+				for file in range(num_test_files):
+					current_file = cycle_files.pop()
+					test_files.append(current_file)
+				data_dict[cycle]["Test"] = test_files
+					
+				#Assign files as candidate estimation data
+				random.shuffle(cycle_files)
+				candidate_files = []
+				for file in range(num_candidate_files):
+					current_file = cycle_files.pop()
+					candidate_files.append(current_file)
+				data_dict[cycle]["Candidate"] = candidate_files
+					
+				#Assign files as candidate estimation data
+				random.shuffle(cycle_files)
+				background_files = []
+				for file in range(num_background_files):
+					current_file = cycle_files.pop()
+					background_files.append(current_file)
+				data_dict[cycle]["Background"] = background_files
 			
 		return data_dict
 		
