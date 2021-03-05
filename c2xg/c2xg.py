@@ -347,6 +347,7 @@ class C2xG(object):
 				states = None,
 				fixed_set = [],
 				beam_threshold = None,
+				no_mdl = False,
 				):
 	
 		self.nickname = nickname
@@ -547,107 +548,128 @@ class C2xG(object):
 					#-----------------#
 					#MDL STAGE
 					#-----------------#
-					if self.progress_dict[cycle]["MDL_State"] != "Complete":
-					
-						#Prep test data for MDL
-						if self.progress_dict[cycle]["MDL_State"] == "None":
-							MDL = MDL_Learner(self.Load, self.Encode, self.Parse, freq_threshold = 1, vectors = candidate_dict, candidates = candidates)
-							MDL.get_mdl_data(self.progress_dict[cycle]["Test"], workers = mdl_workers)
-							self.Load.save_file(MDL, nickname + ".Cycle-" + str(cycle) + ".MDL.p")
-							
-							self.progress_dict[cycle]["MDL_State"] = "EM"
-							self.Load.save_file((self.progress_dict, self.data_dict), self.model_state_file)
+					if no_mdl == False:
+						if self.progress_dict[cycle]["MDL_State"] != "Complete":
 						
-						#Run EM-based Tabu Search
-						if self.progress_dict[cycle]["MDL_State"] == "EM":
-							
-							try:
-								MDL.search_em(turn_limit, mdl_workers)
-							except:
-								MDL = self.Load.load_file(nickname + ".Cycle-" + str(cycle) + ".MDL.p")
-								MDL.search_em(turn_limit, mdl_workers)
+							#Prep test data for MDL
+							if self.progress_dict[cycle]["MDL_State"] == "None":
+								MDL = MDL_Learner(self.Load, self.Encode, self.Parse, freq_threshold = 1, vectors = candidate_dict, candidates = candidates)
+								MDL.get_mdl_data(self.progress_dict[cycle]["Test"], workers = mdl_workers)
+								self.Load.save_file(MDL, nickname + ".Cycle-" + str(cycle) + ".MDL.p")
 								
-							self.Load.save_file(MDL, nickname + ".Cycle-" + str(cycle) + ".MDL.p")
-							self.progress_dict[cycle]["MDL_State"] = "Direct"
-							self.Load.save_file((self.progress_dict, self.data_dict), self.model_state_file)
+								self.progress_dict[cycle]["MDL_State"] = "EM"
+								self.Load.save_file((self.progress_dict, self.data_dict), self.model_state_file)
 							
-						#Run direct Tabu Search
-						if self.progress_dict[cycle]["MDL_State"] == "Direct":
-							
-							try:
-								MDL.search_direct(turn_limit*3, mdl_workers)
-							except:
-								MDL = self.Load.load_file(nickname + ".Cycle-" + str(cycle) + ".MDL.p")
-								MDL.search_direct(turn_limit*3, mdl_workers)
-							
-							#Get grammar to save
-							grammar_dict = defaultdict(dict)
-							for i in range(len(MDL.candidates)):
-								grammar_dict[i]["Constructions"] = MDL.candidates[i]
-								grammar_dict[i]["Matches"] = MDL.matches[i]
+							#Run EM-based Tabu Search
+							if self.progress_dict[cycle]["MDL_State"] == "EM":
+								
+								try:
+									MDL.search_em(turn_limit, mdl_workers)
+								except:
+									MDL = self.Load.load_file(nickname + ".Cycle-" + str(cycle) + ".MDL.p")
+									MDL.search_em(turn_limit, mdl_workers)
 									
-							#Save grammar
-							self.Load.save_file(grammar_dict, nickname + ".Cycle-" + str(cycle) + ".Final_Grammar.p")
-							
-							self.progress_dict[cycle]["MDL_State"] = "Complete"
-							self.progress_dict[cycle]["State"] = "Complete"
-							self.Load.save_file((self.progress_dict, self.data_dict), self.model_state_file)	
-							
-							del MDL
+								self.Load.save_file(MDL, nickname + ".Cycle-" + str(cycle) + ".MDL.p")
+								self.progress_dict[cycle]["MDL_State"] = "Direct"
+								self.Load.save_file((self.progress_dict, self.data_dict), self.model_state_file)
+								
+							#Run direct Tabu Search
+							if self.progress_dict[cycle]["MDL_State"] == "Direct":
+								
+								try:
+									MDL.search_direct(turn_limit*3, mdl_workers)
+								except:
+									MDL = self.Load.load_file(nickname + ".Cycle-" + str(cycle) + ".MDL.p")
+									MDL.search_direct(turn_limit*3, mdl_workers)
+								
+								#Get grammar to save
+								grammar_dict = defaultdict(dict)
+								for i in range(len(MDL.candidates)):
+									grammar_dict[i]["Constructions"] = MDL.candidates[i]
+									grammar_dict[i]["Matches"] = MDL.matches[i]
+										
+								#Save grammar
+								self.Load.save_file(grammar_dict, nickname + ".Cycle-" + str(cycle) + ".Final_Grammar.p")
+								
+								self.progress_dict[cycle]["MDL_State"] = "Complete"
+								self.progress_dict[cycle]["State"] = "Complete"
+								self.Load.save_file((self.progress_dict, self.data_dict), self.model_state_file)	
+								
+								del MDL
+
+					elif no_mdl == True:
+						print("By passing MDL selection stage")
+						self.progress_dict[cycle]["MDL_State"] = "Complete"
+						self.progress_dict[cycle]["State"] = "Complete"
 				
 		#-----------------#
 		#MERGING STAGE
 		#-----------------#
 		if self.progress_dict[cycle]["State"] == "Complete":
 			
-			print("Starting to merge fold grammars.")
-			grammar_files = [nickname + ".Cycle-" + str(i) + ".Final_Grammar.p" for i in range(cycles)]
-			final_grammar = self.merge_grammars(grammar_files)
-			self.Load.save_file(final_grammar, self.language + ".Grammar.p")
+			if no_mdl == False:
+				print("Starting to merge fold grammars.")
+				grammar_files = [nickname + ".Cycle-" + str(i) + ".Final_Grammar.p" for i in range(cycles)]
+				final_grammar = self.merge_grammars(grammar_files)
+				self.Load.save_file(final_grammar, self.language + ".Grammar.p")
+
+			else:
+				grammar_files = [nickname + ".Cycle-" + str(i) + ".Candidates.p" for i in range(cycles)]
+				final_grammar = self.merge_grammars(grammar_files, no_mdl = True)
+				self.Load.save_file(final_grammar, self.nickname + ".Grammar_BeamOnly.p")
 				
 	#-------------------------------------------------------------------------------
 	
-	def merge_grammars(self, grammar_files):
+	def merge_grammars(self, grammar_files, no_mdl = False):
 	
 		all_grammars = {}
 		
-		#Load all grammar files
-		for file in grammar_files:
-		
-			current_dict = self.Load.load_file(file)
+		if no_mdl == False:
+			#Load all grammar files
+			for file in grammar_files:
 			
-			#Iterate over constructions in current fold grammar
-			for key in current_dict.keys():
-				current_construction = current_dict[key]["Constructions"]
-				current_construction = current_construction.tolist()
-				current_matches = current_dict[key]["Matches"]
+				current_dict = self.Load.load_file(file)
 				
-				#Reformat
-				new_construction = []
-				for unit in current_construction:
-					new_type = unit[0]
-					new_index = unit[1]
-						
-					if new_type != 0:
-						new_construction.append(tuple((new_type, new_index)))
-				
-				#Make hashable
-				new_construction = tuple(new_construction)
-				
-				#Add to dictionary
-				if new_construction not in all_grammars:
-					all_grammars[new_construction] = {}
-					all_grammars[new_construction]["Matches"] = current_matches
-					all_grammars[new_construction]["Selected"] = 1
-				
-				else:
-					all_grammars[new_construction]["Matches"] += current_matches
-					all_grammars[new_construction]["Selected"] += 1
+				#Iterate over constructions in current fold grammar
+				for key in current_dict.keys():
+					current_construction = current_dict[key]["Constructions"]
+					current_construction = current_construction.tolist()
+					current_matches = current_dict[key]["Matches"]
 					
-		#Done loading grammars
-		print("Final grammar for " + self.language + " contains "  + str(len(list(all_grammars.keys()))))
-		final_grammar = list(all_grammars.keys())
-		final_grammar = self.Parse.format_grammar(final_grammar)
+					#Reformat
+					new_construction = []
+					for unit in current_construction:
+						new_type = unit[0]
+						new_index = unit[1]
+							
+						if new_type != 0:
+							new_construction.append(tuple((new_type, new_index)))
+					
+					#Make hashable
+					new_construction = tuple(new_construction)
+					
+					#Add to dictionary
+					if new_construction not in all_grammars:
+						all_grammars[new_construction] = {}
+						all_grammars[new_construction]["Matches"] = current_matches
+						all_grammars[new_construction]["Selected"] = 1
+					
+					else:
+						all_grammars[new_construction]["Matches"] += current_matches
+						all_grammars[new_construction]["Selected"] += 1
+						
+			#Done loading grammars
+			print("Final grammar for " + self.language + " contains "  + str(len(list(all_grammars.keys()))))
+			final_grammar = list(all_grammars.keys())
+			final_grammar = self.Parse.format_grammar(final_grammar)
+
+		else:
+			final_grammar = []
+			for file in grammar_files:
+				current_dict = self.Load.load_file(file)
+				for key in current_dict:
+					if key not in final_grammar:
+						final_grammar.append(key)
 		
 		return final_grammar				
 			

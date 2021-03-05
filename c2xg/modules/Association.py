@@ -107,12 +107,12 @@ class Association(object):
 		size = len(list(ngrams.keys()))
 		keepable = lambda x: x > 1
 		ngrams = ct.valfilter(keepable, ngrams)
-		
+
 		#Note: Keep all unigrams, they are already limited by the lexicon
 		
 		#Reduce null indexes
-		ngrams = {key: ngrams[key] for key in list(ngrams.keys()) if 0 not in key[0] and 0 not in key[1]}
-		unigrams = {key: unigrams[key] for key in list(unigrams.keys()) if 0 not in key}
+		ngrams = {key: ngrams[key] for key in list(ngrams.keys()) if None not in key[0] and None not in key[1]}
+		unigrams = {key: unigrams[key] for key in list(unigrams.keys()) if None not in key}
 		
 		ngrams = ct.merge([ngrams, unigrams])	
 		ngrams["TOTAL"] = total
@@ -156,7 +156,7 @@ class Association(object):
 		return output_files
 	#---------------------------------------------------------------------------------------------#
 	
-	def merge_ngrams(self, files = None, n_gram_threshold = 1):
+	def merge_ngrams(self, files = None, n_gram_threshold = 0):
 		
 		all_ngrams = []
 		
@@ -212,11 +212,11 @@ class Association(object):
 
 		#Loop over pairs
 		for key in ngrams.keys():
-			
+		
 			try:
-				count = ngrams[key]
-				freq_1 = ngrams[key[0]]
-				freq_2 = ngrams[key[1]]
+				count = ngrams.get(key, 1)
+				freq_1 = ngrams.get(key[0], 1)
+				freq_2 = ngrams.get(key[1], 1)
 				
 				#a = Frequency of current pair
 				a = count
@@ -235,7 +235,7 @@ class Association(object):
 				association_dict[key]["Freq"] = count
 				
 			except Exception as e:
-				e = e
+				print(e, key)
 				
 		print("\tProcessed " + str(len(list(association_dict.keys()))) + " items in " + str(time.time() - starting))
 

@@ -26,7 +26,7 @@ class BeamSearch(object):
 		#Initialize empty candidate stack
 		self.candidate_stack = defaultdict(list)
 		self.candidates = []
-		self.search_monitor = deque(maxlen = 50)
+		self.search_monitor = deque(maxlen = 100)
 		self.association_dict = association_dict
 		self.delta_threshold = delta_threshold
 		
@@ -85,7 +85,7 @@ class BeamSearch(object):
 		
 		#Reset state
 		self.candidate_stack = defaultdict(list)
-		self.search_monitor = deque(maxlen = 50)
+		self.search_monitor = deque(maxlen = 100)
 
 		return self.candidates
 	#--------------------------------------------------------------#
@@ -97,7 +97,7 @@ class BeamSearch(object):
 		if len(previous_start) < 2:
 			go = True
 			
-		if self.search_monitor.count(previous_start[0:2]) < 40:
+		if self.search_monitor.count(previous_start[0:2]) < 80:
 			go = True
 			
 		if go == True:
