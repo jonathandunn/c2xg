@@ -1,13 +1,14 @@
 import os
 import pickle
 import codecs
+import gzip
 import time
 from random import randint
 
 #The loader object handles all file access to enable local or S3 bucket support
 class Loader(object):
 
-	def __init__(self, input, output, language, s3 = False, s3_bucket = ""):
+	def __init__(self, input, output, language, s3 = False, s3_bucket = "", max_words = False):
 	
 		#if using S3, input and output dirs are prefixes
 		self.input_dir = os.path.join(input, language)
@@ -15,6 +16,7 @@ class Loader(object):
 		self.s3 = s3
 		self.s3_bucket = s3_bucket
 		self.language = language
+		self.max_words = max_words
 		
 		#Check that directories exist
 		if s3 == False:
@@ -96,7 +98,7 @@ class Loader(object):
 			for filename in os.listdir(self.input_dir):
 				files.append(filename)
 				
-		return [x for x in files if x.endswith(".txt")]
+		return [x for x in files if x.endswith(".txt") or x.endswith(".gz")]
 			
 	#---------------------------------------------------------------#
 	
@@ -233,14 +235,30 @@ class Loader(object):
 				
 		#Read local directory
 		else:
-		
-			with codecs.open(os.path.join(self.input_dir, file), "rb") as fo:
-				lines = fo.readlines()
-					
+			
+			max_counter = 0
+
+			if file.endswith(".txt"):
+
+				with codecs.open(os.path.join(self.input_dir, file), "rb") as fo:
+					lines = fo.readlines()
+
+			elif file.endswith(".gz"):
+				
+				with gzip.open(os.path.join(self.input_dir, file), "rb") as fo:
+					lines = fo.readlines()
+
 			for line in lines:
 				line = line.decode("utf-8", errors = "replace")
-				yield line
-	
+
+				if self.max_words != False:
+					if max_counter < self.max_words:
+						max_counter += len(line.split())
+						yield line
+						
+				else:
+					yield line
+				
 	#---------------------------------------------------------------#
 	
 	def clean(self, type = ""):

@@ -24,8 +24,6 @@ def eval_mdl(files, workers, candidates, Load, Encode, Parse, freq_threshold = -
 	
 	print("Initiating MDL evaluation: " + str(files))
 
-	
-		
 	for file in files:
 		print("\tStarting " + str(file))		
 		MDL = MDL_Learner(Load, Encode, Parse, freq_threshold = freq_threshold, vectors = {"na": 0}, candidates = candidates)
@@ -36,7 +34,7 @@ def eval_mdl(files, workers, candidates, Load, Encode, Parse, freq_threshold = -
 		return current_mdl
 #------------------------------------------------------------		
 
-def delta_grid_search(candidate_file, test_file, workers, mdl_workers, association_dict, freq_threshold, language, in_dir, out_dir, s3, s3_bucket):
+def delta_grid_search(candidate_file, test_file, workers, mdl_workers, association_dict, freq_threshold, language, in_dir, out_dir, s3, s3_bucket, max_words):
 	
 	print("\nStarting grid search for beam search settings.")
 	result_dict = {}
@@ -59,7 +57,8 @@ def delta_grid_search(candidate_file, test_file, workers, mdl_workers, associati
 								in_dir = in_dir,
 								out_dir = out_dir,
 								s3 = s3, 
-								s3_bucket = s3_bucket
+								s3_bucket = s3_bucket,
+								max_words = max_words,
 								), distribute_list, chunksize = 1)
 	pool_instance.close()
 	pool_instance.join()
@@ -70,7 +69,7 @@ def delta_grid_search(candidate_file, test_file, workers, mdl_workers, associati
 	else:
 		zho_split = False
 		
-	Load = Loader(in_dir, out_dir, language, s3, s3_bucket)
+	Load = Loader(in_dir, out_dir, language, s3, s3_bucket, max_words = max_words)
 	Encode = Encoder(Loader = Load, zho_split = zho_split)
 	Parse = Parser(Load, Encode)
 	
@@ -105,13 +104,13 @@ def delta_grid_search(candidate_file, test_file, workers, mdl_workers, associati
 
 #------------------------------------------------------------
 
-def process_candidates(input_tuple, association_dict, language, in_dir, out_dir, s3, s3_bucket, freq_threshold = 1, mode = ""):
+def process_candidates(input_tuple, association_dict, language, in_dir, out_dir, s3, s3_bucket, freq_threshold = 1, mode = "", max_words = False):
 
 	threshold =  input_tuple[0]
 	candidate_file = input_tuple[1]
 	
 	print("\tStarting " + str(threshold) + " with freq threshold: " + str(freq_threshold))
-	Load = Loader(in_dir, out_dir, language, s3, s3_bucket)
+	Load = Loader(in_dir, out_dir, language, s3, s3_bucket, max_words)
 	C = Candidates(language = language, Loader = Load, association_dict = association_dict)
 	
 	if mode == "candidates":
@@ -135,7 +134,7 @@ def process_candidates(input_tuple, association_dict, language, in_dir, out_dir,
 
 class C2xG(object):
 	
-	def __init__(self, data_dir, language, s3 = False, s3_bucket = "", nickname = "", model = "", zho_split = False):
+	def __init__(self, data_dir, language, s3 = False, s3_bucket = "", nickname = "", model = "", zho_split = False, max_words = False):
 	
 		#Initialize
 		print("Initializing C2xG")
@@ -148,7 +147,7 @@ class C2xG(object):
 			
 		self.language = language
 		self.zho_split = zho_split
-		self.Load = Loader(in_dir, out_dir, language = self.language, s3 = s3, s3_bucket = s3_bucket)
+		self.Load = Loader(in_dir, out_dir, language = self.language, s3 = s3, s3_bucket = s3_bucket, max_words = max_words)
 		self.Encode = Encoder(Loader = self.Load, zho_split = self.zho_split)
 		self.Association = Association(Loader = self.Load)
 		self.Candidates = Candidates(language = self.language, Loader = self.Load)
@@ -158,6 +157,7 @@ class C2xG(object):
 		self.out_dir = out_dir
 		self.s3 = s3
 		self.s3_bucket = s3_bucket
+		self.max_words = max_words
 
 		#Try to load default or specified model
 		if model == "":
@@ -465,7 +465,8 @@ class C2xG(object):
 																	in_dir = self.in_dir, 
 																	out_dir = self.out_dir, 
 																	s3 = self.s3, 
-																	s3_bucket = self.s3_bucket
+																	s3_bucket = self.s3_bucket,
+																	max_words = self.max_words,
 																	)
 							self.progress_dict["BeamSearch"] = delta_threshold
 							
@@ -511,7 +512,8 @@ class C2xG(object):
 																		out_dir = self.out_dir,
 																		s3 = self.s3, 
 																		s3_bucket = self.s3_bucket,
-																		mode = "candidates"
+																		mode = "candidates",
+																		max_words = self.max_words,
 																		), distribute_list, chunksize = 1)
 								pool_instance.close()
 								pool_instance.join()
@@ -598,7 +600,22 @@ class C2xG(object):
 								del MDL
 
 					elif no_mdl == True:
-						print("By passing MDL selection stage")
+						print("Using one-by-one MDL pruning")
+
+						MDL = MDL_Learner(self.Load, self.Encode, self.Parse, freq_threshold = 1, vectors = candidate_dict, candidates = candidates)
+						MDL.get_mdl_data(self.progress_dict[cycle]["Test"], workers = mdl_workers)
+						self.Load.save_file(MDL, nickname + ".Cycle-" + str(cycle) + ".MDL.p")
+						
+						#Get baseline with all candidates
+						baseline_mdl = MDL.evaluate_subset(subset = False)
+						print("Baseline MDL: " + str(baseline_mdl))
+						
+						#Evaluate each candidate independently
+						for i in range(len(candidates)):
+							current_mdl = MDL.evaluate_subset(subset = [j for j in range(len(candidates)) if j != i])
+							changed_mdl = baseline_mdl - current_mdl
+							print("CHANGED", changed_mdl)
+						
 						self.progress_dict[cycle]["MDL_State"] = "Complete"
 						self.progress_dict[cycle]["State"] = "Complete"
 				

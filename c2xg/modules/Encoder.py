@@ -10,7 +10,7 @@ from cleantext import clean
 from sklearn.utils import murmurhash3_32
 
 #Changes the generation of lexicon / dictionary used
-DICT_CONSTANT = ".clusters.fastText.v1.gz"
+DICT_CONSTANT = ".clusters.fastText.v2.gz"
 
 from .rdrpos_tagger.pSCRDRtagger.RDRPOSTagger import RDRPOSTagger
 from .rdrpos_tagger.Utility.Utils import getWordTag, getRawText, readDictionary
