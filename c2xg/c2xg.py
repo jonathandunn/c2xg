@@ -296,40 +296,36 @@ class C2xG(object):
 				fw.write("\n\n")
 	#-------------------------------------------------------------------------------
 	
-	def get_lexicon(self, files):
+	def get_lexicon(self, file):
 
 		vocab = []
 
-		for file in files:
-			file = os.path.join(self.in_dir, self.language, file)
-
-			with codecs.open(file, "r", encoding = "utf-8") as fo:
-				for line in fo:
+		for line in self.Load.read_file(file):
 			
-					#Use clean-text
-					line = clean(line,
-									fix_unicode = True,
-									to_ascii = False,
-									lower = True,
-									no_line_breaks = True,
-									no_urls = True,
-									no_emails = True,
-									no_phone_numbers = True,
-									no_numbers = True,
-									no_digits = True,
-									no_currency_symbols = True,
-									no_punct = True,
-									replace_with_punct = "",
-									replace_with_url = "<URL>",
-									replace_with_email = "<EMAIL>",
-									replace_with_phone_number = "<PHONE>",
-									replace_with_number = "<NUMBER>",
-									replace_with_digit = "0",
-									replace_with_currency_symbol = "<CUR>"
-									)
+			#Use clean-text
+			line = clean(line,
+							fix_unicode = True,
+							to_ascii = False,
+							lower = True,
+							no_line_breaks = True,
+							no_urls = True,
+							no_emails = True,
+							no_phone_numbers = True,
+							no_numbers = True,
+							no_digits = True,
+							no_currency_symbols = True,
+							no_punct = True,
+							replace_with_punct = "",
+							replace_with_url = "<URL>",
+							replace_with_email = "<EMAIL>",						
+							replace_with_phone_number = "<PHONE>",
+							replace_with_number = "<NUMBER>",
+							replace_with_digit = "0",
+							replace_with_currency_symbol = "<CUR>"
+							)
 
-					line = line.split()
-					vocab += line
+			line = line.split()
+			vocab += line
 
 		return set(vocab)
 
@@ -600,21 +596,15 @@ class C2xG(object):
 								del MDL
 
 					elif no_mdl == True:
-						print("Using one-by-one MDL pruning")
+						print("Calculating MDL")
 
 						MDL = MDL_Learner(self.Load, self.Encode, self.Parse, freq_threshold = 1, vectors = candidate_dict, candidates = candidates)
 						MDL.get_mdl_data(self.progress_dict[cycle]["Test"], workers = mdl_workers)
 						self.Load.save_file(MDL, nickname + ".Cycle-" + str(cycle) + ".MDL.p")
 						
 						#Get baseline with all candidates
-						baseline_mdl = MDL.evaluate_subset(subset = False)
-						print("Baseline MDL: " + str(baseline_mdl))
-						
-						#Evaluate each candidate independently
-						for i in range(len(candidates)):
-							current_mdl = MDL.evaluate_subset(subset = [j for j in range(len(candidates)) if j != i])
-							changed_mdl = baseline_mdl - current_mdl
-							print("CHANGED", changed_mdl)
+						grammar_mdl = MDL.evaluate_subset(subset = False)
+						print("Grammar MDL: " + str(grammar_mdl))
 						
 						self.progress_dict[cycle]["MDL_State"] = "Complete"
 						self.progress_dict[cycle]["State"] = "Complete"
