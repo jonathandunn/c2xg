@@ -176,7 +176,7 @@ class C2xG(object):
 			print("No model exists, loading empty model.")
 			self.model = None
 			
-		self.n_features = len(self.model)
+		#self.n_features = len(self.model)
 		self.Encode.build_decoder()
 		
 	#------------------------------------------------------------------
