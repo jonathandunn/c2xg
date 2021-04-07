@@ -52,7 +52,7 @@ def parse_examples(construction, line):
 
 #--------------------------------------------------------------#
 
-#@jit(nopython = True, nogil = True)
+#@jit(nopython = True)
 def parse_mdl_support(construction, line):
 
 	indexes = [-1]

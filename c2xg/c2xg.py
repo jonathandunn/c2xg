@@ -99,8 +99,12 @@ def delta_grid_search(candidate_file, test_file, workers, mdl_workers, associati
 	#Get threshold with best score
 	print(result_dict)
 	best = min(result_dict.items(), key=operator.itemgetter(1))[0]
+
+	#Get best candidates
+	filename = str(candidate_file) + ".delta." + str(best) + ".p"
+	best_candidates = Load.load_file(filename)
 		
-	return best
+	return best, best_candidates
 
 #------------------------------------------------------------
 
@@ -451,7 +455,7 @@ class C2xG(object):
 						if self.progress_dict["BeamSearch"] == "None" or self.progress_dict["BeamSearch"] == {}:
 							print("Finding Beam Search settings.")
 
-							delta_threshold = delta_grid_search(candidate_file = self.data_dict["BeamCandidates"], 
+							delta_threshold, best_candidates = delta_grid_search(candidate_file = self.data_dict["BeamCandidates"], 
 																	test_file = self.data_dict["BeamTest"], 
 																	workers = workers, 
 																	mdl_workers = mdl_workers,
@@ -468,81 +472,92 @@ class C2xG(object):
 							
 							self.progress_dict[cycle]["Candidate_State"] = "Threshold"
 							self.Load.save_file((self.progress_dict, self.data_dict), self.model_state_file)
-							
-						
+
 						#If saved, load beam search threshold
 						else:
 							print("Loading Beam Search settings.")
 							delta_threshold = self.progress_dict["BeamSearch"]
 							self.progress_dict[cycle]["Candidate_State"] = "Threshold"
-						
-						#Check which files have been completed
-						if self.progress_dict[cycle]["Candidate_State"] == "Threshold":
-							check_files = self.Load.list_output(type = "candidates")
-							pop_list = []
-							for i in range(len(self.progress_dict[cycle]["Candidate"])):
-								if self.progress_dict[cycle]["Candidate"][i] + ".candidates.p" in check_files:
-									pop_list.append(i)							
-									
-							#Pop items separately in reverse order
-							if len(pop_list) > 0:
-								for i in sorted(pop_list, reverse = True):
-									self.progress_dict[cycle]["Candidate"].pop(i)
-								
-							#If remaining candidate files, process them
-							if len(self.progress_dict[cycle]["Candidate"]) > 0:
-								print("\n\tNow processing remaining files: " + str(len(self.progress_dict[cycle]["Candidate"])))
-								
-								#Multi-process#
-								if workers > len(self.progress_dict[cycle]["Candidate"]):
-									candidate_workers = len(self.progress_dict[cycle]["Candidate"])
-								else:
-									candidate_workers = workers
-									
-								pool_instance = mp.Pool(processes = candidate_workers, maxtasksperchild = 1)
-								distribute_list = [(delta_threshold, x) for x in self.progress_dict[cycle]["Candidate"]]
-								pool_instance.map(partial(process_candidates, 
-																		association_dict = self.association_dict.copy(),
-																		language = self.language,
-																		in_dir = self.in_dir,
-																		out_dir = self.out_dir,
-																		s3 = self.s3, 
-																		s3_bucket = self.s3_bucket,
-																		mode = "candidates",
-																		max_words = self.max_words,
-																		), distribute_list, chunksize = 1)
-								pool_instance.close()
-								pool_instance.join()
-								
-							self.progress_dict[cycle]["Candidate_State"] = "Merge"
-							self.Load.save_file((self.progress_dict, self.data_dict), self.model_state_file)
 
-						#Merge and Save candidates
-						if self.progress_dict[cycle]["Candidate_State"] == "Merge":
-							output_files = [filename + ".candidates.p" for filename in self.data_dict[cycle]["Candidate"]]
-							candidates = self.Candidates.merge_candidates(output_files, freq_threshold)
+						#For a fixed set experiment, we use the same data so we keep the best candidates
+						if fixed_set == []:
 						
-							self.Load.save_file(candidates, nickname + ".Cycle-" + str(cycle) + ".Candidates.p")
-							self.progress_dict[cycle]["Candidate_State"] = "Dict"
-							self.Load.save_file((self.progress_dict, self.data_dict), self.model_state_file)
+							#Check which files have been completed
+							if self.progress_dict[cycle]["Candidate_State"] == "Threshold":
+								check_files = self.Load.list_output(type = "candidates")
+								pop_list = []
+								for i in range(len(self.progress_dict[cycle]["Candidate"])):
+									if self.progress_dict[cycle]["Candidate"][i] + ".candidates.p" in check_files:
+										pop_list.append(i)							
+										
+								#Pop items separately in reverse order
+								if len(pop_list) > 0:
+									for i in sorted(pop_list, reverse = True):
+										self.progress_dict[cycle]["Candidate"].pop(i)
+									
+								#If remaining candidate files, process them
+								if len(self.progress_dict[cycle]["Candidate"]) > 0:
+									print("\n\tNow processing remaining files: " + str(len(self.progress_dict[cycle]["Candidate"])))
+									
+									#Multi-process#
+									if workers > len(self.progress_dict[cycle]["Candidate"]):
+										candidate_workers = len(self.progress_dict[cycle]["Candidate"])
+									else:
+										candidate_workers = workers
+										
+									pool_instance = mp.Pool(processes = candidate_workers, maxtasksperchild = 1)
+									distribute_list = [(delta_threshold, x) for x in self.progress_dict[cycle]["Candidate"]]
+									pool_instance.map(partial(process_candidates, 
+																			association_dict = self.association_dict.copy(),
+																			language = self.language,
+																			in_dir = self.in_dir,
+																			out_dir = self.out_dir,
+																			s3 = self.s3, 
+																			s3_bucket = self.s3_bucket,
+																			mode = "candidates",
+																			max_words = self.max_words,
+																			), distribute_list, chunksize = 1)
+									pool_instance.close()
+									pool_instance.join()
+									
+								self.progress_dict[cycle]["Candidate_State"] = "Merge"
+								self.Load.save_file((self.progress_dict, self.data_dict), self.model_state_file)
+
+							#Merge and Save candidates
+							if self.progress_dict[cycle]["Candidate_State"] == "Merge":
+								output_files = [filename + ".candidates.p" for filename in self.data_dict[cycle]["Candidate"]]
+								candidates = self.Candidates.merge_candidates(output_files, freq_threshold)
 							
-						#Make association vectors
-						if self.progress_dict[cycle]["Candidate_State"] == "Dict":
+								self.Load.save_file(candidates, nickname + ".Cycle-" + str(cycle) + ".Candidates.p")
+								self.progress_dict[cycle]["Candidate_State"] = "Dict"
+								self.Load.save_file((self.progress_dict, self.data_dict), self.model_state_file)
+								
+							#Make association vectors
+							if self.progress_dict[cycle]["Candidate_State"] == "Dict":
+								
+								candidates = self.Load.load_file(nickname + ".Cycle-" + str(cycle) + ".Candidates.p")
+								candidate_dict = self.Candidates.get_association(candidates, self.association_dict)
+								self.Load.save_file(candidate_dict, nickname + ".Cycle-" + str(cycle) + ".Candidate_Dict.p")
+								
+								self.progress_dict[cycle]["Candidate_State"] == "Complete"
+								self.Load.save_file((self.progress_dict, self.data_dict), self.model_state_file)
+								
 							
-							candidates = self.Load.load_file(nickname + ".Cycle-" + str(cycle) + ".Candidates.p")
-							candidate_dict = self.Candidates.get_association(candidates, self.association_dict)
-							self.Load.save_file(candidate_dict, nickname + ".Cycle-" + str(cycle) + ".Candidate_Dict.p")
+							else:
+								print("\tLoading candidate_dict.")
+								candidate_dict = self.Load.load_file(nickname + ".Cycle-" + str(cycle) + ".Candidate_Dict.p")
+								candidates = self.Load.load_file(nickname + ".Cycle-" + str(cycle) + ".Candidates.p")
 							
-							self.progress_dict[cycle]["Candidate_State"] == "Complete"
-							self.Load.save_file((self.progress_dict, self.data_dict), self.model_state_file)
-							
-						
-					else:
-						print("\tLoading candidate_dict.")
-						candidate_dict = self.Load.load_file(nickname + ".Cycle-" + str(cycle) + ".Candidate_Dict.p")
-						candidates = self.Load.load_file(nickname + ".Cycle-" + str(cycle) + ".Candidates.p")
+							del self.association_dict
 					
-					del self.association_dict
+						#If there was a fixed set of training/testing files
+						elif fixed_set != []:
+
+							candidates = best_candidates
+							candidate_dict = self.Candidates.get_association(candidates, self.association_dict)
+							del self.association_dict
+							self.progress_dict[cycle]["Candidate_State"] == "Complete"
+
 					#-----------------#
 					#MDL STAGE
 					#-----------------#
@@ -621,8 +636,8 @@ class C2xG(object):
 				self.Load.save_file(final_grammar, self.language + ".Grammar.p")
 
 			else:
-				grammar_files = [nickname + ".Cycle-" + str(i) + ".Candidates.p" for i in range(cycles)]
-				final_grammar = self.merge_grammars(grammar_files, no_mdl = True)
+				final_grammar = list(candidates.keys())
+				print(final_grammar)
 				self.Load.save_file(final_grammar, self.nickname + ".Grammar_BeamOnly.p")
 				
 	#-------------------------------------------------------------------------------
