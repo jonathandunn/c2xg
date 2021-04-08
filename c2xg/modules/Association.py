@@ -12,7 +12,7 @@ from .Encoder import Encoder
 #-------------------------------------------------------------------#
 #The main calculation function is outside of the class for jitting
 
-@jit(nopython = True)
+@jit(nopython = True, nogil = True)
 def calculate_measures(lr_list, rl_list):
 
 	#Mean Delta-P
@@ -111,8 +111,8 @@ class Association(object):
 		#Note: Keep all unigrams, they are already limited by the lexicon
 		
 		#Reduce null indexes
-		ngrams = {key: ngrams[key] for key in list(ngrams.keys()) if None not in key[0] and None not in key[1]}
-		unigrams = {key: unigrams[key] for key in list(unigrams.keys()) if None not in key}
+		ngrams = {key: ngrams[key] for key in list(ngrams.keys()) if -1 not in key[0] and -1 not in key[1]}
+		unigrams = {key: unigrams[key] for key in list(unigrams.keys()) if -1 not in key}
 		
 		ngrams = ct.merge([ngrams, unigrams])	
 		ngrams["TOTAL"] = total
