@@ -12,7 +12,7 @@ from numba import jit
 from sklearn.mixture import GaussianMixture
 
 #---------------------------------------------------------------------------
-@jit(nopython = True, nogil = True)
+@jit(nopython = True)
 def get_construction_encoding(construction, lex_cost, pos_cost, domain_cost):
 
 	total = 0
@@ -33,7 +33,7 @@ def get_construction_encoding(construction, lex_cost, pos_cost, domain_cost):
 		
 	return total
 #---------------------------------------------------------------------------
-@jit(nopython = True, nogil = True)
+@jit(nopython = True)
 def get_subset(construction_list, cost_list, match_list, pointer_list):
 
 	l1_cost = 0
@@ -51,7 +51,7 @@ def get_subset(construction_list, cost_list, match_list, pointer_list):
 	return l1_cost, l2_match_cost
 
 #---------------------------------------------------------------------------
-@jit(nopython = True, nogil = True)
+@jit(nopython = True)
 def generate_direct(dummy_int, search, tabu_list):
 
 	#Initialize list for indexes to change this turn

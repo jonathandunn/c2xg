@@ -22,7 +22,7 @@ from .modules.Parser import parse_examples
 
 def eval_mdl(files, workers, candidates, Load, Encode, Parse, freq_threshold = -1, report = False):
 	
-	print("Initiating MDL evaluation: " + str(files))
+	print("Now initiating MDL evaluation: " + str(files))
 
 	for file in files:
 		print("\tStarting " + str(file))		
@@ -34,7 +34,7 @@ def eval_mdl(files, workers, candidates, Load, Encode, Parse, freq_threshold = -
 		return current_mdl
 #------------------------------------------------------------		
 
-def delta_grid_search(candidate_file, test_file, workers, mdl_workers, association_dict, freq_threshold, language, in_dir, out_dir, s3, s3_bucket, max_words):
+def delta_grid_search(candidate_file, test_file, workers, mdl_workers, association_dict, freq_threshold, language, in_dir, out_dir, s3, s3_bucket, max_words, nickname = "current"):
 	
 	print("\nStarting grid search for beam search settings.")
 	result_dict = {}
@@ -59,6 +59,7 @@ def delta_grid_search(candidate_file, test_file, workers, mdl_workers, associati
 								s3 = s3, 
 								s3_bucket = s3_bucket,
 								max_words = max_words,
+								nickname = nickname
 								), distribute_list, chunksize = 1)
 	pool_instance.close()
 	pool_instance.join()
@@ -75,7 +76,7 @@ def delta_grid_search(candidate_file, test_file, workers, mdl_workers, associati
 	
 	for threshold in delta_thresholds:
 		print("\tStarting MDL search for " + str(threshold))
-		filename = str(candidate_file) + ".delta." + str(threshold) + ".p"
+		filename = str(candidate_file) + "." + nickname + ".delta." + str(threshold) + ".p"
 		candidates = Load.load_file(filename)
 		
 		if len(candidates) < 5:
@@ -101,14 +102,14 @@ def delta_grid_search(candidate_file, test_file, workers, mdl_workers, associati
 	best = min(result_dict.items(), key=operator.itemgetter(1))[0]
 
 	#Get best candidates
-	filename = str(candidate_file) + ".delta." + str(best) + ".p"
+	filename = str(candidate_file) + "." + nickname + ".delta." + str(best) + ".p"
 	best_candidates = Load.load_file(filename)
 		
 	return best, best_candidates
 
 #------------------------------------------------------------
 
-def process_candidates(input_tuple, association_dict, language, in_dir, out_dir, s3, s3_bucket, freq_threshold = 1, mode = "", max_words = False):
+def process_candidates(input_tuple, association_dict, language, in_dir, out_dir, s3, s3_bucket, freq_threshold = 1, mode = "", max_words = False, nickname = "current"):
 
 	threshold =  input_tuple[0]
 	candidate_file = input_tuple[1]
@@ -121,7 +122,7 @@ def process_candidates(input_tuple, association_dict, language, in_dir, out_dir,
 		filename = str(candidate_file + ".candidates.p")
 		
 	else:
-		filename = str(candidate_file) + ".delta." + str(threshold) + ".p"
+		filename = str(candidate_file) + "." + nickname + ".delta." + str(threshold) + ".p"
 	
 	if filename not in Load.list_output():
 	
@@ -613,14 +614,6 @@ class C2xG(object):
 					elif no_mdl == True:
 						print("Calculating MDL")
 
-						MDL = MDL_Learner(self.Load, self.Encode, self.Parse, freq_threshold = 1, vectors = candidate_dict, candidates = candidates)
-						MDL.get_mdl_data(self.progress_dict[cycle]["Test"], workers = mdl_workers)
-						self.Load.save_file(MDL, nickname + ".Cycle-" + str(cycle) + ".MDL.p")
-						
-						#Get baseline with all candidates
-						grammar_mdl = MDL.evaluate_subset(subset = False)
-						print("Grammar MDL: " + str(grammar_mdl))
-						
 						self.progress_dict[cycle]["MDL_State"] = "Complete"
 						self.progress_dict[cycle]["State"] = "Complete"
 				
