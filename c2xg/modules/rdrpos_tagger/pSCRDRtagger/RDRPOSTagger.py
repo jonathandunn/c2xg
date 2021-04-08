@@ -50,11 +50,11 @@ class RDRPOSTagger(SCRDRTree):
 			
 			#Get semantic category, if it is an open-class word
 			if tag in ["ADJ", "ADV", "INTJ", "NOUN", "PROPN", "VERB"]:
-				word_cat = self.word_dict.get(word_hash, None)
+				word_cat = self.word_dict.get(word_hash, -1)
 			
 			#Closed class words don't have a semantic category
 			else:
-				word_cat = None
+				word_cat = -1
 
 			#Add to list
 			sen.append((word_hash, tag_hash, word_cat))

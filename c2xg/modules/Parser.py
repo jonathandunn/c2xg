@@ -3,12 +3,12 @@ import numpy as np
 import cytoolz as ct
 import multiprocessing as mp
 from functools import partial
-from numba import jit, int64
+from numba import jit, int64, njit, types, typed
 from scipy.sparse import coo_matrix
 
 
 #--------------------------------------------------------------#
-#@jit(nopython = True, nogil = True)
+@jit(nopython = True, nogil = True)
 def parse_examples(construction, line):
 
 	indexes = [-1]
@@ -52,7 +52,7 @@ def parse_examples(construction, line):
 
 #--------------------------------------------------------------#
 
-#@jit(nopython = True)
+@jit(nopython = True, nogil = True)
 def parse_mdl_support(construction, line):
 
 	indexes = [-1]
