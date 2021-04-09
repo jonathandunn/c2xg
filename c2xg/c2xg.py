@@ -146,11 +146,7 @@ class C2xG(object):
 		in_dir = os.path.join(data_dir, "IN")
 		self.nickname = nickname
 		print("Current nickname: " + nickname)
-		
-		if nickname == "":
-			out_dir = os.path.join(data_dir, "OUT")
-		else:
-			out_dir = os.path.join(data_dir, "OUT", nickname)
+		out_dir = os.path.join(data_dir, "OUT")
 			
 		self.language = language
 		self.zho_split = zho_split
