@@ -156,7 +156,7 @@ class C2xG(object):
 		self.zho_split = zho_split
 		self.Load = Loader(in_dir, out_dir, language = self.language, s3 = s3, s3_bucket = s3_bucket, max_words = max_words)
 		self.Encode = Encoder(Loader = self.Load, zho_split = self.zho_split)
-		self.Association = Association(Loader = self.Load)
+		self.Association = Association(Loader = self.Load, nickname = self.nickname)
 		self.Candidates = Candidates(language = self.language, Loader = self.Load)
 		self.Parse = Parser(self.Load, self.Encode)
 		
@@ -402,7 +402,7 @@ class C2xG(object):
 							check_files = self.Load.list_output(type = "ngrams")
 							pop_list = []
 							for i in range(len(self.progress_dict[cycle]["Background"])):
-								if self.progress_dict[cycle]["Background"][i] + ".ngrams.p" in check_files:
+								if self.progress_dict[cycle]["Background"][i] + "." + self.nickname + ".ngrams.p" in check_files:
 									pop_list.append(i)
 
 							#Pop items separately in reverse order
@@ -421,7 +421,7 @@ class C2xG(object):
 						
 						#Check if ngram merging is finished
 						if self.progress_dict[cycle]["Background_State"] == "Ngrams":
-							files = [filename + ".ngrams.p" for filename in self.data_dict[cycle]["Background"]]
+							files = [filename + "." + self.nickname + ".ngrams.p" for filename in self.data_dict[cycle]["Background"]]
 						
 							print("\tNow merging ngrams for files: " + str(len(files)))
 							ngrams = self.Association.merge_ngrams(files, freq_threshold)
@@ -633,7 +633,6 @@ class C2xG(object):
 
 			else:
 				final_grammar = list(candidates.keys())
-				print(final_grammar)
 				self.Load.save_file(final_grammar, self.nickname + ".Grammar_BeamOnly.p")
 				
 	#-------------------------------------------------------------------------------

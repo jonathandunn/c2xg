@@ -55,12 +55,13 @@ def calculate_measures(lr_list, rl_list):
 
 class Association(object):
 
-	def __init__(self, Loader):
+	def __init__(self, Loader, nickname = ""):
 	
 		#Initialize Ingestor
 		self.language = Loader.language
 		self.Encoder = Encoder(Loader = Loader)
 		self.Loader = Loader
+		self.nickname = nickname
 		
 	#--------------------------------------------------------------#
 	
@@ -129,7 +130,7 @@ class Association(object):
 		
 		if save == True:
 			self.Loader.save_file(ngrams, filename + ".ngrams.p")
-			return os.path.join(self.Loader.output_dir, filename + ".ngrams.p")
+			return os.path.join(self.Loader.output_dir, filename + "." + self.nickname + ".ngrams.p")
 				
 		else:
 			return ngrams
