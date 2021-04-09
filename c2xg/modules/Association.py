@@ -129,14 +129,14 @@ class Association(object):
 		print(" with " + str(ngrams["TOTAL"]) + " words.")
 		
 		if save == True:
-			self.Loader.save_file(ngrams, filename + ".ngrams.p")
+			self.Loader.save_file(ngrams, filename + "." + self.nickname + ".ngrams.p")
 			return os.path.join(self.Loader.output_dir, filename + "." + self.nickname + ".ngrams.p")
 				
 		else:
 			return ngrams
 	#--------------------------------------------------------------------------------------------#
 
-	def find_ngrams(self, files = None, workers = 1):
+	def find_ngrams(self, files = None, workers = 1, nickname = ""):
 
 		print("Starting to find ngrams: ", files)
 		starting = time.time()
@@ -241,7 +241,7 @@ class Association(object):
 		print("\tProcessed " + str(len(list(association_dict.keys()))) + " items in " + str(time.time() - starting))
 
 		if save == True:
-			self.Loader.save_file(association_dict, self.language  + ".association.p")
+			self.Loader.save_file(association_dict, self.language  + "." + self.nickname + ".association.p")
 		
 		return association_dict
 	#-----------------------------------------------------------------------------------------------#
