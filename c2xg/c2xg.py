@@ -144,6 +144,8 @@ class C2xG(object):
 		#Initialize
 		print("Initializing C2xG")
 		in_dir = os.path.join(data_dir, "IN")
+		self.nickname = nickname
+		print("Current nickname: " + nickname)
 		
 		if nickname == "":
 			out_dir = os.path.join(data_dir, "OUT")
@@ -467,6 +469,7 @@ class C2xG(object):
 																	out_dir = self.out_dir, 
 																	s3 = self.s3, 
 																	s3_bucket = self.s3_bucket,
+																	nickname = self.nickname,
 																	max_words = self.max_words,
 																	)
 							self.progress_dict["BeamSearch"] = delta_threshold
