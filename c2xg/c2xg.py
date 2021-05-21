@@ -10,13 +10,25 @@ from functools import partial
 from pathlib import Path
 from cleantext import clean
 
-from .modules.Encoder import Encoder
-from .modules.Loader import Loader
-from .modules.Parser import Parser
-from .modules.Association import Association
-from .modules.Candidates import Candidates
-from .modules.MDL_Learner import MDL_Learner
-from .modules.Parser import parse_examples
+
+try : 
+        from .modules.Encoder import Encoder
+        from .modules.Loader import Loader
+        from .modules.Parser import Parser
+        from .modules.Association import Association
+        from .modules.Candidates import Candidates
+        from .modules.MDL_Learner import MDL_Learner
+        from .modules.Parser import parse_examples
+
+except : 
+        from modules.Encoder import Encoder
+        from modules.Loader import Loader
+        from modules.Parser import Parser
+        from modules.Association import Association
+        from modules.Candidates import Candidates
+        from modules.MDL_Learner import MDL_Learner
+        from modules.Parser import parse_examples
+
 
 #------------------------------------------------------------
 
@@ -139,7 +151,7 @@ def process_candidates(input_tuple, association_dict, language, in_dir, out_dir,
 
 class C2xG(object):
 	
-	def __init__(self, data_dir, language, s3 = False, s3_bucket = "", nickname = "", model = "", zho_split = False, max_words = False):
+	def __init__(self, data_dir, language, s3 = False, s3_bucket = "", nickname = "", model = "", zho_split = False, max_words = False, fast_parse=False):
 	
 		#Initialize
 		print("Initializing C2xG")
@@ -175,9 +187,37 @@ class C2xG(object):
 			print("No model exists, loading empty model.")
 			self.model = None
 			
+		if fast_parse : 
+			self._detail_model() ## self.detailed_model set by this. 
+		else : 
+			self.detailed_model = None
+
 		#self.n_features = len(self.model)
 		self.Encode.build_decoder()
 		
+	#------------------------------------------------------------------
+		
+
+	def _detail_model( self ) : 
+                ## Update model so we can access grammar faster ... 
+                ## Want to make `if construction[0][1] == unit[construction[0][0]-1]` faster
+                ## Dict on construction[0][1] which is self.model[i][0][1] (Call this Y)
+                ## BUT unit[ construction[0][0] - 1 ] changes with unit ... 
+                ## construction[0][0] values are very limited.  (call this X)
+                ## dict[ construction[0][0] ][ construction[0][1] ] = list of constructions
+                model_expanded = dict()
+                X = list( set( [ self.model[i][0][0] for i in range(len(self.model)) ] ) )
+                for x in X : 
+                        model_expanded[ x ] = defaultdict( list ) 
+                        this_x_elems = list()
+                        for k, elem in enumerate( self.model ) : 
+                                if elem[0][0] != x : 
+                                        continue
+                                elem_trunc = [ i for i in elem if i != (0,0) ]
+                                model_expanded[ x ][ elem[0][1] ].append( ( elem, elem_trunc, k ) )
+                self.detailed_model = ( X, model_expanded ) 
+
+
 	#------------------------------------------------------------------
 		
 	def parse_return(self, input, mode = "files", workers = 1):
@@ -197,7 +237,7 @@ class C2xG(object):
 		
 		#Text as input
 		if mode == "lines":
-			lines = self.Parse.parse_idNet(input, self.model, workers)
+			lines = self.Parse.parse_idNet(input, self.model, workers, self.detailed_model )
 			return lines	
 					
 		#Filenames as input
