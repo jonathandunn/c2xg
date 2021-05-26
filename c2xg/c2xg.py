@@ -183,7 +183,7 @@ class C2xG(object):
 			if os.path.isfile( model ) :
 				modelname = model
 			else :
-				momodelname = Path(__file__).parent / os.path.join("data", "models", model)
+				modelname = Path(__file__).parent / os.path.join("data", "models", model)
 			with open(modelname, "rb") as handle:
 				self.model = pickle.load(handle)
 		
