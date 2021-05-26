@@ -1,6 +1,6 @@
 import os
 import random
-import pickle
+import pickle5 as pickle
 import copy
 import operator
 import codecs
@@ -179,7 +179,11 @@ class C2xG(object):
 			model = self.language + ".Grammar.v1.p"
 		
 		try:
-			modelname = Path(__file__).parent / os.path.join("data", "models", model)
+			modelname = None
+			if os.path.isfile( model ) :
+				modelname = model
+			else :
+				momodelname = Path(__file__).parent / os.path.join("data", "models", model)
 			with open(modelname, "rb") as handle:
 				self.model = pickle.load(handle)
 		
