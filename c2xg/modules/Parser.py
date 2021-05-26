@@ -205,7 +205,7 @@ def _validate( lines, grammar, grammar_detailed ) :
         for line in tqdm( lines, desc="Validating" ) : 
                 matches_parse      = parse(      line, grammar=grammar )
                 matches_parse_fast = parse_fast( line, grammar=grammar_detailed, grammar_len=len(grammar), sparse_matches=False )
-                print( sum( matches_parse_fast ) )
+                print( sum( matches_parse_fast ), flush=True )
                 assert matches_parse == matches_parse_fast 
         return 
 
@@ -296,15 +296,20 @@ class Parser(object):
 	
 	#--------------------------------------------------------------#
 	
-	def parse_stream(self, files, grammar):
+	def parse_stream(self, files, grammar, detailed_grammar=None):
 		
 		for line in self.Encoder.load_stream(files):
-			matches = parse(line, grammar)
+			if not detailed_grammar is None :
+				matches = parse_fast( line, grammar = detailed_grammar, grammar_len = len( grammar ), sparse_matches=False )
+			else : 
+				matches = parse(line, grammar)
+			## matches = parse(line, grammar)
+
 			yield matches
 				
 	#--------------------------------------------------------------#
 	
-	def parse_batch(self, files, grammar, workers):
+	def parse_batch(self, files, grammar, workers, detailed_grammar=None):
 		
 		#First, load lines into memory
 		lines = []
@@ -319,7 +324,13 @@ class Parser(object):
 		
 		#Third, multi-process parsing
 		pool_instance = mp.Pool(processes = workers, maxtasksperchild = None)
-		lines = pool_instance.map(partial(parse, grammar = grammar), lines, chunksize = 2500)
+
+		chunksize = 2500
+		if not detailed_grammar is None :
+			lines = pool_instance.map(partial(parse_fast, grammar = detailed_grammar, grammar_len = len( grammar ), sparse_matches=False), lines, chunksize=chunksize )
+		else : 
+			lines = pool_instance.map(partial(parse     , grammar = grammar                                                             ), lines, chunksize=chunksize )
+                ## lines = pool_instance.map(partial(parse, grammar = grammar), lines, chunksize = 2500)
 		pool_instance.close()
 		pool_instance.join()
 		

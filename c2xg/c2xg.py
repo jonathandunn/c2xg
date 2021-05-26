@@ -237,13 +237,13 @@ class C2xG(object):
 		
 		#Text as input
 		if mode == "lines":
-			lines = self.Parse.parse_idNet(input, self.model, workers, self.detailed_model )
+			lines    = self.Parse.parse_idNet(input, self.model, workers, self.detailed_model )
 			return lines	
 					
 		#Filenames as input
 		elif mode == "files":
 		
-			features = self.Parse.parse_batch(input, self.model, workers)
+			features = self.Parse.parse_batch(input, self.model, workers, self.detailed_model )
 			return features
 		
 	#-------------------------------------------------------------------------------
