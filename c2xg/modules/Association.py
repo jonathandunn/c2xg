@@ -1,5 +1,6 @@
 import time
 import os
+import math
 import cytoolz as ct
 import numpy as np
 from collections import defaultdict
@@ -204,7 +205,7 @@ class Association(object):
 		return all_ngrams
 	#----------------------------------------------------------------------------------------------#
 
-	def calculate_association(self, ngrams, save = False):
+	def calculate_association(self, ngrams, smoothing = False, save = False):
 	
 		print("\n\tCalculating association for " + str(len(list(ngrams.keys()))) + " pairs.")
 		association_dict = defaultdict(dict)
@@ -218,22 +219,35 @@ class Association(object):
 				count = ngrams.get(key, 1)
 				freq_1 = ngrams.get(key[0], 1)
 				freq_2 = ngrams.get(key[1], 1)
-				
+
 				#a = Frequency of current pair
 				a = count
-				
+				a = max(a, 0.1)
+					
 				#b = Frequency of X without Y
 				b = freq_1 - count
-				
+				b = max(b, 0.1)
+					
 				#c = Frequency of Y without X
 				c = freq_2 - count
-				
+				c = max(c, 0.1)
+					
 				#d = Frequency of units without X or Y
 				d = total - a - b - c
-				
-				association_dict[key]["LR"] = float(a / (a + c)) - float(b / (b + d))
-				association_dict[key]["RL"] = float(a / (a + b)) - float(c / (c + d))
-				association_dict[key]["Freq"] = count
+				d = max(d, 0.1)
+					
+				if smoothing == False:
+
+					association_dict[key]["LR"] = float(a / (a + c)) - float(b / (b + d))
+					association_dict[key]["RL"] = float(a / (a + b)) - float(c / (c + d))
+					association_dict[key]["Freq"] = count
+
+				#Add smoothing to the Delta-P values
+				elif smoothing == True:
+
+					association_dict[key]["LR"] = float(a / (a + math.pow(c, 0.75))) - float(b / (b + d))
+					association_dict[key]["RL"] = float(a / (a + math.pow(b, 0.75))) - float(c / (c + d))
+					association_dict[key]["Freq"] = count
 				
 			except Exception as e:
 				print(e, key)

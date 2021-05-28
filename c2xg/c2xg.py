@@ -10,7 +10,6 @@ from functools import partial
 from pathlib import Path
 from cleantext import clean
 
-
 try : 
         from .modules.Encoder import Encoder
         from .modules.Loader import Loader
@@ -28,7 +27,6 @@ except :
         from modules.Candidates import Candidates
         from modules.MDL_Learner import MDL_Learner
         from modules.Parser import parse_examples
-
 
 #------------------------------------------------------------
 
@@ -151,7 +149,7 @@ def process_candidates(input_tuple, association_dict, language, in_dir, out_dir,
 
 class C2xG(object):
 	
-	def __init__(self, data_dir, language, s3 = False, s3_bucket = "", nickname = "", model = "", zho_split = False, max_words = False, fast_parse=False):
+	def __init__(self, data_dir, language, s3 = False, s3_bucket = "", nickname = "", model = "", smoothing = False, zho_split = False, max_words = False, fast_parse = True):
 	
 		#Initialize
 		print("Initializing C2xG")
@@ -173,6 +171,7 @@ class C2xG(object):
 		self.s3 = s3
 		self.s3_bucket = s3_bucket
 		self.max_words = max_words
+		self.smoothing = smoothing
 
 		#Try to load default or specified model
 		if model == "":
@@ -200,27 +199,29 @@ class C2xG(object):
 		self.Encode.build_decoder()
 		
 	#------------------------------------------------------------------
+
+	def _detail_model(self) : 
+
+		## Update model so we can access grammar faster ... 
+		## Want to make `if construction[0][1] == unit[construction[0][0]-1]` faster
+		## Dict on construction[0][1] which is self.model[i][0][1] (Call this Y)
+		## BUT unit[ construction[0][0] - 1 ] changes with unit ... 
+		## construction[0][0] values are very limited.  (call this X)
+		## dict[ construction[0][0] ][ construction[0][1] ] = list of constructions
 		
-
-	def _detail_model( self ) : 
-                ## Update model so we can access grammar faster ... 
-                ## Want to make `if construction[0][1] == unit[construction[0][0]-1]` faster
-                ## Dict on construction[0][1] which is self.model[i][0][1] (Call this Y)
-                ## BUT unit[ construction[0][0] - 1 ] changes with unit ... 
-                ## construction[0][0] values are very limited.  (call this X)
-                ## dict[ construction[0][0] ][ construction[0][1] ] = list of constructions
-                model_expanded = dict()
-                X = list( set( [ self.model[i][0][0] for i in range(len(self.model)) ] ) )
-                for x in X : 
-                        model_expanded[ x ] = defaultdict( list ) 
-                        this_x_elems = list()
-                        for k, elem in enumerate( self.model ) : 
-                                if elem[0][0] != x : 
-                                        continue
-                                elem_trunc = [ i for i in elem if i != (0,0) ]
-                                model_expanded[ x ][ elem[0][1] ].append( ( elem, elem_trunc, k ) )
-                self.detailed_model = ( X, model_expanded ) 
-
+		model_expanded = dict()
+		X = list( set( [ self.model[i][0][0] for i in range(len(self.model)) ] ) )
+		
+		for x in X : 
+			model_expanded[ x ] = defaultdict( list ) 
+			this_x_elems = list()
+			for k, elem in enumerate( self.model ) : 
+				if elem[0][0] != x : 
+					continue
+				elem_trunc = [ i for i in elem if i != (0,0) ]
+				model_expanded[ x ][ elem[0][1] ].append( ( elem, elem_trunc, k ) )
+		
+		self.detailed_model = ( X, model_expanded ) 
 
 	#------------------------------------------------------------------
 		
@@ -474,7 +475,7 @@ class C2xG(object):
 						#Check if association_dict has been made
 						if self.progress_dict[cycle]["Background_State"] == "Merged":
 							ngrams = self.Load.load_file(nickname + ".Cycle-" + str(cycle) + ".Merged-Grams.p")
-							association_dict = self.Association.calculate_association(ngrams = ngrams, save = False)
+							association_dict = self.Association.calculate_association(ngrams = ngrams, smoothing = self.smoothing, save = False)
 							del ngrams
 							self.Load.save_file(association_dict, nickname + ".Cycle-" + str(cycle) + ".Association_Dict.p")
 							self.progress_dict[cycle]["Background_State"] = "Complete"
@@ -828,3 +829,67 @@ class C2xG(object):
 			
 		return progress_dict
 	
+	#-----------------------------------------------
+	
+	def fuzzy_jaccard(self, grammar1, grammar2, threshold = 0.70, workers = 2):
+
+		umbrella = set(grammar1 + grammar2)
+		
+		#First grammar
+		pool_instance = mp.Pool(processes = workers, maxtasksperchild = None)
+		matches1 = pool_instance.map(partial(self.fuzzy_match, grammar = grammar1, threshold = threshold), umbrella, chunksize = 100)
+		pool_instance.close()
+		pool_instance.join()
+			
+		#Second gammar
+		pool_instance = mp.Pool(processes = workers, maxtasksperchild = None)
+		matches2 = pool_instance.map(partial(self.fuzzy_match, grammar = grammar2, threshold = threshold), umbrella, chunksize = 100)
+		pool_instance.close()
+		pool_instance.join()
+				
+		result = 1 - jaccard(matches1, matches2)
+
+		return result
+
+	#-----------------------------------------------
+	
+	def fuzzy_match(self, construction, grammar, threshold = 0.70):
+
+		match = 0
+			
+		#Check for exact match
+		if construction in grammar:
+			match = 1
+			
+		#Or fall back to highest overlap
+		else:
+
+			for u_construction in grammar:
+				
+				s = difflib.SequenceMatcher(None, construction, u_construction)
+				length = max(len(construction), len(u_construction))
+				overlap = sum([x[2] for x in s.get_matching_blocks()]) / float(length)
+					
+				if overlap >= threshold:
+					match = 1
+					break
+					
+		return match
+
+	#-----------------------------------------------	
+
+	def get_mdl(self, candidates, file, workers = 2, freq_threshold = -1):
+
+		result = eval_mdl([file], 
+					workers = workers, 
+					candidates = candidates, 
+					Load = self.Load, 
+					Encode = self.Encode, 
+					Parse = self.Parse, 
+					freq_threshold = freq_threshold, 
+					report = True
+					)
+
+		return result
+
+	#-----------------------------------------------	
