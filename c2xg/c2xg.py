@@ -152,12 +152,13 @@ class C2xG(object):
 	def __init__(self, data_dir, language, s3 = False, s3_bucket = "", nickname = "", model = "", smoothing = False, zho_split = False, max_words = False, fast_parse = True):
 	
 		#Initialize
-		print("Initializing C2xG")
+		#print("Initializing C2xG")
 		in_dir = os.path.join(data_dir, "IN")
 		self.nickname = nickname
-		print("Current nickname: " + nickname)
+		if nickname != "":
+			print("Current nickname: " + nickname)
 		out_dir = os.path.join(data_dir, "OUT")
-			
+		
 		self.language = language
 		self.zho_split = zho_split
 		self.Load = Loader(in_dir, out_dir, language = self.language, s3 = s3, s3_bucket = s3_bucket, max_words = max_words)
@@ -176,20 +177,27 @@ class C2xG(object):
 		#Try to load default or specified model
 		if model == "":
 			model = self.language + ".Grammar.v1.p"
-		
-		try:
-			modelname = None
-			if os.path.isfile( model ) :
-				modelname = model
-			else :
-				modelname = Path(__file__).parent / os.path.join("data", "models", model)
-			with open(modelname, "rb") as handle:
-				self.model = pickle.load(handle)
-		
-		except:
-			print("No model exists, loading empty model.")
-			self.model = None
 			
+		#Try to load grammar from file
+		if isinstance(model, str):
+
+			try:
+				modelname = None
+				if os.path.isfile( model ) :
+					modelname = model
+				else :
+					modelname = Path(__file__).parent / os.path.join("data", "models", model)
+				with open(modelname, "rb") as handle:
+					self.model = pickle.load(handle)
+		
+			except:
+				print("No model exists, loading empty model.")
+				self.model = None
+			
+		#Take model as input
+		elif isinstance(model, list):
+			self.model = model
+
 		if fast_parse : 
 			self._detail_model() ## self.detailed_model set by this. 
 		else : 
@@ -242,7 +250,7 @@ class C2xG(object):
 		
 		#Text as input
 		if mode == "lines":
-			lines    = self.Parse.parse_idNet(input, self.model, workers, self.detailed_model )
+			lines = self.Parse.parse_idNet(input, self.model, workers, self.detailed_model )
 			return lines	
 					
 		#Filenames as input
@@ -250,6 +258,11 @@ class C2xG(object):
 		
 			features = self.Parse.parse_batch(input, self.model, workers, self.detailed_model )
 			return features
+
+	#-------------------------------------------------------------------------------
+
+	def parse_validate(self, input, workers = 1):
+		self.Parse.parse_validate(input, grammar = self.model, workers = workers, detailed_grammar = self.detailed_model)
 		
 	#-------------------------------------------------------------------------------
 	
