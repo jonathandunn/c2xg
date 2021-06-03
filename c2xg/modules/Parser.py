@@ -154,11 +154,11 @@ def parse_fast( line, grammar, grammar_len, sparse_matches=False ) :
 				else : 
 					matches[grammar_index] += 1
 		
-		return matches 
+	return matches 
 #--------------------------------------------------------------#
 
 
-#@jit(nopython = True, nogil = True)
+@jit(nopython = True, nogil = True)
 def parse(line, grammar):
 
 	matches = [0 for x in range(len(grammar))]
@@ -371,9 +371,7 @@ class Parser(object):
 		#Multi-process version
 		if workers != None:
 		
-			chunksize = int( len( list(lines) ) / workers )
 			chunksize = 2500
-			
 			#First, multi-process encoded lines into memory
 			pool_instance = mp.Pool(processes = workers, maxtasksperchild = None)
 			lines = pool_instance.map(self.Encoder.load, lines, chunksize = chunksize)
@@ -384,7 +382,7 @@ class Parser(object):
 			pool_instance = mp.Pool(processes = workers, maxtasksperchild = None)
 			
 			if not detailed_grammar is None :
-				lines = pool_instance.map(partial(parse_fast, grammar = copy.deepcopy(detailed_grammar), grammar_len = len( grammar ), sparse_matches=False), lines, chunksize=chunksize )
+				lines = pool_instance.map(partial(parse_fast, grammar = detailed_grammar, grammar_len = len( grammar ), sparse_matches=False), lines, chunksize=chunksize )
 			else : 
 				lines = pool_instance.map(partial(parse     , grammar = grammar                                                             ), lines, chunksize=chunksize )
 
