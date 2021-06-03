@@ -344,29 +344,10 @@ class Parser(object):
 				
 	#--------------------------------------------------------------#
 	
-	def check_padding(self, grammar, max_length = 10):
-	
-		return_grammar = []
-		
-		for construction in grammar:
-			if len(construction) > max_length:
-				construction = construction[:max_length]
-				
-			if len(construction) < max_length:
-				construction = list(construction)
-				for pad in range(max_length - len(construction)):
-					construction.append((0, 0))
-				construction = tuple(construction)
-				
-			return_grammar.append(construction)
-
-		return return_grammar
-	#--------------------------------------------------------------#
-	
-	def parse_idNet(self, lines, grammar, workers, detailed_grammar = None):
+	def parse_idNet(self, lines, grammar, workers = None, detailed_grammar = None):
 	
 		if detailed_grammar is None:
-			grammar = self.check_padding(grammar)
+			grammar = self.format_grammar(grammar)
 					
 		#Multi-process version
 		if workers != None:

@@ -234,7 +234,7 @@ class C2xG(object):
 
 	#------------------------------------------------------------------
 		
-	def parse_return(self, input, mode = "files", workers = 1):
+	def parse_return(self, input, mode = "files", workers = None):
 
 		#Compatbility with idNet
 		if mode == "idNet":
