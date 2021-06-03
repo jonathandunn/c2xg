@@ -121,7 +121,7 @@ class MDL_Learner(object):
 
 	#---------------------------------------------------------------------------
 	
-	def get_mdl_data(self, test_files, workers = 1, learn_flag = True):
+	def get_mdl_data(self, test_files, workers = None, learn_flag = True):
 
 		#No need to reencode the test set many times
 		starting = time.time()
@@ -324,7 +324,7 @@ class MDL_Learner(object):
 	
 	#---------------------------------------------------------------------------
 	
-	def evaluate_subset(self, subset):
+	def evaluate_subset(self, subset, return_detail = False):
 	
 		#External call to looping function
 		if subset == False:
@@ -368,21 +368,28 @@ class MDL_Learner(object):
 		total_mdl = l1_cost + l2_match_cost + l2_regret_cost
 				
 		#DEBUGGING
-		print("\t\tMDL: " + str(total_mdl))
-		print("\t\tL1 Cost: " + str(l1_cost))
-		print("\t\tL2 Match Cost: " + str(l2_match_cost))
-		print("\t\tL2 Regret Cost: " + str(l2_regret_cost))
-		print("\t\tEncoded: " + str(self.max_index - unencoded_indexes))
-		print("\t\tUnencoded: " + str(unencoded_indexes))
+		if return_detail == False:
+			print("\t\tMDL: " + str(total_mdl))
+			print("\t\tL1 Cost: " + str(l1_cost))
+			print("\t\tL2 Match Cost: " + str(l2_match_cost))
+			print("\t\tL2 Regret Cost: " + str(l2_regret_cost))
+			print("\t\tEncoded: " + str(self.max_index - unencoded_indexes))
+			print("\t\tUnencoded: " + str(unencoded_indexes))
 		
 		#Calculate baseline
 		if subset == False:
 			baseline_cost_per = -math.log2(float(1.0/self.max_index))
 			baseline_mdl = baseline_cost_per * self.max_index
-			print("\t\tBaseline: " + str(baseline_mdl))
-			print("\t\tRatio: " + str(total_mdl/baseline_mdl))		
+
+			if return_detail == False:
+				print("\t\tBaseline: " + str(baseline_mdl))
+				print("\t\tRatio: " + str(total_mdl/baseline_mdl))		
 		
-		return total_mdl
+		if return_detail == False:
+			return total_mdl
+
+		else:
+			return total_mdl, l1_cost, l2_match_cost, l2_regret_cost, baseline_mdl
 		
 	#---------------------------------------------------------------------------
 

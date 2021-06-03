@@ -97,7 +97,6 @@ def parse_mdl_support(construction, line):
 
 #--------------------------------------------------------------#
 
-
 def _get_candidates( unit, grammar ) : 
         
 	# Check for: if construction[0][1] == unit[construction[0][0]-1]:
@@ -156,7 +155,6 @@ def parse_fast( line, grammar, grammar_len, sparse_matches=False ) :
 		
 	return matches 
 #--------------------------------------------------------------#
-
 
 @jit(nopython = True, nogil = True)
 def parse(line, grammar):
@@ -248,7 +246,7 @@ class Parser(object):
 		return grammar_equal
 	#--------------------------------------------------------------#
 	
-	def parse_prep(self, files, workers = 1):
+	def parse_prep(self, files, workers = None):
 
 		#First, load lines into memory
 		lines = []
@@ -256,11 +254,15 @@ class Parser(object):
 			lines += [line for line in self.Loader.read_file(file) if len(line) > 1]
 
 		#Second, multi-process encoded lines into memory
-		pool_instance = mp.Pool(processes = workers, maxtasksperchild = None)
-		lines = pool_instance.map(self.Encoder.load, lines, chunksize = 2500)
-		pool_instance.close()
-		pool_instance.join()
+		if workers != None:
+			pool_instance = mp.Pool(processes = workers, maxtasksperchild = None)
+			lines = pool_instance.map(self.Encoder.load, lines, chunksize = 2500)
+			pool_instance.close()
+			pool_instance.join()
 		
+		else:
+			lines = self.Encoder.load_batch(lines)
+
 		#Third, join lines into large numpy array
 		lines = np.vstack(lines)
 
@@ -268,16 +270,22 @@ class Parser(object):
 	
 	#--------------------------------------------------------------#
 	
-	def parse_batch_mdl(self, lines, grammar, freq_threshold, workers = 1):
+	def parse_batch_mdl(self, lines, grammar, freq_threshold, workers = None):
 	
 		#Chunk array for workers
 		total_count = len(lines)
 	
-		#Multi-process by construction
-		pool_instance = mp.Pool(processes = workers, maxtasksperchild = None)
-		results = pool_instance.map(partial(parse_mdl_support, line = lines), grammar, chunksize = 500)
-		pool_instance.close()
-		pool_instance.join()
+		if workers != None:
+			#Multi-process by construction
+			pool_instance = mp.Pool(processes = workers, maxtasksperchild = None)
+			results = pool_instance.map(partial(parse_mdl_support, line = lines), grammar, chunksize = 500)
+			pool_instance.close()
+			pool_instance.join()
+
+		else:
+			results = []
+			for construction in grammar:
+				results.append(parse_mdl_support(line = lines, construction = construction))
 		
 		#Find fixed max value for match indexes
 		max_matches = max([len(indexes) for construction, indexes, matches in results])
@@ -336,7 +344,6 @@ class Parser(object):
 			lines = pool_instance.map(partial(parse_fast, grammar = detailed_grammar, grammar_len = len( grammar ), sparse_matches=False), lines, chunksize=chunksize )
 		else : 
 			lines = pool_instance.map(partial(parse     , grammar = grammar                                                             ), lines, chunksize=chunksize )
-                ## lines = pool_instance.map(partial(parse, grammar = grammar), lines, chunksize = 2500)
 		pool_instance.close()
 		pool_instance.join()
 		

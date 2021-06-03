@@ -39,10 +39,10 @@ def eval_mdl(files, workers, candidates, Load, Encode, Parse, freq_threshold = -
 		print("\tStarting " + str(file))		
 		MDL = MDL_Learner(Load, Encode, Parse, freq_threshold = freq_threshold, vectors = {"na": 0}, candidates = candidates)
 		MDL.get_mdl_data([file], workers = workers, learn_flag = False)
-		current_mdl = MDL.evaluate_subset(subset = False)
+		total_mdl, l1_cost, l2_match_cost, l2_regret_cost, baseline_mdl = MDL.evaluate_subset(subset = False, return_detail = True)
 			
 	if report == True:
-		return current_mdl
+		return total_mdl, l1_cost, l2_match_cost, l2_regret_cost, baseline_mdl
 #------------------------------------------------------------		
 
 def delta_grid_search(candidate_file, test_file, workers, mdl_workers, association_dict, freq_threshold, language, in_dir, out_dir, s3, s3_bucket, max_words, nickname = "current"):
