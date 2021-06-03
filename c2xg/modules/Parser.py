@@ -1,4 +1,5 @@
 import time
+import copy
 import numpy as np
 import cytoolz as ct
 import multiprocessing as mp
@@ -98,67 +99,70 @@ def parse_mdl_support(construction, line):
 
 
 def _get_candidates( unit, grammar ) : 
-        # Check for: if construction[0][1] == unit[construction[0][0]-1]:
-        # model_expanded[ (possible elem[0][0]) ][ elem[0][1] ].append( elem ) 
-        all_plausible = list()
-        X, grammar = grammar
-        for elem_0_0 in X : 
-                plausible = grammar[ elem_0_0 ][ unit[ elem_0_0 - 1 ] ]
-                plausible = [ ( i[0], i[2] ) for i in plausible  ]
-                all_plausible += plausible
-        return all_plausible 
+        
+	# Check for: if construction[0][1] == unit[construction[0][0]-1]:
+	# model_expanded[ (possible elem[0][0]) ][ elem[0][1] ].append( elem ) 
+	all_plausible = list()
+	X, grammar = grammar
+	for elem_0_0 in X : 
+		plausible = grammar[ elem_0_0 ][ unit[ elem_0_0 - 1 ] ]
+		plausible = [ ( i[0], i[2] ) for i in plausible  ]
+		all_plausible += plausible
+    
+	return all_plausible 
                 
 #--------------------------------------------------------------#
 
 def parse_fast( line, grammar, grammar_len, sparse_matches=False ) : 
-        matches = None
-        if sparse_matches : 
-                matches = list()
-        else : 
-                matches = [0 for x in range( grammar_len )]
-        #Iterate over line from left to right
-        for line_index in range( len( line ) ) : 
-                unit = line[ line_index ] 
-                #Get plausible candidates 
-                candidates = _get_candidates( unit, grammar )
-                for k in range(len(candidates)) : 
-                        construction, grammar_index = candidates[k]
-                        ## Below this is the same as the parse() function
-                        match = True	#Initiate match flag to True
-                        #Check each future unit in candidate
-                        for j in range(1, len(construction)):
-                                #If we reach the padded part of the construction, break it off
-                                if construction[j] == (0,0):
-                                        break
-							
-                                #If this unit doesn't match, stop looking
-                                if line_index+j < len(line):
-                                        if line[line_index+j][construction[j][0] - 1] != construction[j][1]:
-                                                match = False
-                                                break
-						
-                                #This construction is longer than the remaining line
-                                else:
-                                        match = False
-                                        break
-                        #Done with candidate
-                        if match == True:
-                                if sparse_matches : 
-                                        matches.append( grammar_index ) 
-                                else : 
-                                        matches[grammar_index] += 1
         
-                       
-        return matches
-                        
+	matches = None
+	if sparse_matches : 
+		matches = list()
+	else : 
+		matches = [0 for x in range( grammar_len )]
+	
+	#Iterate over line from left to right
+	for line_index in range( len( line ) ) : 
+		unit = line[ line_index ] 
+		#Get plausible candidates 
+		candidates = _get_candidates( unit, grammar )
+		for k in range(len(candidates)) : 
+			construction, grammar_index = candidates[k]
+			## Below this is the same as the parse() function
+			match = True	#Initiate match flag to True
+			#Check each future unit in candidate
+			for j in range(1, len(construction)):
+				#If we reach the padded part of the construction, break it off
+				if construction[j] == (0,0):
+					break
+							
+				#If this unit doesn't match, stop looking
+				if line_index+j < len(line):
+					if line[line_index+j][construction[j][0] - 1] != construction[j][1]:
+						match = False
+						break
+						
+				#This construction is longer than the remaining line
+				else:
+					match = False
+					break
+				
+			#Done with candidate
+			if match == True:
+				if sparse_matches : 
+					matches.append( grammar_index ) 
+				else : 
+					matches[grammar_index] += 1
+		
+		return matches 
 #--------------------------------------------------------------#
 
 
-@jit(nopython = True, nogil = True)
+#@jit(nopython = True, nogil = True)
 def parse(line, grammar):
 
 	matches = [0 for x in range(len(grammar))]
-	
+
 	#Iterate over line from left to right
 	for i in range(len(line)):
 			
@@ -200,14 +204,16 @@ def parse(line, grammar):
 	return matches
 #--------------------------------------------------------------#
 
-def _validate( lines, grammar, grammar_detailed ) : 
-        from tqdm import tqdm
-        for line in tqdm( lines, desc="Validating" ) : 
-                matches_parse      = parse(      line, grammar=grammar )
-                matches_parse_fast = parse_fast( line, grammar=grammar_detailed, grammar_len=len(grammar), sparse_matches=False )
-                print( sum( matches_parse_fast ), flush=True )
-                assert matches_parse == matches_parse_fast 
-        return 
+def _validate(lines, grammar, grammar_detailed): 
+
+	from tqdm import tqdm
+
+	for line in tqdm( lines, desc="Validating" ) : 
+		matches_parse      = parse(      line, grammar=grammar )
+		matches_parse_fast = parse_fast( line, grammar=grammar_detailed, grammar_len=len(grammar), sparse_matches=False )
+		print( sum( matches_parse_fast ), flush=True )
+		assert matches_parse == matches_parse_fast 
+	return 
 
 #--------------------------------------------------------------#
 
@@ -337,28 +343,50 @@ class Parser(object):
 		return lines
 				
 	#--------------------------------------------------------------#
-
-	def parse_idNet(self, lines, grammar, workers, detailed_grammar=None):
+	
+	def check_padding(self, grammar, max_length = 10):
+	
+		return_grammar = []
 		
+		for construction in grammar:
+			if len(construction) > max_length:
+				construction = construction[:max_length]
+				
+			if len(construction) < max_length:
+				construction = list(construction)
+				for pad in range(max_length - len(construction)):
+					construction.append((0, 0))
+				construction = tuple(construction)
+				
+			return_grammar.append(construction)
+
+		return return_grammar
+	#--------------------------------------------------------------#
+	
+	def parse_idNet(self, lines, grammar, workers, detailed_grammar = None):
+	
+		if detailed_grammar is None:
+			grammar = self.check_padding(grammar)
+					
 		#Multi-process version
 		if workers != None:
+		
+			chunksize = int( len( list(lines) ) / workers )
+			chunksize = 2500
 			
 			#First, multi-process encoded lines into memory
 			pool_instance = mp.Pool(processes = workers, maxtasksperchild = None)
-			lines = pool_instance.map(self.Encoder.load, lines, chunksize = 50)
+			lines = pool_instance.map(self.Encoder.load, lines, chunksize = chunksize)
 			pool_instance.close()
 			pool_instance.join()
 
 			#Second, multi-process parsing
 			pool_instance = mp.Pool(processes = workers, maxtasksperchild = None)
-			## chunksize = int( len( list(lines) ) / workers )
-			chunksize = 500
-
+			
 			if not detailed_grammar is None :
-				lines = pool_instance.map(partial(parse_fast, grammar = detailed_grammar, grammar_len = len( grammar ), sparse_matches=False), lines, chunksize=chunksize )
+				lines = pool_instance.map(partial(parse_fast, grammar = copy.deepcopy(detailed_grammar), grammar_len = len( grammar ), sparse_matches=False), lines, chunksize=chunksize )
 			else : 
 				lines = pool_instance.map(partial(parse     , grammar = grammar                                                             ), lines, chunksize=chunksize )
-
 
 			pool_instance.close()
 			pool_instance.join()
@@ -367,21 +395,31 @@ class Parser(object):
 		else:
 
 			lines = self.Encoder.load_batch(lines)
-			# Uncomment to validate fast parser. 
-			# _validate( lines, grammar, detailed_grammar ) 
-			# print( "Validation complete", flush=True )
-			# return
 
 			if not detailed_grammar is None:
 				lines = [parse_fast(line, grammar = detailed_grammar, grammar_len= len(grammar) ) for line in lines]
 			else : 
 				lines = [parse     (line, grammar = grammar                                   ) for line in lines]
-				
-
-				
+	
 		return lines
 	#--------------------------------------------------------------#
+	def parse_validate(self, lines, grammar, workers, detailed_grammar):
+
+		# Uncomment to validate fast parser
+		chunksize = 2500
+		print("HERE")
+		#First, multi-process encoded lines into memory
+		pool_instance = mp.Pool(processes = workers, maxtasksperchild = None)
+		lines = pool_instance.map(self.Encoder.load, lines, chunksize = chunksize)
+		pool_instance.close()
+		pool_instance.join()
+		print("THERE")
+		_validate( lines, grammar, detailed_grammar ) 
+		print( "Validation complete", flush=True )
+		
+		return
 	
+	#--------------------------------------------------------------#
 	def parse_line_yield(self, lines, grammar):
 		
 		for line in lines:
