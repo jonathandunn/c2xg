@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import codecs
 
 def getWordTag(wordTag):
     if wordTag == "///":
@@ -23,7 +24,7 @@ def getRawText(inputFile, outFile):
     
 def readDictionary(inputFile):
     dictionary = {}
-    lines = open(inputFile, "r").readlines()
+    lines = codecs.open(inputFile, "r", encoding = "utf-8", errors = "replace").readlines()
     for line in lines:
         wordtag = line.strip().split()
         dictionary[wordtag[0]] = wordtag[1]

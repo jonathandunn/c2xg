@@ -77,15 +77,23 @@ class Encoder(object):
 	
 	def decode(self, item):
 	
-		sequence = [self.decoding_dict[pair[0]][pair[1]] for pair in item]
+		sequence = [self.decoding_dict.get([pair[0]][pair[1]], "UNK") for pair in item]
 			
 		return " ".join(sequence)		
 
 	#---------------------------------------------------------------------------#
 	
 	def decode_construction(self, item):
-	
-		sequence = [self.decoding_dict[pair[0]][pair[1]] for pair in item]
+		
+		sequence = []
+		for pair in item:
+
+			try:
+				val = self.decoding_dict[pair[0]][pair[1]]
+			except:
+				val = "UNK"
+
+			sequence.append(val)
 			
 		return "[ " + " -- ".join(sequence) + " ]"
 

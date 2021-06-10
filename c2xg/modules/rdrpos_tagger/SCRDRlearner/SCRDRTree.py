@@ -2,6 +2,7 @@
 
 from .Node import Node 
 from .Object import FWObject 
+import codecs
 
 class SCRDRTree:
     """
@@ -36,7 +37,7 @@ class SCRDRTree:
         currentNode = self.root
         currentDepth = 0
         
-        rulesFile = open(rulesFilePath, "r")
+        rulesFile = codecs.open(rulesFilePath, "r", encoding = "utf-8", errors = "replace")
         lines = rulesFile.readlines()
         
         for i in range(1, len(lines)):
