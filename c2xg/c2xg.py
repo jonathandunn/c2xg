@@ -1,7 +1,7 @@
 import os
 import random
 import pickle5 as pickle
-
+import numpy as np
 import copy
 import operator
 import codecs
@@ -177,7 +177,7 @@ class C2xG(object):
 
 		#Try to load default or specified model
 		if model == "":
-			model = self.language + ".Grammar.v1.p"
+			model = self.language + ".Grammar.v3.p"
 			
 		#Try to load grammar from file
 		if isinstance(model, str):
@@ -256,7 +256,6 @@ class C2xG(object):
 					
 		#Filenames as input
 		elif mode == "files":
-		
 			features = self.Parse.parse_batch(input, self.model, workers, self.detailed_model )
 			return features
 
@@ -907,3 +906,52 @@ class C2xG(object):
 		return result
 
 	#-----------------------------------------------	
+	def step_data(self, data, step):
+
+		return_data = []
+		extra_data = []
+		
+		counter = 0
+		
+		for line in data:
+			if len(line) > 5:
+		
+				if counter < step:
+					return_data.append(line)
+					counter += len(line.split())
+					
+				else:
+					extra_data.append(line)
+				
+		return return_data, extra_data
+	#-----------------------------------------------	
+	
+	def forget_constructions(self, grammar, datasets, workers = None, threshold = 1, adjustment = 0.25, increment_size = 100000):
+
+		round = 0
+		weights = [1 for x in range(len(grammar))]
+		
+		for i in range(20):
+			
+			print(round, len(grammar))
+			round += 1
+				
+			for i in range(len(datasets)):
+			
+				dataset = datasets[i]
+			
+				data_parse, data_keep = self.step_data(dataset, increment_size)
+				datasets[i] = data_keep
+				
+				if len(dataset) > 25:
+					self.model = grammar
+					self._detail_model()
+					vector = np.array(self.parse_return(data_parse, mode = "lines"))
+					vector = np.sum(vector, axis = 0)
+					weights = [1 if vector[i] > threshold else weights[i]-adjustment for i in range(len(weights))]
+					
+			grammar = [grammar[i] for i in range(len(grammar)) if weights[i] >= 0.0001]
+			weights = [weights[i] for i in range(len(weights)) if weights[i] >= 0.0001]
+				
+		return grammar
+	#-----------------------------------------------
