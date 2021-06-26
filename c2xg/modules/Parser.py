@@ -316,7 +316,6 @@ class Parser(object):
 				matches = parse_fast( line, grammar = detailed_grammar, grammar_len = len( grammar ), sparse_matches=False )
 			else : 
 				matches = parse(line, grammar)
-			## matches = parse(line, grammar)
 
 			yield matches
 				
@@ -392,26 +391,28 @@ class Parser(object):
 
 		# Uncomment to validate fast parser
 		chunksize = 2500
-		print("HERE")
+
 		#First, multi-process encoded lines into memory
 		pool_instance = mp.Pool(processes = workers, maxtasksperchild = None)
 		lines = pool_instance.map(self.Encoder.load, lines, chunksize = chunksize)
 		pool_instance.close()
 		pool_instance.join()
-		print("THERE")
+
 		_validate( lines, grammar, detailed_grammar ) 
 		print( "Validation complete", flush=True )
 		
 		return
 	
 	#--------------------------------------------------------------#
-	def parse_line_yield(self, lines, grammar):
+	def parse_line_yield(self, line, grammar, detailed_grammar):
 		
-		for line in lines:
-		
-			line = self.Encoder.load(line)
-			line = parse(line, grammar = grammar)
+		line = self.Encoder.load(line)
 
-			yield line
+		if not detailed_grammar is None :
+			matches = parse_fast( line, grammar = detailed_grammar, grammar_len = len( grammar ), sparse_matches=False )
+		else : 
+			matches = parse(line, grammar)
+
+		return matches
 			
 	#--------------------------------------------------------------#

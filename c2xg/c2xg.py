@@ -285,14 +285,14 @@ class C2xG(object):
 		
 		#Filenames as input
 		if mode == "files":
-			for features in self.Parse.parse_stream(input, self.model):
+			for features in self.Parse.parse_stream(input, self.model, detailed_grammar = self.detailed_model):
 				yield np.array(features)
 
 		#Texts as input
 		elif mode == "lines":
 		
 			for line in input:
-				line = self.Parse.parse_line_yield(line, self.model)
+				line = self.Parse.parse_line_yield(line, self.model, detailed_grammar = self.detailed_model)
 				yield np.array(line)			
 			
 	#-------------------------------------------------------------------------------
@@ -400,6 +400,7 @@ class C2xG(object):
 
 		#Make dataframe
 		df = pd.DataFrame(pairs, columns = ["Word1", "Word2", "Max", "LR", "RL", "Freq"])
+		df = df.sort_values("Max", ascending = False)
 		
 		return df
 
