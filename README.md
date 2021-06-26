@@ -1,4 +1,4 @@
-c2xg 2.0
+c2xg 1.0
 =============
 
 Computational Construction Grammar, or c2xg, is a Python package for learning of CxGs and working with CxGs. 
@@ -62,7 +62,7 @@ This function will read a text file and write a different text file with example
 Usage: Getting Association Values (Delta P)
 -----------------------------
 
-	CxG.get_association(input_data, freq_threshold = 1, smoothing = False, lex_only = False)
+	association_csv = CxG.get_association(input_data, freq_threshold = 1, smoothing = False, lex_only = False)
 
 Usage: Learning New Grammars
 -----------------------------
