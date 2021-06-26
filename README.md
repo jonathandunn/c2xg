@@ -7,6 +7,8 @@ Why CxG? Constructions are grammatical entities that support a straight-forward 
 
 This package currently support 35 languages: ara, bul, cat, ces, dan, deu, ell, eng, est, fas, fin, fra, glg, heb, hin, hun, ind, ita, kor, lav, nld, nor, pol, por, ron, rus, slv, spa, swe, tgl, tha, tur, ukr, urd, vie
 
+Note: Only deu, eng, fra, ita, por, spa are available on pip.
+
 Usage: Initializing
 ---------------------
 
@@ -104,7 +106,11 @@ The third provides a method for pruning grammars using additional corpora. Const
 Installation
 --------------
 
-Installation files will be provided in the **c2xg/whl** directory.
+For the full package:
 
-		pip install <whl file>
+		pip install git+https://github.com/jonathandunn/c2xg.git
+		
+For only deu, eng, fra, ita, por, spa:
+
+		pip install c2xg
 		
