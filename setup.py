@@ -8,7 +8,7 @@ def read(fname):
 
 setup(
 	name = "c2xg",
-	version = "2.0",
+	version = "1.0",
 	author = "Jonathan Dunn",
 	author_email = "jonathan.dunn@canterbury.ac.nz",
 	description = ("Learn, vectorize, and annotate Construction Grammars"),
