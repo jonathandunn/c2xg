@@ -66,17 +66,22 @@ class Association(object):
 		
 	#--------------------------------------------------------------#
 	
-	def process_ngrams(self, filename, Encoder, save = False):
+	def process_ngrams(self, filename, Encoder, save = False, lex_only = False):
 
-		print("\t\tStarting " + filename)
 		#Initialize bigram dictionary
 		ngrams = defaultdict(int)
 		unigrams = defaultdict(int)
-				
+
 		starting = time.time()
 		total = 0
 
-		for line in Encoder.load_stream(filename):
+		#"filename" can be a string filename or a list of sentences
+		if isinstance(filename, list):
+			lines = Encoder.load_stream(filename, no_file = True)
+		else:
+			lines = Encoder.load_stream(filename)
+
+		for line in lines:
 
 			total += len(line)
 
@@ -92,14 +97,16 @@ class Association(object):
 					#Tuples are indexes for (LEX, POS, CAT)
 					#Index types are 1 (LEX), 2 (POS), 3 (CAT)
 					ngrams[((1, bigram[0][0]), (1, bigram[1][0]))] += 1	#lex_lex
-					ngrams[((1, bigram[0][0]), (2, bigram[1][1]))] += 1	#lex_pos
-					ngrams[((1, bigram[0][0]), (3, bigram[1][2]))] += 1	#lex_cat
-					ngrams[((2, bigram[0][1]), (2, bigram[1][1]))] += 1	#pos_pos
-					ngrams[((2, bigram[0][1]), (1, bigram[1][0]))] += 1	#pos_lex
-					ngrams[((2, bigram[0][1]), (3, bigram[1][2]))] += 1	#pos_cat 
-					ngrams[((3, bigram[0][2]), (3, bigram[1][2]))] += 1	#cat_cat
-					ngrams[((3, bigram[0][2]), (2, bigram[1][1]))] += 1	#cat_pos
-					ngrams[((3, bigram[0][2]), (1, bigram[1][0]))] += 1	#cat_lex
+
+					if lex_only == False:
+						ngrams[((1, bigram[0][0]), (2, bigram[1][1]))] += 1	#lex_pos
+						ngrams[((1, bigram[0][0]), (3, bigram[1][2]))] += 1	#lex_cat
+						ngrams[((2, bigram[0][1]), (2, bigram[1][1]))] += 1	#pos_pos
+						ngrams[((2, bigram[0][1]), (1, bigram[1][0]))] += 1	#pos_lex
+						ngrams[((2, bigram[0][1]), (3, bigram[1][2]))] += 1	#pos_cat 
+						ngrams[((3, bigram[0][2]), (3, bigram[1][2]))] += 1	#cat_cat
+						ngrams[((3, bigram[0][2]), (2, bigram[1][1]))] += 1	#cat_pos
+						ngrams[((3, bigram[0][2]), (1, bigram[1][0]))] += 1	#cat_lex
 			
 			#Catch errors from empty lines coming out of the encoder
 			except Exception as e:
@@ -137,61 +144,78 @@ class Association(object):
 			return ngrams
 	#--------------------------------------------------------------------------------------------#
 
-	def find_ngrams(self, files = None, workers = 1, nickname = ""):
+	def find_ngrams(self, files = None, workers = 1, nickname = "", save = True, lex_only = False):
 
-		print("Starting to find ngrams: ", files)
 		starting = time.time()
 		
 		if files == None:
 			files = self.Loader.list_input()
 		
-		#Multi-process#
-		pool_instance = mp.Pool(processes = workers, maxtasksperchild = 1)
-		output_files = pool_instance.map(partial(self.process_ngrams, Encoder = self.Encoder, save = True), files, chunksize = 1)
-		pool_instance.close()
-		pool_instance.join()
-		
-		print("")
-		print("\tFILES PROCESSED: " + str(len(output_files)))
-		print("\tTOTAL TIME: " + str(time.time() - starting))
-		
-		return output_files
+		if save == True:
+			
+			pool_instance = mp.Pool(processes = workers, maxtasksperchild = 1)
+			output_files = pool_instance.map(partial(self.process_ngrams, Encoder = self.Encoder, save = save), files, chunksize = 1)
+			pool_instance.close()
+			pool_instance.join()
+			
+			print("")
+			print("\tFILES PROCESSED: " + str(len(output_files)))
+			print("\tTOTAL TIME: " + str(time.time() - starting))
+			
+			return output_files
+
+		elif save == False:
+	
+			ngrams = self.process_ngrams(files, Encoder = self.Encoder, save = save, lex_only = lex_only)
+			
+			print("")
+			print("\tTOTAL TIME: " + str(time.time() - starting))
+			
+			return ngrams
+
 	#---------------------------------------------------------------------------------------------#
 	
-	def merge_ngrams(self, files = None, n_gram_threshold = 0):
+	def merge_ngrams(self, files = None, ngram_dict = None, n_gram_threshold = 0):
 		
-		all_ngrams = []
-		
-		#Get a list of ngram files
-		if files == None:
-			files = self.Loader.list_output(type = "ngrams")
+		#If loading results
+		if ngram_dict == None:
+			all_ngrams = []
 			
-		#Break into lists of 20 files
-		file_list = ct.partition_all(20, files)
-		
-		for files in file_list:
+			#Get a list of ngram files
+			if files == None and ngram_dict == None:
+				files = self.Loader.list_output(type = "ngrams")
+				
+			#Break into lists of 20 files
+			file_list = ct.partition_all(20, files)
 			
-			ngrams = []		#Initialize holding list
+			for files in file_list:
+				
+				ngrams = []		#Initialize holding list
+				
+				#Load
+				for dict_file in files:
+					try:
+						ngrams.append(self.Loader.load_file(dict_file))
+					except:
+						print("Not loading " + str(dict_file))
 			
-			#Load
-			for dict_file in files:
-				try:
-					ngrams.append(self.Loader.load_file(dict_file))
-				except:
-					print("Not loading " + str(dict_file))
-		
-			#Merge
-			ngrams = ct.merge_with(sum, [x for x in ngrams])
-		
-			print("\tSUB-TOTAL NGRAMS: " + str(len(list(ngrams.keys()))))
-			print("\tSUB-TOTAL WORDS: " + str(ngrams["TOTAL"]))
-			print("\n")
+				#Merge
+				ngrams = ct.merge_with(sum, [x for x in ngrams])
 			
-			all_ngrams.append(ngrams)
-			
-		#Now merge everything
-		all_ngrams = ct.merge_with(sum, [x for x in all_ngrams])
-		
+				print("\tSUB-TOTAL NGRAMS: " + str(len(list(ngrams.keys()))))
+				print("\tSUB-TOTAL WORDS: " + str(ngrams["TOTAL"]))
+				print("\n")
+				
+				all_ngrams.append(ngrams)
+				
+			#Now merge everything
+			all_ngrams = ct.merge_with(sum, [x for x in all_ngrams])
+
+
+		#If loading results
+		elif ngram_dict != None:
+			all_ngrams = ngram_dict
+
 		print("\tTOTAL NGRAMS: " + str(len(list(all_ngrams.keys()))))
 		print("\tTOTAL WORDS: " + str(all_ngrams["TOTAL"]))
 		

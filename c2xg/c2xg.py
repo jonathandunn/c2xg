@@ -1,12 +1,14 @@
 import os
 import random
-import pickle5 as pickle
 import numpy as np
+import pandas as pd
 import copy
 import operator
+import pickle
 import codecs
 from collections import defaultdict
 import multiprocessing as mp
+import cytoolz as ct
 from functools import partial
 from pathlib import Path
 from cleantext import clean
@@ -150,19 +152,24 @@ def process_candidates(input_tuple, association_dict, language, in_dir, out_dir,
 
 class C2xG(object):
 	
-	def __init__(self, data_dir, language, s3 = False, s3_bucket = "", nickname = "", model = "", smoothing = False, zho_split = False, max_words = False, fast_parse = True):
+	def __init__(self, data_dir = None, language = "eng", nickname = "", model = "", smoothing = False, zho_split = False, max_words = False, fast_parse = True):
 	
 		#Initialize
-		#print("Initializing C2xG")
-		in_dir = os.path.join(data_dir, "IN")
 		self.nickname = nickname
 		if nickname != "":
 			print("Current nickname: " + nickname)
-		out_dir = os.path.join(data_dir, "OUT")
+
+		if data_dir != None:
+			in_dir = os.path.join(data_dir, "IN")
+			out_dir = os.path.join(data_dir, "OUT")
+
+		else:
+			in_dir = None
+			out_dir = None
 		
 		self.language = language
 		self.zho_split = zho_split
-		self.Load = Loader(in_dir, out_dir, language = self.language, s3 = s3, s3_bucket = s3_bucket, max_words = max_words)
+		self.Load = Loader(in_dir, out_dir, language = self.language, max_words = max_words)
 		self.Encode = Encoder(Loader = self.Load, zho_split = self.zho_split)
 		self.Association = Association(Loader = self.Load, nickname = self.nickname)
 		self.Candidates = Candidates(language = self.language, Loader = self.Load)
@@ -170,15 +177,13 @@ class C2xG(object):
 		
 		self.in_dir = in_dir
 		self.out_dir = out_dir
-		self.s3 = s3
-		self.s3_bucket = s3_bucket
 		self.max_words = max_words
 		self.smoothing = smoothing
 
 		#Try to load default or specified model
 		if model == "":
 			model = self.language + ".Grammar.v3.p"
-			
+
 		#Try to load grammar from file
 		if isinstance(model, str):
 
@@ -188,10 +193,11 @@ class C2xG(object):
 					modelname = model
 				else :
 					modelname = Path(__file__).parent / os.path.join("data", "models", model)
+
 				with open(modelname, "rb") as handle:
 					self.model = pickle.load(handle)
 		
-			except:
+			except Exception as e:
 				print("No model exists, loading empty model.")
 				self.model = None
 			
@@ -292,6 +298,8 @@ class C2xG(object):
 	#-------------------------------------------------------------------------------
 	def print_constructions(self):
 
+		return_list = []
+
 		for i in range(len(self.model)):
 			
 			x = self.model[i]
@@ -303,8 +311,9 @@ class C2xG(object):
 			construction = self.Encode.decode_construction(x)
 
 			print(i, construction)
+			return_list.append(str(i) + ": " + str(construction))
 
-		return
+		return return_list
 	#-------------------------------------------------------------------------------
 	def print_examples(self, input_file, output_file, n):
 
@@ -356,8 +365,51 @@ class C2xG(object):
 				#End of examples for this construction
 				fw.write("\n\n")
 	#-------------------------------------------------------------------------------
+
+	def get_association(self, input_data, freq_threshold = 1, smoothing = False, lex_only = False):
+
+		#Load from file if necessary
+		if isinstance(input_data, str):
+			input_data = [x for x in self.Load.read_file(input_data)]
+
+		ngrams = self.Association.find_ngrams(input_data, workers = 1, save = False, lex_only = lex_only)
+		ngrams = self.Association.merge_ngrams(input_data, ngram_dict = ngrams, n_gram_threshold = freq_threshold)
+		association_dict = self.Association.calculate_association(ngrams = ngrams, smoothing = smoothing, save = False)
+		
+		#Reduce to bigrams
+		keepable = lambda x: len(x) > 1
+		all_ngrams = ct.keyfilter(keepable, association_dict)
+		
+		#Convert to readable CSV
+		pairs = []
+		for pair in association_dict.keys():
+
+			try:
+				val1 = self.Encode.decoding_dict[pair[0][0]][pair[0][1]]
+			except Exception as e:
+				val1 = "UNK"
+
+			try:
+				val2 = self.Encode.decoding_dict[pair[1][0]][pair[1][1]]
+			except Exception as e:
+				val2 = "UNK"
+
+			if val1 != "UNK" and val2 != "UNK":
+				maximum = max(association_dict[pair]["LR"], association_dict[pair]["RL"])
+				pairs.append([val1, val2, maximum, association_dict[pair]["LR"], association_dict[pair]["RL"], association_dict[pair]["Freq"]])
+
+		#Make dataframe
+		df = pd.DataFrame(pairs, columns = ["Word1", "Word2", "Max", "LR", "RL", "Freq"])
+		
+		return df
+
+	#-------------------------------------------------------------------------------
 	
 	def get_lexicon(self, file):
+
+		if self.data_dir == None:
+			print("Error: Cannot train lexicons without specified data directory.")
+			sys.kill()
 
 		vocab = []
 
@@ -408,6 +460,10 @@ class C2xG(object):
 				):
 	
 		self.nickname = nickname
+
+		if self.data_dir == None:
+			print("Error: Cannot train grammars without specified data directory.")
+			sys.kill()
 
 		#Check learning state and resume
 		self.model_state_file = self.language + "." + self.nickname + ".State.p"

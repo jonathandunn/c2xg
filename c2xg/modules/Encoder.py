@@ -99,17 +99,25 @@ class Encoder(object):
 
 	#---------------------------------------------------------------------------#
 	
-	def load_stream(self, input_files, word_classes = False):
+	def load_stream(self, input_files, no_file = False):
 
-		#If only got one file, wrap in list
-		if isinstance(input_files, str):
-			input_files = [input_files]
-	
-		for file in input_files:
-			for line in self.Loader.read_file(file):
-				if len(line) > 1:
-					line = self.load(line)
-					yield line
+		if no_file == False:
+
+			#If only got one file, wrap in list
+			if isinstance(input_files, str):
+				input_files = [input_files]
+		
+			for file in input_files:
+				for line in self.Loader.read_file(file):
+					if len(line) > 1:
+						line = self.load(line)
+						yield line
+
+		elif no_file == True:
+			for line in input_files:
+					if len(line) > 1:
+						line = self.load(line)
+						yield line
 					
 	#---------------------------------------------------------------------------#
 

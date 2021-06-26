@@ -5,4 +5,4 @@ include setup.py
 include setup.cfg
 include MANIFEST.in
 
-graft c2xg/files_data
+graft c2xg/data

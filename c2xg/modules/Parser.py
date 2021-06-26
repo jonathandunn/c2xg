@@ -7,7 +7,6 @@ from functools import partial
 from numba import jit, int64, njit, types, typed
 from scipy.sparse import coo_matrix
 
-
 #--------------------------------------------------------------#
 @jit(nopython = True, nogil = True)
 def parse_examples(construction, line):
