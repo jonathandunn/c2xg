@@ -258,12 +258,12 @@ class C2xG(object):
 		#Text as input
 		if mode == "lines":
 			lines = self.Parse.parse_idNet(input, self.model, workers, self.detailed_model )
-			return lines	
+			return np.array(lines)	
 					
 		#Filenames as input
 		elif mode == "files":
 			features = self.Parse.parse_batch(input, self.model, workers, self.detailed_model )
-			return features
+			return np.array(features)
 
 	#-------------------------------------------------------------------------------
 
@@ -286,14 +286,14 @@ class C2xG(object):
 		#Filenames as input
 		if mode == "files":
 			for features in self.Parse.parse_stream(input, self.model):
-				yield features
+				yield np.array(features)
 
 		#Texts as input
 		elif mode == "lines":
 		
 			for line in input:
 				line = self.Parse.parse_line_yield(line, self.model)
-				yield line			
+				yield np.array(line)			
 			
 	#-------------------------------------------------------------------------------
 	def print_constructions(self):
