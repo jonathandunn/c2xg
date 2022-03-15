@@ -9,9 +9,6 @@ import pandas as pd
 from cleantext import clean
 from sklearn.utils import murmurhash3_32
 
-#Changes the generation of lexicon / dictionary used
-DICT_CONSTANT = ".clusters.fastText.v2.gz"
-
 from .rdrpos_tagger.pSCRDRtagger.RDRPOSTagger import RDRPOSTagger
 from .rdrpos_tagger.Utility.Utils import getWordTag, getRawText, readDictionary
 from .rdrpos_tagger.InitialTagger.InitialTagger import initializeCorpus, initializeSentence
@@ -21,7 +18,7 @@ from .rdrpos_tagger.InitialTagger.InitialTagger import initializeCorpus, initial
 class Encoder(object):
 
 	#---------------------------------------------------------------------------#
-	def __init__(self, Loader, word_classes = False, zho_split = False):
+	def __init__(self, Loader, word_classes = False, zho_split = False, dict_constant = ".clusters.fastText.v2.gz"):
 		
 		self.language = Loader.language
 		self.zho_split = zho_split
@@ -29,7 +26,7 @@ class Encoder(object):
 		
 		MODEL_STRING = Path(__file__).parent / os.path.join("..", "data", "pos_rdr", self.language + ".RDR")
 		DICT_STRING = Path(__file__).parent / os.path.join("..", "data", "pos_rdr", self.language + ".DICT")
-		DICTIONARY_FILE = Path(__file__).parent / os.path.join("..", "data", "dictionaries", self.language + DICT_CONSTANT)
+		DICTIONARY_FILE = Path(__file__).parent / os.path.join("..", "data", "dictionaries", self.language + dict_constant)
 
 		#zho needs an additional tokenizer
 		if self.language == "zho":
