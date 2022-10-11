@@ -99,12 +99,14 @@ class C2xG(object):
         
     #------------------------------------------------------------------
 
-    def learn(self, input_data, npmi_threshold = 0.85, min_count = 1):
+    def learn(self, input_data, npmi_threshold = 0.75, min_count = None):
 
+        if min_count == None:
+            
         print("Starting to learn: lexicon")
         lexicon, phrases = self.Load.get_lexicon(input_data, npmi_threshold, min_count)
 
-        print("Finished with " + str(len(lexicon)) + " words and " + str(len(phrases)) + " phrases")
+        print("Finished with " + str(len(lexicon)) + " words and " + str(len([x for x in lexicon.keys() if " " in x])) + " phrases")
 
         #Save phrases and lexicon
         self.phrases = phrases
@@ -112,7 +114,13 @@ class C2xG(object):
 
         print("Starting cbow word categories")
         cbow_file = os.path.join("data", "OUT", "training_corpus.v2.01.txt.cbow.ns.bin")
-        cbow_df = self.Word_Classes.learn_categories(cbow_file, lexicon)
+        cbow_df = self.Word_Classes.learn_categories(cbow_file, self.lexicon)
+        print(cbow_df)
+
+        print("Starting sg word categories")
+        sg_file = os.path.join("data", "OUT", "training_corpus.v2.01.txt.sg.ns.bin")
+        sg_df = self.Word_Classes.learn_categories(sg_file, self.lexicon)
+        print(sg_df)
 
         
 

@@ -249,14 +249,23 @@ class Loader(object):
             
             data = [x for x in self.load(input_data)]
 
+            #Find phrases, then freeze
             phrase_model = Phrases(data, min_count = min_count, threshold = npmi_threshold, scoring = "npmi", delimiter = " ")
-            phrases = phrase_model.export_phrases()
+            phrases = phrase_model.freeze()
             
+            #Reduce lexicon to min_count
             threshold = lambda x: x >= min_count
             lexicon = ct.valfilter(threshold, phrase_model.vocab)
+            
+            #Remove unkept phrases from lexicon
+            remove_list = []
+            for key in lexicon:
+                if " " in key and key not in phrases.phrasegrams:
+                    remove_list.append(key)
+            for key in remove_list:
+                lexicon.pop(key)
 
-            phrase_model.freeze()
-            self.phrases = phrase_model
+            self.phrases = phrases
 
             return lexicon, phrases
 

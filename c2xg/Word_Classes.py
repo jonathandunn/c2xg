@@ -10,6 +10,7 @@ from functools import partial
 from gensim.models import FastText
 from gensim.models.fasttext import load_facebook_model
 from gensim.models.fasttext import save_facebook_model
+from scipy.stats import mode
 import kmedoids
 
 try:
@@ -68,41 +69,96 @@ class Word_Classes(object):
         else:
             model = model_file
 
+        #Get the word embeddings specific to this lexicon
+        #remove phrases because their vectors aren't trained
+        word_list = [x for x in vocab.keys() if " " not in x]
+        phrase_list = [x for x in vocab.keys() if " " in x]
+
         vectors = []
-        for word in vocab.keys():
+        for word in word_list:
             vector = model.wv[word]
             vectors.append(vector)
                 
         vectors = np.vstack(vectors)
 
-        print("Vocab and Vector Size")
-        print(len(vocab))
-        print(vectors.shape)
+        print("Vocab and Vector Size:", end = "\t")
+        print(len(word_list), vectors.shape)
 
         print("Getting cosine distance matrix")
         distances = cosine_distances(vectors, vectors)
-        print(distances)
 
+        print("Clustering")
         km = kmedoids.KMedoids(5, method='fasterpam', max_iter = 1000000, init = "build")
         km.fit(distances)
         print("Loss is:", km.inertia_)
 
         cluster_labels = km.labels_
         cluster_exemplars = km.medoid_indices_
-        print(cluster_labels)
-        print(cluster_exemplars)
+        #print(cluster_labels)
+        #print(cluster_exemplars)
 
         results = []
         for i in range(len(cluster_labels)):
-            member_word = list(vocab.keys())[i]
+            member_word = word_list[i]
             cluster = cluster_labels[i]
             exemplar_word = cluster_exemplars[cluster]
-            exemplar_word_real = list(vocab.keys())[exemplar_word]
-            results.append([member_word, cluster, exemplar_word_real])
+            exemplar_word_real = word_list[exemplar_word]
+            results.append([member_word, cluster])
         
-        cluster_df = pd.DataFrame(results)
-        print(cluster_df)
-                 
+        cluster_df = pd.DataFrame(results, columns = ["Word", "Cluster"])
+        #print(cluster_df)
+
+        #Save mean vectors for assigning phrases to clusters
+        mean_dict = {}
+        name_dict = {}
+        complete_clusters = []
+
+        #Get proto-type structure and exemplars
+        for category, category_df in cluster_df.groupby("Cluster"):
+
+            #First, get proto-type structure of the cluster
+            ranks = model.wv.rank_by_centrality(words=category_df.loc[:,"Word"], use_norm=True)
+            ranks = pd.DataFrame(ranks, columns = ["Rank", "Word"])
+            ranks.loc[:,"Category"] = category
+            
+
+            #Second, get the best example of the category
+            mean_vector = model.wv.get_mean_vector(keys=ranks.loc[:,"Word"], weights=ranks.loc[:,"Rank"], pre_normalize=True, post_normalize=False)
+            mean_dict[category] = mean_vector
+
+            #Third, filter the best examples to reflect this particular lexicon
+            exemplars = model.wv.similar_by_vector(mean_vector, topn=10000)
+            exemplars = [x for x,y in exemplars if x in vocab.keys()]
+            mode_val = mode(list(vocab.values()))[0]
+            thresh_freq = mode_val + 1
+            #print("Threshold freq", thresh_freq)
+
+            #Make sure exemplars are relatively common words
+            exemplars = [x for x in exemplars if vocab[x] > thresh_freq]
+            exemplars = exemplars[:4]
+            name_dict[category] = exemplars
+            exemplar_name = "_".join(exemplars)
+            ranks.loc[:,"Category_Name"] = exemplar_name
+            complete_clusters.append(ranks)
+
+        #Assign phrases
+        phrase_results = []
+
+        for phrase in phrase_list:
+            vector = model.wv[phrase]
+            distances = cosine_distances(vector.reshape(1, -1), list(mean_dict.values()))
+            phrase_cluster = np.argmin(distances)
+            phrase_cluster_name = "_".join(name_dict[phrase_cluster])
+            phrase_results.append([0.0, phrase, phrase_cluster, phrase_cluster_name])
+            
+        #Merge and save all category rankings
+        phrase_df = pd.DataFrame(phrase_results, columns = ["Rank", "Word", "Category", "Category_Name"])
+        complete_clusters.append(phrase_df)
+
+        cluster_df = pd.concat(complete_clusters)
+        cluster_df = cluster_df.sort_values(by = ["Category", "Rank"])
+        cluster_df = cluster_df.reset_index(drop=True)
+  
         return cluster_df
         
     #-------------------------------------------------------------------------------#
