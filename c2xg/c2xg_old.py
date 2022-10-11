@@ -11,7 +11,9 @@ import multiprocessing as mp
 import cytoolz as ct
 from functools import partial
 from pathlib import Path
+from cleantext import clean
 
+from .Encoder import Encoder
 from .Loader import Loader
 from .Parser import Parser
 from .Association import Association
@@ -19,49 +21,166 @@ from .Candidates import Candidates
 from .MDL_Learner import MDL_Learner
 from .Parser import parse_examples
 from .Word_Classes import Word_Classes
+
+#------------------------------------------------------------
+
+def eval_mdl(files, workers, candidates, Load, Encode, Parse, freq_threshold = -1, report = False):
+    
+    print("Now initiating MDL evaluation: " + str(files))
+    
+    #Check if one file
+    if isinstance(files, str):
+        files = [files]
+    
+    for file in files:
+        print("\tStarting " + str(file))        
+        MDL = MDL_Learner(Load, Encode, Parse, freq_threshold = freq_threshold, vectors = {"na": 0}, candidates = candidates)
+        MDL.get_mdl_data([file], workers = workers, learn_flag = False)
+        total_mdl, l1_cost, l2_match_cost, l2_regret_cost, baseline_mdl = MDL.evaluate_subset(subset = False, return_detail = True)
+            
+    if report == True:
+        return total_mdl, l1_cost, l2_match_cost, l2_regret_cost, baseline_mdl
+#------------------------------------------------------------        
+
+def delta_grid_search(candidate_file, test_file, workers, mdl_workers, association_dict, freq_threshold, language, in_dir, out_dir, max_words, nickname = "current"):
+    
+    print("\nStarting grid search for beam search settings.")
+    result_dict = {}
+        
+    delta_thresholds = [0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1]
+    
+    if len(delta_thresholds) < workers:
+        parse_workers = len(delta_thresholds)
+    else:
+        parse_workers = workers
+        
+    #Multi-process#
+    pool_instance = mp.Pool(processes = parse_workers, maxtasksperchild = 1)
+    distribute_list = [(x, candidate_file) for x in delta_thresholds]
+
+    pool_instance.map(partial(process_candidates, 
+                                association_dict = association_dict.copy(),
+                                language = language,
+                                freq_threshold = freq_threshold,
+                                in_dir = in_dir,
+                                out_dir = out_dir,
+                                max_words = max_words,
+                                nickname = nickname
+                                ), distribute_list, chunksize = 1)
+    pool_instance.close()
+    pool_instance.join()
+                
+    #Now MDL
+    if language == "zho":
+        zho_split = True
+    else:
+        zho_split = False
+        
+    Load = Loader(in_dir, out_dir, language, max_words = max_words)
+    Encode = Encoder(Loader = Load, zho_split = zho_split)
+    Parse = Parser(Load, Encode)
+    
+    for threshold in delta_thresholds:
+        print("\tStarting MDL search for " + str(threshold))
+        filename = str(candidate_file) + "." + nickname + ".delta." + str(threshold) + ".p"
+        candidates = Load.load_file(filename)
+        
+        if len(candidates) < 5:
+            print("\tNot enough candidates!")
+        
+        else:
+
+            mdl_score = eval_mdl(files = test_file, 
+                                    candidates = candidates, 
+                                    workers = mdl_workers, 
+                                    Load = Load, 
+                                    Encode = Encode, 
+                                    Parse = Parse, 
+                                    freq_threshold = freq_threshold, 
+                                    report = True
+                                    )
+            
+            result_dict[threshold] = mdl_score
+            print("\tThreshold: " + str(threshold) + " and MDL: " + str(mdl_score))
+        
+    #Get threshold with best score
+    print(result_dict)
+    best = min(result_dict.items(), key=operator.itemgetter(1))[0]
+
+    #Get best candidates
+    filename = str(candidate_file) + "." + nickname + ".delta." + str(best) + ".p"
+    best_candidates = Load.load_file(filename)
+        
+    return best, best_candidates
+
+#------------------------------------------------------------
+
+def process_candidates(input_tuple, association_dict, language, in_dir, out_dir, freq_threshold = 1, mode = "", max_words = False, nickname = "current"):
+
+    threshold =  input_tuple[0]
+    candidate_file = input_tuple[1]
+    
+    print("\tStarting " + str(threshold) + " with freq threshold: " + str(freq_threshold))
+    Load = Loader(in_dir, out_dir, language, max_words)
+    C = Candidates(language = language, Loader = Load, association_dict = association_dict)
+    
+    if mode == "candidates":
+        filename = str(candidate_file + ".candidates.p")
+        
+    else:
+        filename = str(candidate_file) + "." + nickname + ".delta." + str(threshold) + ".p"
+    
+    if filename not in Load.list_output():
+    
+        candidates = C.process_file(candidate_file, threshold, freq_threshold, save = False)
+        Load.save_file(candidates, filename)
+    
+    #Clean
+    del association_dict
+    del C
+    
+    return
+
 #-------------------------------------------------------------------------------
 
 class C2xG(object):
     
-    def __init__(self, data_dir = None, language = "eng", nickname = "cxg", model = None, smoothing = False, max_words = False, fast_parse = False):
+    def __init__(self, data_dir = None, language = "eng", nickname = "", model = "", smoothing = False, zho_split = False, max_words = False, fast_parse = True, dict_constant = ".clusters.fastText.v2.gz"):
     
         #Initialize
         self.nickname = nickname
+        if nickname != "":
+            print("Current nickname: " + nickname)
 
-        if max_words != False:
-            self.nickname += "." + str(int(max_words/1000)) + "k_words"
-
-        print("Current nickname: " + self.nickname)
-
-        self.data_dir = data_dir
-        self.language = language
-
-        #Set data location
         if data_dir != None:
             in_dir = os.path.join(data_dir, "IN")
             out_dir = os.path.join(data_dir, "OUT")
+
         else:
             in_dir = None
             out_dir = None
         
-        #Initialize modules
+        self.data_dir = data_dir
+        self.language = language
+        self.dict_constant = dict_constant
+        self.zho_split = zho_split
         self.Load = Loader(in_dir, out_dir, language = self.language, max_words = max_words)
-        self.Association = Association(Load = self.Load, nickname = self.nickname)
-        self.Candidates = Candidates(language = self.language, Load = self.Load)
-        self.Parse = Parser(self.Load)
-        self.Word_Classes = Word_Classes(self.Load)
+        self.Encode = Encoder(Loader = self.Load, zho_split = self.zho_split, dict_constant = self.dict_constant)
+        self.Association = Association(Loader = self.Load, nickname = self.nickname)
+        self.Candidates = Candidates(language = self.language, Loader = self.Load)
+        self.Parse = Parser(self.Load, self.Encode)
+        self.Word_Classes = Word_Classes(self.Load, use_pos = False)
         
-        #Set global variables
         self.in_dir = in_dir
         self.out_dir = out_dir
         self.max_words = max_words
         self.smoothing = smoothing
 
         #Try to load default or specified model
-        if model == "default":
+        if model == "":
             model = self.language + ".Grammar.v3.p"
-            print("Using default grammar")
 
+        print("Current grammar: " + model)
         #Try to load grammar from file
         if isinstance(model, str):
 
@@ -76,172 +195,22 @@ class C2xG(object):
                     self.model = pickle.load(handle)
         
             except Exception as e:
-                print("Using empty grammar")
+                print("No model exists, loading empty model.")
                 self.model = None
             
         #Take model as input
         elif isinstance(model, list):
             self.model = model
 
-        if fast_parse: 
+        if fast_parse : 
             self._detail_model() ## self.detailed_model set by this. 
-        else: 
+        else : 
             self.detailed_model = None
 
-    #------------------------------------------------------------------
-    def learn_embeddings(self, input_data, name="embeddings"):
-
-        print("Starting local embeddings (cbow)")
-        self.Word_Classes.learn_embeddings(input_data, model_type="cbow", name=name)
-
-        print("Finished with cbow emeddings. Starting sg embeddings")
-        self.Word_Classes.learn_embeddings(input_data, model_type="sg", name=name)
+        #self.n_features = len(self.model)
+        self.Encode.build_decoder()
         
     #------------------------------------------------------------------
-
-    def learn(self, input_data, npmi_threshold = 0.85, min_count = 1):
-
-        print("Starting to learn: lexicon")
-        lexicon, phrases = self.Load.get_lexicon(input_data, npmi_threshold, min_count)
-
-        print("Finished with " + str(len(lexicon)) + " words and " + str(len(phrases)) + " phrases")
-
-        #Save phrases and lexicon
-        self.phrases = phrases
-        self.lexicon = lexicon
-
-        print("Starting cbow word categories")
-        cbow_file = os.path.join("data", "OUT", "training_corpus.v2.01.txt.cbow.ns.bin")
-        cbow_df = self.Word_Classes.learn_categories(cbow_file, lexicon)
-
-        
-
-
-
-
-
-
-
-        return
-
-    #------------------------------------------------------------------
-
-    def eval_mdl(files, workers, candidates, Load, Encode, Parse, freq_threshold = -1, report = False):
-    
-        print("Now initiating MDL evaluation: " + str(files))
-        
-        #Check if one file
-        if isinstance(files, str):
-            files = [files]
-        
-        for file in files:
-            print("\tStarting " + str(file))        
-            MDL = MDL_Learner(Load, Encode, Parse, freq_threshold = freq_threshold, vectors = {"na": 0}, candidates = candidates)
-            MDL.get_mdl_data([file], workers = workers, learn_flag = False)
-            total_mdl, l1_cost, l2_match_cost, l2_regret_cost, baseline_mdl = MDL.evaluate_subset(subset = False, return_detail = True)
-                
-        if report == True:
-            return total_mdl, l1_cost, l2_match_cost, l2_regret_cost, baseline_mdl
-    #------------------------------------------------------------        
-
-    def delta_grid_search(candidate_file, test_file, workers, mdl_workers, association_dict, freq_threshold, language, in_dir, out_dir, max_words, nickname = "current"):
-    
-        print("\nStarting grid search for beam search settings.")
-        result_dict = {}
-            
-        delta_thresholds = [0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1]
-        
-        if len(delta_thresholds) < workers:
-            parse_workers = len(delta_thresholds)
-        else:
-            parse_workers = workers
-            
-        #Multi-process#
-        pool_instance = mp.Pool(processes = parse_workers, maxtasksperchild = 1)
-        distribute_list = [(x, candidate_file) for x in delta_thresholds]
-
-        pool_instance.map(partial(process_candidates, 
-                                    association_dict = association_dict.copy(),
-                                    language = language,
-                                    freq_threshold = freq_threshold,
-                                    in_dir = in_dir,
-                                    out_dir = out_dir,
-                                    max_words = max_words,
-                                    nickname = nickname
-                                    ), distribute_list, chunksize = 1)
-        pool_instance.close()
-        pool_instance.join()
-                    
-        #Now MDL
-        if language == "zho":
-            zho_split = True
-        else:
-            zho_split = False
-            
-        Load = Loader(in_dir, out_dir, language, max_words = max_words)
-        Encode = Encoder(Loader = Load, zho_split = zho_split)
-        Parse = Parser(Load, Encode)
-        
-        for threshold in delta_thresholds:
-            print("\tStarting MDL search for " + str(threshold))
-            filename = str(candidate_file) + "." + nickname + ".delta." + str(threshold) + ".p"
-            candidates = Load.load_file(filename)
-            
-            if len(candidates) < 5:
-                print("\tNot enough candidates!")
-            
-            else:
-
-                mdl_score = eval_mdl(files = test_file, 
-                                        candidates = candidates, 
-                                        workers = mdl_workers, 
-                                        Load = Load, 
-                                        Encode = Encode, 
-                                        Parse = Parse, 
-                                        freq_threshold = freq_threshold, 
-                                        report = True
-                                        )
-                
-                result_dict[threshold] = mdl_score
-                print("\tThreshold: " + str(threshold) + " and MDL: " + str(mdl_score))
-            
-        #Get threshold with best score
-        print(result_dict)
-        best = min(result_dict.items(), key=operator.itemgetter(1))[0]
-
-        #Get best candidates
-        filename = str(candidate_file) + "." + nickname + ".delta." + str(best) + ".p"
-        best_candidates = Load.load_file(filename)
-            
-        return best, best_candidates
-
-    #------------------------------------------------------------
-
-    def process_candidates(input_tuple, association_dict, language, in_dir, out_dir, freq_threshold = 1, mode = "", max_words = False, nickname = "current"):
-
-        threshold =  input_tuple[0]
-        candidate_file = input_tuple[1]
-        
-        print("\tStarting " + str(threshold) + " with freq threshold: " + str(freq_threshold))
-        Load = Loader(in_dir, out_dir, language, max_words)
-        C = Candidates(language = language, Loader = Load, association_dict = association_dict)
-        
-        if mode == "candidates":
-            filename = str(candidate_file + ".candidates.p")
-            
-        else:
-            filename = str(candidate_file) + "." + nickname + ".delta." + str(threshold) + ".p"
-        
-        if filename not in Load.list_output():
-        
-            candidates = C.process_file(candidate_file, threshold, freq_threshold, save = False)
-            Load.save_file(candidates, filename)
-        
-        #Clean
-        del association_dict
-        del C
-    
-        return
 
     def _detail_model(self) : 
 
@@ -432,10 +401,96 @@ class C2xG(object):
         df = df.sort_values("Max", ascending = False)
         
         return df
- 
+
+    #-------------------------------------------------------------------------------
+    
+    def get_lexicon(self, file):
+
+        if self.data_dir == None:
+            print("Error: Cannot train lexicons without specified data directory.")
+            sys.kill()
+
+        vocab = []
+
+        for line in self.Load.read_file(file):
+            
+            #Use clean-text
+            line = clean(line,
+                            fix_unicode = True,
+                            to_ascii = False,
+                            lower = True,
+                            no_line_breaks = True,
+                            no_urls = True,
+                            no_emails = True,
+                            no_phone_numbers = True,
+                            no_numbers = True,
+                            no_digits = True,
+                            no_currency_symbols = True,
+                            no_punct = True,
+                            replace_with_punct = "",
+                            replace_with_url = "<URL>",
+                            replace_with_email = "<EMAIL>",                        
+                            replace_with_phone_number = "<PHONE>",
+                            replace_with_number = "<NUMBER>",
+                            replace_with_digit = "0",
+                            replace_with_currency_symbol = "<CUR>"
+                            )
+
+            line = line.split()
+            vocab += line
+
+        return set(vocab)
+        
+    #-------------------------------------------------------------------------------
+    
+    def get_lexicon_freq(self, file):
+
+        if self.data_dir == None:
+            print("Error: Cannot train lexicons without specified data directory.")
+            sys.kill()
+
+        vocab = {}
+
+        for line in self.Load.read_file(file):
+            
+            #Use clean-text
+            line = clean(line,
+                            fix_unicode = True,
+                            to_ascii = False,
+                            lower = True,
+                            no_line_breaks = True,
+                            no_urls = True,
+                            no_emails = True,
+                            no_phone_numbers = True,
+                            no_numbers = True,
+                            no_digits = True,
+                            no_currency_symbols = True,
+                            no_punct = True,
+                            replace_with_punct = "",
+                            replace_with_url = "<URL>",
+                            replace_with_email = "<EMAIL>",                        
+                            replace_with_phone_number = "<PHONE>",
+                            replace_with_number = "<NUMBER>",
+                            replace_with_digit = "0",
+                            replace_with_currency_symbol = "<CUR>"
+                            )
+
+            line = line.split()
+            
+            if word not in vocab:
+                vocab[word] = 0
+                    
+            vocab[word] += 1
+            
+        df = pd.DataFrame.from_dict(vocab, orient = "index", columns = ["Frequency"])
+        df.to_csv(file+".vocab.csv")
+        print(df)
+
+        return df
+
     #-------------------------------------------------------------------------------        
     
-    def learn_old(self, 
+    def learn(self, 
                 nickname, 
                 cycles = 1, 
                 cycle_size = (1, 5, 20), 
