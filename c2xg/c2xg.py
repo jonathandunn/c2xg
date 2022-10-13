@@ -29,7 +29,7 @@ class C2xG(object):
         self.nickname = nickname
 
         if max_words != False:
-            self.nickname += "." + str(int(max_words/1000)) + "k_words"
+            self.nickname += "." + language + "." + str(int(max_words/1000)) + "k_words" 
 
         print("Current nickname: " + self.nickname)
 
@@ -45,7 +45,7 @@ class C2xG(object):
             out_dir = None
         
         #Initialize modules
-        self.Load = Loader(in_dir, out_dir, language = self.language, max_words = max_words)
+        self.Load = Loader(in_dir, out_dir, language = self.language, max_words = max_words, nickname = self.nickname)
         self.Association = Association(Load = self.Load, nickname = self.nickname)
         self.Candidates = Candidates(language = self.language, Load = self.Load)
         self.Parse = Parser(self.Load)
@@ -101,10 +101,19 @@ class C2xG(object):
 
     def learn(self, input_data, npmi_threshold = 0.75, min_count = None):
 
+        #Adjust min_count to be 1 parts per million using max_words parameter
         if min_count == None:
-            
+            if self.max_words == None:
+                min_count = 5
+            elif self.max_words <= 1000000:
+                min_count = int(1000000/self.max_words * 1)
+            elif self.max_words > 1000000:
+                min_count = int(self.max_words/1000000 * 1)
+            print("Setting min_count to 1 parts per million (min_count = " + str(min_count) + ") (max_words = " + str(self.max_words) + ")")
+
         print("Starting to learn: lexicon")
-        lexicon, phrases = self.Load.get_lexicon(input_data, npmi_threshold, min_count)
+        self.min_count = min_count
+        lexicon, phrases, unique_words = self.Load.get_lexicon(input_data, npmi_threshold, min_count)
 
         print("Finished with " + str(len(lexicon)) + " words and " + str(len([x for x in lexicon.keys() if " " in x])) + " phrases")
 
@@ -114,21 +123,15 @@ class C2xG(object):
 
         print("Starting cbow word categories")
         cbow_file = os.path.join("data", "OUT", "training_corpus.v2.01.txt.cbow.ns.bin")
-        cbow_df = self.Word_Classes.learn_categories(cbow_file, self.lexicon)
+        cbow_df = self.Word_Classes.learn_categories(cbow_file, self.lexicon, unique_words = unique_words, variety = "cbow")
+        cbow_df.to_csv(os.path.join(self.out_dir, self.nickname + ".categories_cbow.csv"), index = False)
         print(cbow_df)
 
         print("Starting sg word categories")
         sg_file = os.path.join("data", "OUT", "training_corpus.v2.01.txt.sg.ns.bin")
-        sg_df = self.Word_Classes.learn_categories(sg_file, self.lexicon)
+        sg_df = self.Word_Classes.learn_categories(sg_file, self.lexicon, unique_words = unique_words, variety = "sg")
+        sg_df.to_csv(os.path.join(self.out_dir, self.nickname + ".categories_sg.csv"), index = False)
         print(sg_df)
-
-        
-
-
-
-
-
-
 
         return
 

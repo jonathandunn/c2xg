@@ -4,20 +4,28 @@ import codecs
 import gzip
 import time
 import cytoolz as ct
+import pandas as pd
+import numpy as np
 from cleantext import clean
 from gensim.models.phrases import Phrases
+import math
+from scipy.stats import zipfian
+import statsmodels.api as sm
+import statsmodels.formula.api as smf
+from matplotlib import pyplot as plt
 
 #The loader object handles all file access
 class Loader(object):
 
-    def __init__(self, in_dir = None, out_dir = None, language = "eng", max_words = False, phrases = None):
+    def __init__(self, in_dir = None, out_dir = None, nickname = "", language = "eng", max_words = False, phrases = None):
     
         self.language = language
         self.max_words = max_words
         self.in_dir = in_dir
         self.out_dir = out_dir
         self.phrases = phrases
-        
+        self.nickname = nickname
+
         #Check that directories exist
         if in_dir != None:
             
@@ -252,6 +260,47 @@ class Loader(object):
             #Find phrases, then freeze
             phrase_model = Phrases(data, min_count = min_count, threshold = npmi_threshold, scoring = "npmi", delimiter = " ")
             phrases = phrase_model.freeze()
+
+            #Get full lexicon without potential phrases
+            full_lexicon = phrase_model.vocab
+            threshold = lambda x: " " not in x
+            full_lexicon = ct.keyfilter(threshold, full_lexicon)
+
+            #Get Zipfian statistics about the full lexicon
+            total_size = sum(full_lexicon.values())
+            full_lexicon_df = pd.DataFrame.from_dict(full_lexicon, orient="index")
+            full_lexicon_df.reset_index(inplace=True)
+            full_lexicon_df.columns = ["Word", "Frequency"]
+            full_lexicon_df.sort_values("Frequency", inplace=True, ascending=False)
+            full_lexicon_df.loc[:,"Rank"] = full_lexicon_df.loc[:,"Frequency"].rank(axis=0, method='average', ascending=False)
+            full_lexicon_df.to_csv(os.path.join(self.out_dir, self.nickname+".full_lexicon.csv"), index=False)
+
+            #Get a list of words which account for over 1% of the total data
+            threshold = total_size/100
+            unique_words = full_lexicon_df[full_lexicon_df.loc[:,"Frequency"] > threshold]
+
+            #Prepare to estimate Zipfian distribution
+            full_lexicon_df.loc[:,"Frequency"] = np.log10(full_lexicon_df.loc[:,"Frequency"])
+            full_lexicon_df.loc[:,"Rank"] = np.log10(full_lexicon_df.loc[:,"Rank"])
+
+            #Do regression and plot against actual data
+            regr = smf.ols(formula = 'Frequency ~ Rank', data = full_lexicon_df)
+            res = regr.fit()
+
+            pred_ols = res.get_prediction()
+            iv_l = pred_ols.summary_frame()["obs_ci_lower"]
+            iv_u = pred_ols.summary_frame()["obs_ci_upper"]
+            fig, ax = plt.subplots(figsize=(8, 6))
+            y = full_lexicon_df.loc[:,"Frequency"]
+            x = full_lexicon_df.loc[:,"Rank"]
+            ax.plot(x, y, "o", label="Data")
+            ax.plot(x, res.fittedvalues, "r--.", alpha=0.25, label="Model")
+            ax.plot(x, iv_u, "r--", alpha = 0.25)
+            ax.plot(x, iv_l, "r--", alpha = 0.25)
+            ax.legend(loc="best")
+            plt.xlabel("Rank (Log)")
+            plt.ylabel("Frequency (Log)")
+            plt.savefig(os.path.join(self.out_dir, self.nickname+".lexicon_distribution.png"), dpi=300, bbox_inches = "tight")
             
             #Reduce lexicon to min_count
             threshold = lambda x: x >= min_count
@@ -265,9 +314,10 @@ class Loader(object):
             for key in remove_list:
                 lexicon.pop(key)
 
+            #Save phrases for future cleaning
             self.phrases = phrases
 
-            return lexicon, phrases
+            return lexicon, phrases, unique_words
 
     #---------------------------------------------------------------------------#
             

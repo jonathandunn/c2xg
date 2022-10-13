@@ -58,7 +58,20 @@ class Word_Classes(object):
 
     #----------------------------------------------------------------------------------#
     
-    def learn_categories(self, model_file, vocab):
+    def learn_categories(self, model_file, vocab, unique_words = None, variety = "cbow"):
+
+        #Determine the number of clusters to use
+        #For cbow, depending on vocab size
+        if variety == "cbow":
+            total_size = len(vocab)
+            n_clusters = int(total_size / 50)
+        
+        #For sg, depending on total word count
+        elif variety == "sg":
+            total_size = sum(vocab.values())
+            n_clusters = int(total_size / 100)
+
+        print("For " + variety + " creating " + str(n_clusters) + " clusters")
 
         #Load and prep word embeddings
         if isinstance(model_file, str):
@@ -74,6 +87,9 @@ class Word_Classes(object):
         word_list = [x for x in vocab.keys() if " " not in x]
         phrase_list = [x for x in vocab.keys() if " " in x]
 
+        #Don't cluster very frequency words because they have their own behaviour
+        word_list = [x for x in word_list if x not in unique_words.loc[:,"Word"].values]
+
         vectors = []
         for word in word_list:
             vector = model.wv[word]
@@ -88,7 +104,7 @@ class Word_Classes(object):
         distances = cosine_distances(vectors, vectors)
 
         print("Clustering")
-        km = kmedoids.KMedoids(5, method='fasterpam', max_iter = 1000000, init = "build")
+        km = kmedoids.KMedoids(n_clusters, method='fasterpam', max_iter = 1000000, init = "build")
         km.fit(distances)
         print("Loss is:", km.inertia_)
 
@@ -150,13 +166,26 @@ class Word_Classes(object):
             phrase_cluster = np.argmin(distances)
             phrase_cluster_name = "_".join(name_dict[phrase_cluster])
             phrase_results.append([0.0, phrase, phrase_cluster, phrase_cluster_name])
+
+        #For CBOW, add unique_words as their own categories
+        #For SG, unique_words do not belong to a cluster
+        if variety == "cbow":
+            unique_results = []
+            starting = max(name_dict.keys()) + 1
             
+            for word in unique_words.loc[:,"Word"].values:
+                unique_results.append([0.0, word, starting, "unique_"+word])
+                starting += 1
+            unique_df = pd.DataFrame(unique_results, columns = ["Rank", "Word", "Category", "Category_Name"])
+            complete_clusters.append(unique_df)
+
         #Merge and save all category rankings
         phrase_df = pd.DataFrame(phrase_results, columns = ["Rank", "Word", "Category", "Category_Name"])
         complete_clusters.append(phrase_df)
-
+        
+        #Merge, sort and prep the category lexicon
         cluster_df = pd.concat(complete_clusters)
-        cluster_df = cluster_df.sort_values(by = ["Category", "Rank"])
+        cluster_df = cluster_df.sort_values(by = ["Category", "Rank"], ascending=False)
         cluster_df = cluster_df.reset_index(drop=True)
   
         return cluster_df
