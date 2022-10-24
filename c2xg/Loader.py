@@ -9,7 +9,6 @@ import numpy as np
 from cleantext import clean
 from gensim.models.phrases import Phrases
 import math
-from scipy.stats import zipfian
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
 from matplotlib import pyplot as plt
@@ -17,7 +16,7 @@ from matplotlib import pyplot as plt
 #The loader object handles all file access
 class Loader(object):
 
-    def __init__(self, in_dir = None, out_dir = None, nickname = "", language = "eng", max_words = False, phrases = None):
+    def __init__(self, in_dir = None, out_dir = None, nickname = "", language = "eng", max_words = False, phrases = False, sg_model = False, cbow_model = False):
     
         self.language = language
         self.max_words = max_words
@@ -25,6 +24,10 @@ class Loader(object):
         self.out_dir = out_dir
         self.phrases = phrases
         self.nickname = nickname
+        self.cbow = False
+        self.sg = False
+        self.sg_model = sg_model
+        self.cbow_model = cbow_model
 
         #Check that directories exist
         if in_dir != None:
@@ -162,7 +165,7 @@ class Loader(object):
     def build_decoder(self):
 
         #Create a decoding resource
-        #LEX = 1, POS = 2, CAT = 3
+        #LEX = 1, SYN = 2, SEM = 3
         decoding_dict = {}
         decoding_dict[1] = self.word_dict
         decoding_dict[2] = self.pos_dict
@@ -217,6 +220,35 @@ class Loader(object):
                         yield line
                       
     #---------------------------------------------------------------------------#
+    #Create categories dictionaries are annotating new corpora
+    def add_categories(self, cbow_df, sg_df):
+    
+        self.cbow = {}
+        self.sg = {}
+        self.indexes = {}
+        
+        for row in cbow_df.itertuples():
+            index = row[0]
+            rank = row[1]
+            word = row[2]
+            category = row[3]
+            self.cbow[word] = {}
+            self.cbow[word]["Category"] = category
+            self.cbow[word]["Similarity"] = rank
+            self.cbow[word]["Index"] = index
+            self.indexes[index] = word
+        
+        for row in sg_df.itertuples():
+            index = row[0]
+            rank = row[1]
+            word = row[2]
+            category = row[3]
+            self.sg[word] = {}
+            self.sg[word]["Category"] = category
+            self.sg[word]["Similarity"] = rank
+            self.sg[word]["Index"] = index
+    
+    #---------------------------------------------------------------------------#
         
     def clean(self, line):
 
@@ -244,11 +276,39 @@ class Loader(object):
 
         line = line.split()
 
-        if self.phrases != None:
+        #If phrases have been learned, find them
+        if self.phrases != False:
             line = self.phrases[line]
+            
+        #If categories have been learned, add them
+        if self.cbow != False and self.sg != False:
+            line = self.enrich(line)
 
         return line
 
+    #---------------------------------------------------------------------------#
+    def enrich(self, line):
+    
+        new_line = []
+        
+        for word in line:
+            
+            if word in self.cbow:
+                syn = self.cbow[word]["Category"]
+                index = self.cbow[word]["Index"]
+            else:
+                syn = -1
+                index = -1
+                
+            if word in self.sg:
+                sem = self.cbow[word]["Category"]
+            else:
+                sem = -1
+                
+            new_line.append((index, syn, sem))
+        
+        return new_line
+    
     #---------------------------------------------------------------------------#
 
     def get_lexicon(self, input_data, npmi_threshold = 0.75, min_count = 1):

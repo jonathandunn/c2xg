@@ -16,11 +16,11 @@ import kmedoids
 try:
     from sklearnex import patch_sklearn
     patch_sklearn()
+
 except:
     print("UNABLE TO ACCELERATE SKLEARN")
-
-from sklearn import metrics
-from sklearn.metrics.pairwise import cosine_distances
+    
+from sklearn.metrics import pairwise_distances
 
 class Word_Classes(object):
 
@@ -54,33 +54,18 @@ class Word_Classes(object):
         print("Saving " + save_name)
         save_facebook_model(model, save_name)
 
-        return
+        return model
 
     #----------------------------------------------------------------------------------#
     
-    def learn_categories(self, model_file, vocab, unique_words = None, variety = "cbow"):
+    def learn_categories(self, model, vocab, unique_words = None, variety = "cbow"):
 
         #Determine the number of clusters to use
-        #For cbow, depending on vocab size
         if variety == "cbow":
-            total_size = len(vocab)
-            n_clusters = int(total_size / 50)
-        
-        #For sg, depending on total word count
+            cluster_range = range(25, 250, step=5)
+
         elif variety == "sg":
-            total_size = sum(vocab.values())
-            n_clusters = int(total_size / 100)
-
-        print("For " + variety + " creating " + str(n_clusters) + " clusters")
-
-        #Load and prep word embeddings
-        if isinstance(model_file, str):
-            print("Loading model")    
-            model = load_facebook_model(model_file)
-            print("Done loading model")
-                
-        else:
-            model = model_file
+            cluster_range = range(250,2500, step=50)
 
         #Get the word embeddings specific to this lexicon
         #remove phrases because their vectors aren't trained
@@ -90,29 +75,56 @@ class Word_Classes(object):
         #Don't cluster very frequency words because they have their own behaviour
         word_list = [x for x in word_list if x not in unique_words.loc[:,"Word"].values]
 
+        #Get word vectors only for vocab
         vectors = []
         for word in word_list:
             vector = model.wv[word]
-            vectors.append(vector)
-                
+            vectors.append(vector)      
         vectors = np.vstack(vectors)
 
         print("Vocab and Vector Size:", end = "\t")
         print(len(word_list), vectors.shape)
 
         print("Getting cosine distance matrix")
-        distances = cosine_distances(vectors, vectors)
-
-        print("Clustering")
-        km = kmedoids.KMedoids(n_clusters, method='fasterpam', max_iter = 1000000, init = "build")
-        km.fit(distances)
-        print("Loss is:", km.inertia_)
-
-        cluster_labels = km.labels_
-        cluster_exemplars = km.medoid_indices_
-        #print(cluster_labels)
-        #print(cluster_exemplars)
-
+        distances = pairwise_distances(X=vectors, Y=vectors, metric='cosine', n_jobs=-1)
+        del vectors
+        
+        #Initialize search
+        optimum_clusters = 0
+        optimum_sh = 0.0
+        n_turns_no_change = 0
+        
+        #Iterate over potential numbers of clusters
+        for n_clusters in cluster_range:
+            
+            km = kmedoids.fasterpam(diss = distances, 
+                                medoids = n_clusters, 
+                                max_iter=100000, 
+                                init='build', 
+                                n_cpu=-1
+                                )
+            
+            sh = kmedoids.medoid_silhouette(diss = distances, meds = km.labels)[0]
+            print("\t", n_clusters, ": With ", km.n_iter, " iterations and ", km.n_swap, " swaps. Loss:", km.loss, " Silhoutette: ", sh)
+            
+            #Check for a better score
+            if sh > optimum_sh + (sh * 0.001):
+                print("Better Silhoutette score obtained: ", optimum_sh, " now ", sh)
+                optimum_sh = sh
+                optimum_clusters = n_clusters
+                n_turns_no_change = 0
+                
+                #Save current best clusters
+                cluster_labels = km.labels
+                cluster_exemplars = km.medoids
+                
+            else:
+                n_turns_no_change += 1
+                
+            if n_turns_no_change > 10:
+                print("No change for 10 n_clusters, stopping now.")
+                break
+        
         results = []
         for i in range(len(cluster_labels)):
             member_word = word_list[i]
@@ -122,7 +134,6 @@ class Word_Classes(object):
             results.append([member_word, cluster])
         
         cluster_df = pd.DataFrame(results, columns = ["Word", "Cluster"])
-        #print(cluster_df)
 
         #Save mean vectors for assigning phrases to clusters
         mean_dict = {}
@@ -135,8 +146,7 @@ class Word_Classes(object):
             #First, get proto-type structure of the cluster
             ranks = model.wv.rank_by_centrality(words=category_df.loc[:,"Word"], use_norm=True)
             ranks = pd.DataFrame(ranks, columns = ["Rank", "Word"])
-            ranks.loc[:,"Category"] = category
-            
+            ranks.loc[:,"Category"] = category            
 
             #Second, get the best example of the category
             mean_vector = model.wv.get_mean_vector(keys=ranks.loc[:,"Word"], weights=ranks.loc[:,"Rank"], pre_normalize=True, post_normalize=False)
@@ -146,7 +156,7 @@ class Word_Classes(object):
             exemplars = model.wv.similar_by_vector(mean_vector, topn=10000)
             exemplars = [x for x,y in exemplars if x in vocab.keys()]
             mode_val = mode(list(vocab.values()))[0]
-            thresh_freq = mode_val + 1
+            thresh_freq = mode_val * 1.75
             #print("Threshold freq", thresh_freq)
 
             #Make sure exemplars are relatively common words
@@ -162,7 +172,7 @@ class Word_Classes(object):
 
         for phrase in phrase_list:
             vector = model.wv[phrase]
-            distances = cosine_distances(vector.reshape(1, -1), list(mean_dict.values()))
+            distances = pairwise_distances(vector.reshape(1, -1), list(mean_dict.values()), metric="cosine", n_jobs=-1)
             phrase_cluster = np.argmin(distances)
             phrase_cluster_name = "_".join(name_dict[phrase_cluster])
             phrase_results.append([0.0, phrase, phrase_cluster, phrase_cluster_name])

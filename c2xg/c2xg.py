@@ -11,6 +11,7 @@ import multiprocessing as mp
 import cytoolz as ct
 from functools import partial
 from pathlib import Path
+from gensim.models.fasttext import load_facebook_model
 
 from .Loader import Loader
 from .Parser import Parser
@@ -23,7 +24,7 @@ from .Word_Classes import Word_Classes
 
 class C2xG(object):
     
-    def __init__(self, data_dir = None, language = "eng", nickname = "cxg", model = None, smoothing = False, max_words = False, fast_parse = False):
+    def __init__(self, data_dir = None, language = "eng", nickname = "cxg", model = None, normalization = True, max_words = False, fast_parse = False, cbow_file = "", sg_file = ""):
     
         #Initialize
         self.nickname = nickname
@@ -44,19 +45,35 @@ class C2xG(object):
             in_dir = None
             out_dir = None
         
+        #Set global variables
+        self.in_dir = in_dir
+        self.out_dir = out_dir
+        self.max_words = max_words
+        self.normalization = normalization
+        
+        #Set embeddings files
+        self.cbow_file = os.path.join(self.out_dir, cbow_file)
+        self.sg_file = os.path.join(self.out_dir, sg_file)
+        
+        if os.path.exists(self.cbow_file):
+            print("Using for local word embeddings: ", self.cbow_file)
+            self.cbow_model = self.load_embeddings(self.cbow_file)
+        else:
+            self.cbow_model = False
+        
+        if os.path.exists(self.sg_file):
+            print("Using for non-local word embeddings: ", self.sg_file)
+            self.sg_model = self.load_embeddings(self.sg_file)
+        else:
+            self.sg_model = False
+            
         #Initialize modules
-        self.Load = Loader(in_dir, out_dir, language = self.language, max_words = max_words, nickname = self.nickname)
+        self.Load = Loader(in_dir, out_dir, language = self.language, max_words = max_words, nickname = self.nickname, sg_model = self.sg_model, cbow_model = self.cbow_model)
         self.Association = Association(Load = self.Load, nickname = self.nickname)
         self.Candidates = Candidates(language = self.language, Load = self.Load)
         self.Parse = Parser(self.Load)
         self.Word_Classes = Word_Classes(self.Load)
         
-        #Set global variables
-        self.in_dir = in_dir
-        self.out_dir = out_dir
-        self.max_words = max_words
-        self.smoothing = smoothing
-
         #Try to load default or specified model
         if model == "default":
             model = self.language + ".Grammar.v3.p"
@@ -89,13 +106,30 @@ class C2xG(object):
             self.detailed_model = None
 
     #------------------------------------------------------------------
+    def load_embeddings(self, model_file):
+    
+        #Load and prep word embeddings
+        if isinstance(model_file, str):
+            if os.path.exists(model_file):
+                print("Loading model")    
+                model = load_facebook_model(model_file)
+                print("Done loading model")
+                
+                return model_file      
+
+            else:
+                print("Error: model doesn't exist. Use learn_embeddings.")
+                print(model_file)
+                return None
+            
+    #-----------------------------------------------------------------
     def learn_embeddings(self, input_data, name="embeddings"):
 
         print("Starting local embeddings (cbow)")
-        self.Word_Classes.learn_embeddings(input_data, model_type="cbow", name=name)
+        self.cbow_model = self.Word_Classes.learn_embeddings(input_data, model_type="cbow", name=name)
 
         print("Finished with cbow emeddings. Starting sg embeddings")
-        self.Word_Classes.learn_embeddings(input_data, model_type="sg", name=name)
+        self.sg_model = self.Word_Classes.learn_embeddings(input_data, model_type="sg", name=name)
         
     #------------------------------------------------------------------
 
@@ -115,24 +149,48 @@ class C2xG(object):
         self.min_count = min_count
         lexicon, phrases, unique_words = self.Load.get_lexicon(input_data, npmi_threshold, min_count)
 
-        print("Finished with " + str(len(lexicon)) + " words and " + str(len([x for x in lexicon.keys() if " " in x])) + " phrases")
+        n_phrases = len([x for x in lexicon.keys() if " " in x])
+        print("Finished with " + str(len(lexicon)-n_phrases) + " words and " + str(n_phrases) + " phrases")
 
         #Save phrases and lexicon
         self.phrases = phrases
         self.lexicon = lexicon
+        
+        #Check embeddings
+        if self.cbow_model == False and self.sg_model == False:
+            self.learn_embeddings(input_data)
 
-        print("Starting cbow word categories")
-        cbow_file = os.path.join("data", "OUT", "training_corpus.v2.01.txt.cbow.ns.bin")
-        cbow_df = self.Word_Classes.learn_categories(cbow_file, self.lexicon, unique_words = unique_words, variety = "cbow")
-        cbow_df.to_csv(os.path.join(self.out_dir, self.nickname + ".categories_cbow.csv"), index = False)
+        #Check for clusters and form them if necessary
+        cbow_df_file = os.path.join(self.out_dir, self.nickname + ".categories_cbow.csv")
+        if not os.path.exists(cbow_df_file):
+            print("Starting cbow word categories")
+            cbow_df = self.Word_Classes.learn_categories(self.cbow_model, self.lexicon, unique_words = unique_words, variety = "cbow")
+            cbow_df.to_csv(os.path.join(self.out_dir, self.nickname + ".categories_cbow.csv"), index = False)  
+        else:
+            cbow_df = pd.read_csv(cbow_df_file)
+        
         print(cbow_df)
-
-        print("Starting sg word categories")
-        sg_file = os.path.join("data", "OUT", "training_corpus.v2.01.txt.sg.ns.bin")
-        sg_df = self.Word_Classes.learn_categories(sg_file, self.lexicon, unique_words = unique_words, variety = "sg")
-        sg_df.to_csv(os.path.join(self.out_dir, self.nickname + ".categories_sg.csv"), index = False)
+        
+        sg_df_file = os.path.join(self.out_dir, self.nickname + ".categories_sg.csv")
+        if not os.path.exists(sg_df_file):
+            print("Starting sg word categories")
+            sg_df = self.Word_Classes.learn_categories(self.sg_model, self.lexicon, unique_words = unique_words, variety = "sg")
+            sg_df.to_csv(os.path.join(self.out_dir, self.nickname + ".categories_sg.csv"), index = False)
+        else:
+            sg_df = pd.read_csv(sg_df_file)
+         
         print(sg_df)
-
+            
+        #Add clusters to loader
+        self.Load.add_categories(cbow_df, sg_df)
+        
+        #Build decoder
+        self.Load.build_decoder()
+            
+        #Get pairwise association with Delta P
+        association_df = self.get_association(input_data, freq_threshold = min_count, normalization = self.normalization, lex_only = False)
+        print(association_df)
+        
         return
 
     #------------------------------------------------------------------
@@ -406,20 +464,20 @@ class C2xG(object):
                 fw.write("\n\n")
     #-------------------------------------------------------------------------------
 
-    def get_association(self, input_data, freq_threshold = 1, smoothing = False, lex_only = False):
-
+    def get_association(self, input_data, freq_threshold = 1, normalization = False, lex_only = False):
+        
         #Load from file if necessary
         if isinstance(input_data, str):
-            input_data = [x for x in self.Load.read_file(input_data)]
-
-        ngrams = self.Association.find_ngrams(input_data, workers = 1, save = False, lex_only = lex_only)
-        ngrams = self.Association.merge_ngrams(input_data, ngram_dict = ngrams, n_gram_threshold = freq_threshold)
-        association_dict = self.Association.calculate_association(ngrams = ngrams, smoothing = smoothing, save = False)
+            data = [x for x in self.Load.load(input_data)]
+  
+        ngrams = self.Association.find_ngrams(data, workers = 1, lex_only = lex_only, n_gram_threshold = 1)
+        association_dict = self.Association.calculate_association(ngrams = ngrams)
         
         #Reduce to bigrams
         keepable = lambda x: len(x) > 1
         all_ngrams = ct.keyfilter(keepable, association_dict)
-        
+
+        sys.kill()
         #Convert to readable CSV
         pairs = []
         for pair in association_dict.keys():

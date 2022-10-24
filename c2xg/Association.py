@@ -63,7 +63,7 @@ class Association(object):
         
     #--------------------------------------------------------------#
     
-    def process_ngrams(self, filename, Encoder, save = False, lex_only = False):
+    def process_ngrams(self, data, Load, lex_only = False):
 
         #Initialize bigram dictionary
         ngrams = defaultdict(int)
@@ -72,13 +72,7 @@ class Association(object):
         starting = time.time()
         total = 0
 
-        #"filename" can be a string filename or a list of sentences
-        if isinstance(filename, list):
-            lines = Encoder.load_stream(filename, no_file = True)
-        else:
-            lines = Encoder.load_stream(filename)
-
-        for line in lines:
+        for line in data:
 
             total += len(line)
 
@@ -91,8 +85,8 @@ class Association(object):
             try:
                 for bigram in ct.sliding_window(2, line):
                     
-                    #Tuples are indexes for (LEX, POS, CAT)
-                    #Index types are 1 (LEX), 2 (POS), 3 (CAT)
+                    #Tuples are indexes for (LEX, SYN, SEM)
+                    #Index types are 1 (LEX), 2 (SYN), 3 (SEM)
                     ngrams[((1, bigram[0][0]), (1, bigram[1][0]))] += 1    #lex_lex
 
                     if lex_only == False:
@@ -133,102 +127,30 @@ class Association(object):
         print(len(list(ngrams.keys())), end = "")
         print(" with " + str(ngrams["TOTAL"]) + " words.")
         
-        if save == True:
-            self.Loader.save_file(ngrams, filename + "." + self.nickname + ".ngrams.p")
-            return os.path.join(self.Loader.output_dir, filename + "." + self.nickname + ".ngrams.p")
-                
-        else:
-            return ngrams
+        return ngrams
     #--------------------------------------------------------------------------------------------#
 
-    def find_ngrams(self, files = None, workers = 1, nickname = "", save = True, lex_only = False):
+    def find_ngrams(self, data, workers = 1, nickname = "", lex_only = False, n_gram_threshold = 0):
 
         starting = time.time()
         
-        if files == None:
-            files = self.Loader.list_input()
+        ngrams = self.process_ngrams(data, Load = self.Load, lex_only = lex_only)
         
-        if save == True:
-            
-            pool_instance = mp.Pool(processes = workers, maxtasksperchild = 1)
-            output_files = pool_instance.map(partial(self.process_ngrams, Encoder = self.Encoder, save = save), files, chunksize = 1)
-            pool_instance.close()
-            pool_instance.join()
-            
-            print("")
-            print("\tFILES PROCESSED: " + str(len(output_files)))
-            print("\tTOTAL TIME: " + str(time.time() - starting))
-            
-            return output_files
-
-        elif save == False:
-    
-            ngrams = self.process_ngrams(files, Encoder = self.Encoder, save = save, lex_only = lex_only)
-            
-            print("")
-            print("\tTOTAL TIME: " + str(time.time() - starting))
-            
-            return ngrams
-
-    #---------------------------------------------------------------------------------------------#
-    
-    def merge_ngrams(self, files = None, ngram_dict = None, n_gram_threshold = 0):
-
-        #If loading results
-        if ngram_dict == None:
-            all_ngrams = []
-            
-            #Get a list of ngram files
-            if files == None and ngram_dict == None:
-                files = self.Loader.list_output(type = "ngrams")
-                
-            #Break into lists of 20 files
-            file_list = ct.partition_all(20, files)
-
-            for files in file_list:
-                
-                ngrams = []        #Initialize holding list
-                
-                #Load
-                for dict_file in files:
-                    try:
-                        ngrams.append(self.Loader.load_file(dict_file))
-                    except:
-                        print("Not loading " + str(dict_file))
-            
-                #Merge
-                ngrams = ct.merge_with(sum, [x for x in ngrams])
-            
-                print("\tSUB-TOTAL NGRAMS: " + str(len(list(ngrams.keys()))))
-                print("\tSUB-TOTAL WORDS: " + str(ngrams["TOTAL"]))
-                print("\n")
-                
-                all_ngrams.append(ngrams)
-
-            #Now merge everything
-            all_ngrams = ct.merge_with(sum, [x for x in all_ngrams])
-
-
-        #If loading results
-        elif ngram_dict != None:
-            print("Loading ngram dict")
-            all_ngrams = ngram_dict
-
-
-        print("\tTOTAL NGRAMS: " + str(len(list(all_ngrams.keys()))))
-        print("\tTOTAL WORDS: " + str(all_ngrams["TOTAL"]))
+        print("\tTOTAL NGRAMS: " + str(len(list(ngrams.keys()))))
+        print("\tTOTAL WORDS: " + str(ngrams["TOTAL"]))
         
         #Now enforce threshold
         keepable = lambda x: x > n_gram_threshold
-        all_ngrams = ct.valfilter(keepable, all_ngrams)
+        ngrams = ct.valfilter(keepable, ngrams)
         
         print("\tAfter pruning:")
-        print("\tTOTAL NGRAMS: " + str(len(list(all_ngrams.keys()))))
-        
-        return all_ngrams
-    #----------------------------------------------------------------------------------------------#
+        print("\tTOTAL NGRAMS: " + str(len(list(ngrams.keys()))))
+            
+        return ngrams
 
-    def calculate_association(self, ngrams, smoothing = False, save = False):
+    #---------------------------------------------------------------------------------------------#
+
+    def calculate_association(self, ngrams):
     
         print("\n\tCalculating association for " + str(len(list(ngrams.keys()))) + " pairs.")
         association_dict = defaultdict(dict)
@@ -258,27 +180,15 @@ class Association(object):
                 #d = Frequency of units without X or Y
                 d = total - a - b - c
                 d = max(d, 0.1)
-                    
-                if smoothing == False:
 
-                    association_dict[key]["LR"] = float(a / (a + c)) - float(b / (b + d))
-                    association_dict[key]["RL"] = float(a / (a + b)) - float(c / (c + d))
-                    association_dict[key]["Freq"] = count
-
-                #Add smoothing to the Delta-P values
-                elif smoothing == True:
-
-                    association_dict[key]["LR"] = float(a / (a + math.pow(c, 0.75))) - float(b / (b + d))
-                    association_dict[key]["RL"] = float(a / (a + math.pow(b, 0.75))) - float(c / (c + d))
-                    association_dict[key]["Freq"] = count
+                association_dict[key]["LR"] = float(a / (a + c)) - float(b / (b + d))
+                association_dict[key]["RL"] = float(a / (a + b)) - float(c / (c + d))
+                association_dict[key]["Freq"] = count
                 
             except Exception as e:
-                print(e, key)
-                
-        print("\tProcessed " + str(len(list(association_dict.keys()))) + " items in " + str(time.time() - starting))
+                print(e)
 
-        if save == True:
-            self.Loader.save_file(association_dict, self.language  + "." + self.nickname + ".association.p")
+        print("\tProcessed " + str(len(list(association_dict.keys()))) + " items in " + str(time.time() - starting))
         
         return association_dict
     #-----------------------------------------------------------------------------------------------#
