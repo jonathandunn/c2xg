@@ -24,10 +24,13 @@ from .Word_Classes import Word_Classes
 
 class C2xG(object):
     
-    def __init__(self, data_dir = None, language = "eng", nickname = "cxg", model = None, normalization = True, max_words = False, fast_parse = False, cbow_file = "", sg_file = ""):
+    def __init__(self, data_dir = None, language = "eng", nickname = "cxg", model = None, 
+                    normalization = True, max_words = False, fast_parse = False, 
+                    cbow_file = "", sg_file = "", workers = 1):
     
         #Initialize
         self.nickname = nickname
+        self.workers = workers
 
         if max_words != False:
             self.nickname += "." + language + "." + str(int(max_words/1000)) + "k_words" 
@@ -66,9 +69,9 @@ class C2xG(object):
             self.sg_model = self.load_embeddings(self.sg_file)
         else:
             self.sg_model = False
-            
+
         #Initialize modules
-        self.Load = Loader(in_dir, out_dir, language = self.language, max_words = max_words, nickname = self.nickname, sg_model = self.sg_model, cbow_model = self.cbow_model)
+        self.Load = Loader(in_dir, out_dir, language = self.language, max_words = max_words, nickname = self.nickname, sg_model = self.sg_model, cbow_model = self.cbow_model, workers = self.workers)
         self.Association = Association(Load = self.Load, nickname = self.nickname)
         self.Candidates = Candidates(language = self.language, Load = self.Load)
         self.Parse = Parser(self.Load)
@@ -110,12 +113,9 @@ class C2xG(object):
     
         #Load and prep word embeddings
         if isinstance(model_file, str):
-            if os.path.exists(model_file):
-                print("Loading model")    
-                model = load_facebook_model(model_file)
-                print("Done loading model")
-                
-                return model_file      
+            if os.path.exists(model_file):  
+                model = load_facebook_model(model_file)                
+                return model     
 
             else:
                 print("Error: model doesn't exist. Use learn_embeddings.")
@@ -183,13 +183,11 @@ class C2xG(object):
             
         #Add clusters to loader
         self.Load.add_categories(cbow_df, sg_df)
-        
-        #Build decoder
-        self.Load.build_decoder()
             
         #Get pairwise association with Delta P
         association_df = self.get_association(input_data, freq_threshold = min_count, normalization = self.normalization, lex_only = False)
         print(association_df)
+        association_df.to_csv(os.path.join(self.out_dir, self.nickname + ".association.csv"))
         
         return
 
@@ -464,33 +462,29 @@ class C2xG(object):
                 fw.write("\n\n")
     #-------------------------------------------------------------------------------
 
-    def get_association(self, input_data, freq_threshold = 1, normalization = False, lex_only = False):
+    def get_association(self, input_data, freq_threshold = 1, normalization = True, lex_only = False):
         
         #Load from file if necessary
-        if isinstance(input_data, str):
-            data = [x for x in self.Load.load(input_data)]
+        print("Enriching input using syntactic and semantic categories")
+        self.data = self.Load.load(input_data)  #Save the enriched data once gotten
   
-        ngrams = self.Association.find_ngrams(data, workers = 1, lex_only = lex_only, n_gram_threshold = 1)
+        ngrams = self.Association.find_ngrams(self.data, workers = 1, lex_only = lex_only, n_gram_threshold = 1)
         association_dict = self.Association.calculate_association(ngrams = ngrams)
         
         #Reduce to bigrams
         keepable = lambda x: len(x) > 1
         all_ngrams = ct.keyfilter(keepable, association_dict)
 
-        sys.kill()
         #Convert to readable CSV
         pairs = []
         for pair in association_dict.keys():
-
-            try:
-                val1 = self.Encode.decoding_dict[pair[0][0]][pair[0][1]]
+            try: 
+                pair[0][0]
+                val1 = self.Load.decode(pair[0])
+                val2 = self.Load.decode(pair[1])
+            #Exceptions are single words, which have no association
             except Exception as e:
-                val1 = "UNK"
-
-            try:
-                val2 = self.Encode.decoding_dict[pair[1][0]][pair[1][1]]
-            except Exception as e:
-                val2 = "UNK"
+                pass
 
             if val1 != "UNK" and val2 != "UNK":
                 maximum = max(association_dict[pair]["LR"], association_dict[pair]["RL"])
@@ -499,7 +493,7 @@ class C2xG(object):
         #Make dataframe
         df = pd.DataFrame(pairs, columns = ["Word1", "Word2", "Max", "LR", "RL", "Freq"])
         df = df.sort_values("Max", ascending = False)
-        
+
         return df
  
     #-------------------------------------------------------------------------------        

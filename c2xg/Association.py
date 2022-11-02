@@ -7,6 +7,7 @@ from collections import defaultdict
 from functools import partial
 import multiprocessing as mp
 from numba import jit
+from sklearn.preprocessing import StandardScaler
 
 #-------------------------------------------------------------------#
 #The main calculation function is outside of the class for jitting
@@ -68,8 +69,6 @@ class Association(object):
         #Initialize bigram dictionary
         ngrams = defaultdict(int)
         unigrams = defaultdict(int)
-
-        starting = time.time()
         total = 0
 
         for line in data:
@@ -120,8 +119,6 @@ class Association(object):
         del unigrams
         
         #Print status
-        print("\tTime: ", end = "")
-        print(time.time() - starting, end = "")
         print(" Full: " + str(size) + " ", end = "")
         print(" Reduced: ", end = "")
         print(len(list(ngrams.keys())), end = "")
@@ -132,8 +129,6 @@ class Association(object):
 
     def find_ngrams(self, data, workers = 1, nickname = "", lex_only = False, n_gram_threshold = 0):
 
-        starting = time.time()
-        
         ngrams = self.process_ngrams(data, Load = self.Load, lex_only = lex_only)
         
         print("\tTOTAL NGRAMS: " + str(len(list(ngrams.keys()))))
@@ -150,12 +145,12 @@ class Association(object):
 
     #---------------------------------------------------------------------------------------------#
 
-    def calculate_association(self, ngrams):
+    def calculate_association(self, ngrams, normalization = True):
     
         print("\n\tCalculating association for " + str(len(list(ngrams.keys()))) + " pairs.")
         association_dict = defaultdict(dict)
         total = ngrams["TOTAL"]
-        starting = time.time()
+        norm_list = []
 
         #Loop over pairs
         for key in ngrams.keys():
@@ -181,14 +176,35 @@ class Association(object):
                 d = total - a - b - c
                 d = max(d, 0.1)
 
-                association_dict[key]["LR"] = float(a / (a + c)) - float(b / (b + d))
-                association_dict[key]["RL"] = float(a / (a + b)) - float(c / (c + d))
+                #Calculate measures
+                lr = float(a / (a + c)) - float(b / (b + d))
+                rl = float(a / (a + b)) - float(c / (c + d))
+                
+                association_dict[key]["LR"] = lr
+                association_dict[key]["RL"] = rl
                 association_dict[key]["Freq"] = count
+                
+                #If necessary, save for normalizing
+                if normalization == True:
+                    norm_list.append(lr)
+                    norm_list.append(rl)
                 
             except Exception as e:
                 print(e)
+                
+        #Normalize
+        if normalization == True:
+            #Fit then transform
+            norm_list = np.array(norm_list).reshape(-1, 1)
+            normalizer = StandardScaler()
+            normalizer.fit(norm_list)
+            
+            #Go through dictionary
+            for key in association_dict:
+                association_dict[key]["LR"] = normalizer.transform(np.array(association_dict[key]["LR"]).reshape(-1, 1))
+                association_dict[key]["RL"] = normalizer.transform(np.array(association_dict[key]["RL"]).reshape(-1, 1))
 
-        print("\tProcessed " + str(len(list(association_dict.keys()))) + " items in " + str(time.time() - starting))
+        print("\tProcessed " + str(len(list(association_dict.keys()))) + " items")
         
         return association_dict
     #-----------------------------------------------------------------------------------------------#

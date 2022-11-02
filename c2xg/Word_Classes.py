@@ -62,10 +62,10 @@ class Word_Classes(object):
 
         #Determine the number of clusters to use
         if variety == "cbow":
-            cluster_range = range(25, 250, step=5)
+            cluster_range = range(25, 250, 5)
 
         elif variety == "sg":
-            cluster_range = range(250,2500, step=50)
+            cluster_range = range(250,2500, 50)
 
         #Get the word embeddings specific to this lexicon
         #remove phrases because their vectors aren't trained

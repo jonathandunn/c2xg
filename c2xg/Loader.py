@@ -6,17 +6,21 @@ import time
 import cytoolz as ct
 import pandas as pd
 import numpy as np
+import multiprocessing as mp
 from cleantext import clean
 from gensim.models.phrases import Phrases
 import math
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
 from matplotlib import pyplot as plt
+from sklearn.metrics import pairwise_distances
 
 #The loader object handles all file access
 class Loader(object):
 
-    def __init__(self, in_dir = None, out_dir = None, nickname = "", language = "eng", max_words = False, phrases = False, sg_model = False, cbow_model = False):
+    def __init__(self, in_dir = None, out_dir = None, workers = 1,
+                    nickname = "", language = "eng", max_words = False, 
+                    phrases = False, sg_model = False, cbow_model = False):
     
         self.language = language
         self.max_words = max_words
@@ -28,6 +32,7 @@ class Loader(object):
         self.sg = False
         self.sg_model = sg_model
         self.cbow_model = cbow_model
+        self.workers = workers
 
         #Check that directories exist
         if in_dir != None:
@@ -82,17 +87,6 @@ class Loader(object):
             
     #---------------------------------------------------------------#
     
-    def check_file(self, filename):
-    
-        file_list = self.list_output()
-        
-        if filename in file_list:
-            return True
-            
-        else:
-            return False
-    #--------------------------------------------------------------#
-    
     def load_file(self, filename):
     
         try:
@@ -111,27 +105,28 @@ class Loader(object):
     def read_file(self, file):
     
         max_counter = 0
+        clean_lines = []
 
+        #Read lines from uncompressed text file
         if file.endswith(".txt"):
-
             with codecs.open(os.path.join(self.in_dir, file), "rb") as fo:
                 lines = fo.readlines()
-
+        #Read lines from compressed text file
         elif file.endswith(".gz"):
-                
             with gzip.open(os.path.join(self.in_dir, file), "rb") as fo:
                 lines = fo.readlines()
-
+        
+        #Ensure utf-8 input
         for line in lines:
             line = line.decode("utf-8", errors = "replace")
-
+            #Control the amount of input data
             if self.max_words != False:
                 if max_counter < self.max_words:
-                    max_counter += len(line.split())
-                    yield line
+                    if len(line) > 2:
+                        max_counter += len(line.split())
+                        clean_lines.append(line)
                             
-            else:
-                yield line
+        return clean_lines
                 
     #---------------------------------------------------------------#
     
@@ -161,25 +156,59 @@ class Loader(object):
                 os.remove(os.path.join(self.out_dir, file))
 
     #---------------------------------------------------------------#
-        
-    def build_decoder(self):
-
-        #Create a decoding resource
-        #LEX = 1, SYN = 2, SEM = 3
-        decoding_dict = {}
-        decoding_dict[1] = self.word_dict
-        decoding_dict[2] = self.pos_dict
-        decoding_dict[3] = {key: "<" + str(key) + ">" for key in list(set(self.domain_dict.values()))}
+    def get_unk(self, word, type = "cbow"):
+    
+        if type == "cbow":
+            vector = self.cbow_model.wv[word]
+            distances = pairwise_distances(vector.reshape(1, -1), self.cbow_centroids, metric="cosine", n_jobs=1) 
             
-        self.decoding_dict = decoding_dict
-
-    #---------------------------------------------------------------------------#
+        elif type == "sg":
+            vector = self.sg_model.wv[word]
+            distances = pairwise_distances(vector.reshape(1, -1), self.sg_centroids, metric="cosine", n_jobs=1)
+        
+        return np.argmin(distances)
+    
+    #---------------------------------------------------------------#
     
     def decode(self, item):
-    
-        sequence = [self.decoding_dict.get([pair[0]][pair[1]], "UNK") for pair in item]
+        
+        #1 = LEX; 2 = SYN; 3 = SEM
+        try:
+            rep = item[0]
+            index = item[1]
+            word = self.indexes.get(index, "UNK")
             
-        return " ".join(sequence)        
+            #Get lexical item
+            if rep == 1:
+                value = word
+                
+            #Get cbow category
+            elif rep == 2:
+                #Get existing category
+                try:
+                    value = self.cbow[word]["Category"]
+                #Or use embedding to assign to category
+                except:
+                    value = self.get_unk(word, "cbow")
+                    
+                value = "syn: " + self.cbow_names[value]
+            
+            #Get sg category
+            elif rep == 3:
+                #Get existing category
+                try:
+                    value = self.sg[word]["Category"]
+                #Or use embedding to assign category
+                except:
+                    value = self.get_unk(word, "sg")
+                    
+                value = "syn: " + self.sg_names[value]
+          
+        #Catch items that are improperly formatted
+        except Exception as e:
+            value = "UNK"
+            
+        return value        
 
     #---------------------------------------------------------------------------#
     
@@ -199,54 +228,79 @@ class Loader(object):
 
     #---------------------------------------------------------------------------#
     
-    def load(self, input_files, no_file = False):
+    def load(self, input_file):
 
-        if no_file == False:
-
-            #If only got one file, wrap in list
-            if isinstance(input_files, str):
-                input_files = [input_files]
-        
-            for file in input_files:
-                for line in self.read_file(file):
-                    if len(line) > 1:
-                        line = self.clean(line)
-                        yield line
-
-        elif no_file == True:
-            for line in input_files:
-                    if len(line) > 1:
-                        line = self.clean(line)
-                        yield line
-                      
+        #If only got one file, wrap in list
+        if isinstance(input_file, str):
+            lines = self.read_file(input_file)
+            lines = [self.clean(x) for x in lines]
+            
+            return lines
+            
     #---------------------------------------------------------------------------#
     #Create categories dictionaries are annotating new corpora
     def add_categories(self, cbow_df, sg_df):
     
         self.cbow = {}
         self.sg = {}
+        self.cbow_names = {}
+        self.sg_names = {}
         self.indexes = {}
         
+        #Create dictionary for the local (cbow) category for each word
         for row in cbow_df.itertuples():
             index = row[0]
             rank = row[1]
             word = row[2]
             category = row[3]
+            category_name = row[4]
             self.cbow[word] = {}
             self.cbow[word]["Category"] = category
             self.cbow[word]["Similarity"] = rank
             self.cbow[word]["Index"] = index
             self.indexes[index] = word
+            self.cbow_names[category] = category_name
         
+        #Create dictionary for the non-local (sg) category for each word
         for row in sg_df.itertuples():
             index = row[0]
             rank = row[1]
             word = row[2]
             category = row[3]
+            category_name = row[4]
             self.sg[word] = {}
             self.sg[word]["Category"] = category
             self.sg[word]["Similarity"] = rank
             self.sg[word]["Index"] = index
+            self.sg_names[category] = category_name
+            
+        #Get centroids for each cbow category for OOV words
+        cbow_centroids = {}
+        for category, category_df in cbow_df.groupby("Category"):
+            category_name = category_df.loc[:,"Category_Name"].tolist()[0]
+            if "unique" not in category_name:
+                words = category_df.loc[:,"Category"].tolist()
+                ranks = category_df.loc[:,"Rank"].tolist()
+                current_centroid =  self.cbow_model.wv.get_mean_vector(keys=words, weights=ranks, pre_normalize=True, post_normalize=False)
+                cbow_centroids[category] = current_centroid
+        #Centroids as a list where the index = the cluster id
+        self.cbow_centroids = []
+        for i in range(len(cbow_centroids)):
+            self.cbow_centroids.append(cbow_centroids[i])
+                
+        #Get centroids for each sg category for OOV words
+        sg_centroids = {}
+        for category, category_df in sg_df.groupby("Category"):
+            category_name = category_df.loc[:,"Category_Name"].tolist()[0]
+            if "unique" not in category_name:
+                words = category_df.loc[:,"Category"].tolist()
+                ranks = category_df.loc[:,"Rank"].tolist()
+                current_centroid =  self.sg_model.wv.get_mean_vector(keys=words, weights=ranks, pre_normalize=True, post_normalize=False)
+                sg_centroids[category] = current_centroid
+        #Centroids as a list where the index = the cluster id
+        self.sg_centroids = []
+        for i in range(len(sg_centroids)):
+            self.sg_centroids.append(sg_centroids[i])
     
     #---------------------------------------------------------------------------#
         
@@ -282,32 +336,31 @@ class Loader(object):
             
         #If categories have been learned, add them
         if self.cbow != False and self.sg != False:
-            line = self.enrich(line)
+            line = [self.enrich(x) for x in line]
 
         return line
 
     #---------------------------------------------------------------------------#
-    def enrich(self, line):
+    def enrich(self, word):
     
-        new_line = []
-        
-        for word in line:
+        #If the word is in the cbow dictionary, get its index
+        try:
+            syn = self.cbow[word]["Category"]
+            index = self.cbow[word]["Index"]
+        #OOV, get category by embedding
+        except:
+            syn = self.get_unk(word, type = "cbow")
+            index = -1
             
-            if word in self.cbow:
-                syn = self.cbow[word]["Category"]
-                index = self.cbow[word]["Index"]
-            else:
-                syn = -1
-                index = -1
-                
-            if word in self.sg:
-                sem = self.cbow[word]["Category"]
-            else:
-                sem = -1
-                
-            new_line.append((index, syn, sem))
-        
-        return new_line
+        #Check sg dictionary
+        try:
+            sem = self.sg[word]["Category"]
+        #OOV, get category
+        except:
+            sem = self.get_unk(word, type = "sg")
+            
+        #Return line as tuple (LEX, SYN, SEM)
+        return (index, syn, sem)
     
     #---------------------------------------------------------------------------#
 
@@ -315,7 +368,7 @@ class Loader(object):
 
         if isinstance(input_data, str):
             
-            data = [x for x in self.load(input_data)]
+            data = self.load(input_data)
 
             #Find phrases, then freeze
             phrase_model = Phrases(data, min_count = min_count, threshold = npmi_threshold, scoring = "npmi", delimiter = " ")
