@@ -25,7 +25,7 @@ from .Word_Classes import Word_Classes
 class C2xG(object):
     
     def __init__(self, data_dir = None, language = "eng", nickname = "cxg", model = None, 
-                    normalization = True, max_words = False, fast_parse = False, 
+                    normalization = False, max_words = False, fast_parse = False, 
                     cbow_file = "", sg_file = "", workers = 1):
     
         #Initialize
@@ -133,7 +133,7 @@ class C2xG(object):
         
     #------------------------------------------------------------------
 
-    def learn(self, input_data, npmi_threshold = 0.75, min_count = None):
+    def learn(self, input_data, npmi_threshold = 0.75, min_count = None, cbow_range = False, sg_range = False):
 
         #Adjust min_count to be 1 parts per million using max_words parameter
         if min_count == None:
@@ -164,7 +164,7 @@ class C2xG(object):
         cbow_df_file = os.path.join(self.out_dir, self.nickname + ".categories_cbow.csv")
         if not os.path.exists(cbow_df_file):
             print("Starting cbow word categories")
-            cbow_df = self.Word_Classes.learn_categories(self.cbow_model, self.lexicon, unique_words = unique_words, variety = "cbow")
+            cbow_df = self.Word_Classes.learn_categories(self.cbow_model, self.lexicon, unique_words = unique_words, variety = "cbow", top_range = cbow_range)
             cbow_df.to_csv(os.path.join(self.out_dir, self.nickname + ".categories_cbow.csv"), index = False)  
         else:
             cbow_df = pd.read_csv(cbow_df_file)
@@ -174,7 +174,7 @@ class C2xG(object):
         sg_df_file = os.path.join(self.out_dir, self.nickname + ".categories_sg.csv")
         if not os.path.exists(sg_df_file):
             print("Starting sg word categories")
-            sg_df = self.Word_Classes.learn_categories(self.sg_model, self.lexicon, unique_words = unique_words, variety = "sg")
+            sg_df = self.Word_Classes.learn_categories(self.sg_model, self.lexicon, unique_words = unique_words, variety = "sg", top_range = sg_range)
             sg_df.to_csv(os.path.join(self.out_dir, self.nickname + ".categories_sg.csv"), index = False)
         else:
             sg_df = pd.read_csv(sg_df_file)
@@ -462,14 +462,14 @@ class C2xG(object):
                 fw.write("\n\n")
     #-------------------------------------------------------------------------------
 
-    def get_association(self, input_data, freq_threshold = 1, normalization = True, lex_only = False):
+    def get_association(self, input_data, freq_threshold = 1, normalization = False, lex_only = False):
         
         #Load from file if necessary
         print("Enriching input using syntactic and semantic categories")
         self.data = self.Load.load(input_data)  #Save the enriched data once gotten
   
-        ngrams = self.Association.find_ngrams(self.data, workers = 1, lex_only = lex_only, n_gram_threshold = 1)
-        association_dict = self.Association.calculate_association(ngrams = ngrams)
+        ngrams = self.Association.find_ngrams(self.data, workers = 1, lex_only = lex_only, n_gram_threshold = self.min_count)
+        association_dict = self.Association.calculate_association(ngrams = ngrams, normalization = self.normalization)
         
         #Reduce to bigrams
         keepable = lambda x: len(x) > 1
@@ -482,13 +482,15 @@ class C2xG(object):
                 pair[0][0]
                 val1 = self.Load.decode(pair[0])
                 val2 = self.Load.decode(pair[1])
+                go = True
             #Exceptions are single words, which have no association
             except Exception as e:
-                pass
+                go = False
 
-            if val1 != "UNK" and val2 != "UNK":
-                maximum = max(association_dict[pair]["LR"], association_dict[pair]["RL"])
-                pairs.append([val1, val2, maximum, association_dict[pair]["LR"], association_dict[pair]["RL"], association_dict[pair]["Freq"]])
+            if go == True:
+                if val1 != "UNK" and val2 != "UNK":
+                    maximum = max(association_dict[pair]["LR"], association_dict[pair]["RL"])
+                    pairs.append([val1, val2, maximum, association_dict[pair]["LR"], association_dict[pair]["RL"], association_dict[pair]["Freq"]])
 
         #Make dataframe
         df = pd.DataFrame(pairs, columns = ["Word1", "Word2", "Max", "LR", "RL", "Freq"])

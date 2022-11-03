@@ -58,14 +58,22 @@ class Word_Classes(object):
 
     #----------------------------------------------------------------------------------#
     
-    def learn_categories(self, model, vocab, unique_words = None, variety = "cbow"):
+    def learn_categories(self, model, vocab, unique_words = None, variety = "cbow", top_range = False):
 
         #Determine the number of clusters to use
+        #Set clusters for syntactic domains
         if variety == "cbow":
-            cluster_range = range(25, 250, 5)
+            #If unspecified, set cbow max clusters
+            if top_range == False:
+                top_range = 250
+            cluster_range = range(top_range, 25, -5)
 
+        #Set clusters for semantic domains
         elif variety == "sg":
-            cluster_range = range(250,2500, 50)
+            #If unspecified, set sg max clusters
+            if top_range == False:
+                top_range = 2500
+            cluster_range = range(top_range,250, -50)
 
         #Get the word embeddings specific to this lexicon
         #remove phrases because their vectors aren't trained
@@ -86,7 +94,7 @@ class Word_Classes(object):
         print(len(word_list), vectors.shape)
 
         print("Getting cosine distance matrix")
-        distances = pairwise_distances(X=vectors, Y=vectors, metric='cosine', n_jobs=-1)
+        distances = pairwise_distances(X=vectors, Y=vectors, metric='cosine', n_jobs=30)
         del vectors
         
         #Initialize search
@@ -101,7 +109,7 @@ class Word_Classes(object):
                                 medoids = n_clusters, 
                                 max_iter=100000, 
                                 init='build', 
-                                n_cpu=-1
+                                n_cpu=30
                                 )
             
             sh = kmedoids.medoid_silhouette(diss = distances, meds = km.labels)[0]
@@ -121,8 +129,8 @@ class Word_Classes(object):
             else:
                 n_turns_no_change += 1
                 
-            if n_turns_no_change > 10:
-                print("No change for 10 n_clusters, stopping now.")
+            if n_turns_no_change > 5:
+                print("No change for 5 iterations, stopping now.")
                 break
         
         results = []
@@ -156,12 +164,12 @@ class Word_Classes(object):
             exemplars = model.wv.similar_by_vector(mean_vector, topn=10000)
             exemplars = [x for x,y in exemplars if x in vocab.keys()]
             mode_val = mode(list(vocab.values()))[0]
-            thresh_freq = mode_val * 1.75
+            thresh_freq = mode_val * 3
             #print("Threshold freq", thresh_freq)
 
             #Make sure exemplars are relatively common words
             exemplars = [x for x in exemplars if vocab[x] > thresh_freq]
-            exemplars = exemplars[:4]
+            exemplars = exemplars[:2]
             name_dict[category] = exemplars
             exemplar_name = "_".join(exemplars)
             ranks.loc[:,"Category_Name"] = exemplar_name

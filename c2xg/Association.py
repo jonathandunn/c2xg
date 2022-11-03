@@ -145,7 +145,7 @@ class Association(object):
 
     #---------------------------------------------------------------------------------------------#
 
-    def calculate_association(self, ngrams, normalization = True):
+    def calculate_association(self, ngrams, normalization = False):
     
         print("\n\tCalculating association for " + str(len(list(ngrams.keys()))) + " pairs.")
         association_dict = defaultdict(dict)
@@ -201,8 +201,8 @@ class Association(object):
             
             #Go through dictionary
             for key in association_dict:
-                association_dict[key]["LR"] = normalizer.transform(np.array(association_dict[key]["LR"]).reshape(-1, 1))
-                association_dict[key]["RL"] = normalizer.transform(np.array(association_dict[key]["RL"]).reshape(-1, 1))
+                association_dict[key]["LR"] = normalizer.transform(np.array(association_dict[key]["LR"]).reshape(-1, 1))[0][0]
+                association_dict[key]["RL"] = normalizer.transform(np.array(association_dict[key]["RL"]).reshape(-1, 1))[0][0]
 
         print("\tProcessed " + str(len(list(association_dict.keys()))) + " items")
         
