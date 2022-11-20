@@ -32,6 +32,8 @@ class Loader(object):
         self.sg = False
         self.sg_model = sg_model
         self.cbow_model = cbow_model
+        self.cbow_centroids = False
+        self.sg_centroids = False
         self.workers = workers
 
         #Check that directories exist
@@ -54,12 +56,12 @@ class Loader(object):
 
         #Write file to disk
         try:
-            with open(os.path.join(self.output_dir, filename), "wb") as handle:
+            with open(os.path.join(self.out_dir, filename), "wb") as handle:
                 pickle.dump(file, handle, protocol = 3)
                     
         except:
             time.sleep(100)
-            with open(os.path.join(self.output_dir, filename), "wb") as handle:
+            with open(os.path.join(self.out_dir, filename), "wb") as handle:
                 pickle.dump(file, handle, protocol = 3)
                 
     #---------------------------------------------------------------#
@@ -90,13 +92,16 @@ class Loader(object):
     def load_file(self, filename):
     
         try:
-            with open(os.path.join(self.output_dir, filename), "rb") as handle:
+            with open(os.path.join(self.out_dir, filename), "rb") as handle:
                 return_file = pickle.load(handle)
         except Exception as e:
             print(filename, e)
                 
-            with open(os.path.join(self.output_dir, filename), "rb") as handle:
-                return_file = pickle.load(handle)
+            try:
+                with open(os.path.join(self.out_dir, filename), "rb") as handle:
+                    return_file = pickle.load(handle)
+            except:
+                return_file = False
                 
         return return_file
     
@@ -160,11 +165,13 @@ class Loader(object):
     
         if type == "cbow":
             vector = self.cbow_model.wv[word]
-            distances = pairwise_distances(vector.reshape(1, -1), self.cbow_centroids, metric="cosine", n_jobs=1) 
+            centroids = [self.cbow_centroids[x] for x in sorted(self.cbow_centroids.keys())]
+            distances = pairwise_distances(vector.reshape(1, -1), centroids, metric="cosine", n_jobs=1) 
             
         elif type == "sg":
             vector = self.sg_model.wv[word]
-            distances = pairwise_distances(vector.reshape(1, -1), self.sg_centroids, metric="cosine", n_jobs=1)
+            centroids = [self.sg_centroids[x] for x in sorted(self.sg_centroids.keys())]
+            distances = pairwise_distances(vector.reshape(1, -1), centroids, metric="cosine", n_jobs=1)
         
         return np.argmin(distances)
     
@@ -202,7 +209,7 @@ class Loader(object):
                 except:
                     value = self.get_unk(word, "sg")
                     
-                value = "syn: " + self.sg_names[value]
+                value = "sem: " + self.sg_names[value]
           
         #Catch items that are improperly formatted
         except Exception as e:
@@ -275,32 +282,36 @@ class Loader(object):
             self.sg_names[category] = category_name
             
         #Get centroids for each cbow category for OOV words
-        cbow_centroids = {}
-        for category, category_df in cbow_df.groupby("Category"):
-            category_name = category_df.loc[:,"Category_Name"].tolist()[0]
-            if "unique" not in category_name:
-                words = category_df.loc[:,"Category"].tolist()
-                ranks = category_df.loc[:,"Rank"].tolist()
-                current_centroid =  self.cbow_model.wv.get_mean_vector(keys=words, weights=ranks, pre_normalize=True, post_normalize=False)
-                cbow_centroids[category] = current_centroid
-        #Centroids as a list where the index = the cluster id
-        self.cbow_centroids = []
-        for i in range(len(cbow_centroids)):
-            self.cbow_centroids.append(cbow_centroids[i])
+        if self.cbow_centroids == False:
+            print("Creating centroids for local categories")
+            cbow_centroids = {}
+            for category, category_df in cbow_df.groupby("Category"):
+                category_name = category_df.loc[:,"Category_Name"].tolist()[0]
+                if "unique" not in category_name:
+                    words = category_df.loc[:,"Category"].tolist()
+                    ranks = category_df.loc[:,"Rank"].tolist()
+                    current_centroid =  self.cbow_model.wv.get_mean_vector(keys=words, weights=ranks, pre_normalize=True, post_normalize=False)
+                    cbow_centroids[category] = current_centroid
+            #Centroids as a list where the index = the cluster id
+            self.cbow_centroids = {}
+            for i in range(len(cbow_centroids)):
+                self.cbow_centroids[i] = cbow_centroids[i]
                 
         #Get centroids for each sg category for OOV words
-        sg_centroids = {}
-        for category, category_df in sg_df.groupby("Category"):
-            category_name = category_df.loc[:,"Category_Name"].tolist()[0]
-            if "unique" not in category_name:
-                words = category_df.loc[:,"Category"].tolist()
-                ranks = category_df.loc[:,"Rank"].tolist()
-                current_centroid =  self.sg_model.wv.get_mean_vector(keys=words, weights=ranks, pre_normalize=True, post_normalize=False)
-                sg_centroids[category] = current_centroid
-        #Centroids as a list where the index = the cluster id
-        self.sg_centroids = []
-        for i in range(len(sg_centroids)):
-            self.sg_centroids.append(sg_centroids[i])
+        if self.sg_centroids == False:
+            print("Creating centroids for non-local categories")
+            sg_centroids = {}
+            for category, category_df in sg_df.groupby("Category"):
+                category_name = category_df.loc[:,"Category_Name"].tolist()[0]
+                if "unique" not in category_name:
+                    words = category_df.loc[:,"Category"].tolist()
+                    ranks = category_df.loc[:,"Rank"].tolist()
+                    current_centroid =  self.sg_model.wv.get_mean_vector(keys=words, weights=ranks, pre_normalize=True, post_normalize=False)
+                    sg_centroids[category] = current_centroid
+            #Centroids as a list where the index = the cluster id
+            self.sg_centroids = {}
+            for i in range(len(sg_centroids)):
+                self.sg_centroids[i] = sg_centroids[i]
     
     #---------------------------------------------------------------------------#
         

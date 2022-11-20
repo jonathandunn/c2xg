@@ -206,6 +206,6 @@ class Word_Classes(object):
         cluster_df = cluster_df.sort_values(by = ["Category", "Rank"], ascending=False)
         cluster_df = cluster_df.reset_index(drop=True)
   
-        return cluster_df
+        return cluster_df, mean_dict
         
     #-------------------------------------------------------------------------------#

@@ -1,6 +1,7 @@
 import time
 import os
 import math
+import statistics
 import cytoolz as ct
 import numpy as np
 from collections import defaultdict
@@ -64,7 +65,66 @@ class Association(object):
         
     #--------------------------------------------------------------#
     
-    def process_ngrams(self, data, Load, lex_only = False):
+    def find_discounts(self, data):
+    
+        #First, divide data into two equal parts
+        data1 = data[:int(len(data)/2)]
+        data2 = data[int(len(data)/2):]
+        
+        #Second, get both sets of ngrams
+        ngrams1 = self.find_ngrams(data1)
+        ngrams2 = self.find_ngrams(data2)
+          
+        discount_dict = {}
+        
+        #Get discounts by category
+        for ngram in ngrams1:
+            try:
+            
+                ngram_freq = ngrams1[ngram]
+                ngram_type = ngram[0][0], ngram[1][0]
+                
+                #Get frequency of ngram in other set
+                if ngram in ngrams2:
+                    ngram2_freq = ngrams2[ngram]
+                    
+                else:
+                    ngram2_freq = 0
+                
+                #Only three strata
+                if ngram_freq > 4:
+                    freq_strata = 4
+                else:
+                    freq_strata = ngram_freq
+                        
+                if ngram_type not in discount_dict:
+                    discount_dict[ngram_type] = {}
+                        
+                if freq_strata not in discount_dict[ngram_type]:
+                    discount_dict[ngram_type][freq_strata] = []
+                        
+                #Update discount_dict
+                discount_dict[ngram_type][freq_strata].append(ngram_freq - ngram2_freq)
+                
+            #Unigrams throw indexing errors
+            except Exception as e:
+                pass
+            
+        #Done looping through ngrams
+        return_dict = {}
+        for ngram_type in discount_dict:
+            return_dict[ngram_type] = {}
+            for freq_strata in discount_dict[ngram_type]:
+                counts = discount_dict[ngram_type][freq_strata]
+                avg = statistics.mean(counts)
+ 
+                return_dict[ngram_type][freq_strata] = avg
+      
+        return return_dict
+            
+    #--------------------------------------------------------------#
+    
+    def process_ngrams(self, data, lex_only = False):
 
         #Initialize bigram dictionary
         ngrams = defaultdict(int)
@@ -102,11 +162,6 @@ class Association(object):
             except Exception as e:
                 error = e
 
-        #Reduce nonce ngrams
-        size = len(list(ngrams.keys()))
-        keepable = lambda x: x > 1
-        ngrams = ct.valfilter(keepable, ngrams)
-
         #Note: Keep all unigrams, they are already limited by the lexicon
         
         #Reduce null indexes
@@ -116,41 +171,34 @@ class Association(object):
         ngrams = ct.merge([ngrams, unigrams])    
         ngrams["TOTAL"] = total
         
-        del unigrams
-        
-        #Print status
-        print(" Full: " + str(size) + " ", end = "")
-        print(" Reduced: ", end = "")
-        print(len(list(ngrams.keys())), end = "")
-        print(" with " + str(ngrams["TOTAL"]) + " words.")
-        
+        del unigrams        
+       
         return ngrams
     #--------------------------------------------------------------------------------------------#
 
-    def find_ngrams(self, data, workers = 1, nickname = "", lex_only = False, n_gram_threshold = 0):
+    def find_ngrams(self, data, lex_only = False, n_gram_threshold = 0):
 
-        ngrams = self.process_ngrams(data, Load = self.Load, lex_only = lex_only)
+        ngrams = self.process_ngrams(data, lex_only = lex_only)
         
-        print("\tTOTAL NGRAMS: " + str(len(list(ngrams.keys()))))
+        #print("\tTOTAL NGRAMS: " + str(len(list(ngrams.keys()))))
         print("\tTOTAL WORDS: " + str(ngrams["TOTAL"]))
         
         #Now enforce threshold
         keepable = lambda x: x > n_gram_threshold
         ngrams = ct.valfilter(keepable, ngrams)
         
-        print("\tAfter pruning:")
+        #print("\tAfter pruning:")
         print("\tTOTAL NGRAMS: " + str(len(list(ngrams.keys()))))
             
         return ngrams
 
     #---------------------------------------------------------------------------------------------#
 
-    def calculate_association(self, ngrams, normalization = False):
+    def calculate_association(self, ngrams, normalization = False, discount_dict = False):
     
         print("\n\tCalculating association for " + str(len(list(ngrams.keys()))) + " pairs.")
         association_dict = defaultdict(dict)
         total = ngrams["TOTAL"]
-        norm_list = []
 
         #Loop over pairs
         for key in ngrams.keys():
@@ -159,6 +207,20 @@ class Association(object):
                 count = ngrams.get(key, 1)
                 freq_1 = ngrams.get(key[0], 1)
                 freq_2 = ngrams.get(key[1], 1)
+                
+                #Discount count
+                if normalization == True:
+                    
+                    #Get sequence type
+                    ngram_type = key[0][0], key[1][0]
+                    
+                    #Get frequency strata
+                    if count > 4:
+                        freq_strata = 4
+                    else:
+                        freq_strata = count
+                   
+                    count = count - discount_dict[ngram_type][freq_strata]
 
                 #a = Frequency of current pair
                 a = count
@@ -175,35 +237,19 @@ class Association(object):
                 #d = Frequency of units without X or Y
                 d = total - a - b - c
                 d = max(d, 0.1)
-
-                #Calculate measures
+                
+                #Calculate measures    
                 lr = float(a / (a + c)) - float(b / (b + d))
-                rl = float(a / (a + b)) - float(c / (c + d))
+                rl = float(a/ (a + b)) - float(c / (c + d))    
                 
                 association_dict[key]["LR"] = lr
                 association_dict[key]["RL"] = rl
                 association_dict[key]["Freq"] = count
                 
-                #If necessary, save for normalizing
-                if normalization == True:
-                    norm_list.append(lr)
-                    norm_list.append(rl)
-                
             except Exception as e:
-                print(e)
+                #print(e)
+                pass
                 
-        #Normalize
-        if normalization == True:
-            #Fit then transform
-            norm_list = np.array(norm_list).reshape(-1, 1)
-            normalizer = StandardScaler()
-            normalizer.fit(norm_list)
-            
-            #Go through dictionary
-            for key in association_dict:
-                association_dict[key]["LR"] = normalizer.transform(np.array(association_dict[key]["LR"]).reshape(-1, 1))[0][0]
-                association_dict[key]["RL"] = normalizer.transform(np.array(association_dict[key]["RL"]).reshape(-1, 1))[0][0]
-
         print("\tProcessed " + str(len(list(association_dict.keys()))) + " items")
         
         return association_dict

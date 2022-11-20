@@ -25,7 +25,7 @@ from .Word_Classes import Word_Classes
 class C2xG(object):
     
     def __init__(self, data_dir = None, language = "eng", nickname = "cxg", model = None, 
-                    normalization = False, max_words = False, fast_parse = False, 
+                    normalization = True, max_words = False, fast_parse = False, 
                     cbow_file = "", sg_file = "", workers = 1):
     
         #Initialize
@@ -160,34 +160,54 @@ class C2xG(object):
         if self.cbow_model == False and self.sg_model == False:
             self.learn_embeddings(input_data)
 
-        #Check for clusters and form them if necessary
+        #Check for syntactic clusters and form them if necessary
         cbow_df_file = os.path.join(self.out_dir, self.nickname + ".categories_cbow.csv")
         if not os.path.exists(cbow_df_file):
             print("Starting cbow word categories")
-            cbow_df = self.Word_Classes.learn_categories(self.cbow_model, self.lexicon, unique_words = unique_words, variety = "cbow", top_range = cbow_range)
-            cbow_df.to_csv(os.path.join(self.out_dir, self.nickname + ".categories_cbow.csv"), index = False)  
+            cbow_df, cbow_mean_dict = self.Word_Classes.learn_categories(self.cbow_model, self.lexicon, unique_words = unique_words, variety = "cbow", top_range = cbow_range)
+            cbow_df.to_csv(os.path.join(self.out_dir, self.nickname + ".categories_cbow.csv"), index = False)
+            self.Load.save_file(cbow_mean_dict, self.nickname+".categories_cbow.means.p")   
         else:
             cbow_df = pd.read_csv(cbow_df_file)
+            cbow_mean_dict = self.Load.load_file(self.nickname+".categories_cbow.means.p")
         
+        #Now print syntactic clusters
         print(cbow_df)
         
+        #check for semantic clusters and form them in necessary
         sg_df_file = os.path.join(self.out_dir, self.nickname + ".categories_sg.csv")
         if not os.path.exists(sg_df_file):
             print("Starting sg word categories")
-            sg_df = self.Word_Classes.learn_categories(self.sg_model, self.lexicon, unique_words = unique_words, variety = "sg", top_range = sg_range)
+            sg_df, sg_mean_dict = self.Word_Classes.learn_categories(self.sg_model, self.lexicon, unique_words = unique_words, variety = "sg", top_range = sg_range)
             sg_df.to_csv(os.path.join(self.out_dir, self.nickname + ".categories_sg.csv"), index = False)
+            self.Load.save_file(sg_mean_dict, self.nickname+".categories_sg.means.p")
         else:
             sg_df = pd.read_csv(sg_df_file)
+            sg_mean_dict = self.Load.load_file(self.nickname+".categories_sg.means.p")
          
+        #Now print semantic clusters
         print(sg_df)
             
         #Add clusters to loader
+        self.Load.cbow_centroids = cbow_mean_dict
+        self.Load.sg_centroids = sg_mean_dict
         self.Load.add_categories(cbow_df, sg_df)
+        
+        #Now that we have clusters, enrich input data and save
+        print("Enriching input using syntactic and semantic categories")
+        self.data = self.Load.load(input_data)  #Save the enriched data once gotten
             
         #Get pairwise association with Delta P
-        association_df = self.get_association(input_data, freq_threshold = min_count, normalization = self.normalization, lex_only = False)
+        association_file = os.path.join(self.out_dir, self.nickname + ".association.gz")
+        if not os.path.exists(association_file):
+            association_df = self.get_association(freq_threshold = min_count, normalization = self.normalization, lex_only = False)
+            association_df.to_csv(association_file, compression = "gzip")
+        else:
+            association_df = pd.read_csv(association_file)
+            
+        #Now print association data
         print(association_df)
-        association_df.to_csv(os.path.join(self.out_dir, self.nickname + ".association.csv"))
+        
         
         return
 
@@ -462,14 +482,20 @@ class C2xG(object):
                 fw.write("\n\n")
     #-------------------------------------------------------------------------------
 
-    def get_association(self, input_data, freq_threshold = 1, normalization = False, lex_only = False):
+    def get_association(self, freq_threshold = 1, normalization = True, lex_only = False):
         
-        #Load from file if necessary
-        print("Enriching input using syntactic and semantic categories")
-        self.data = self.Load.load(input_data)  #Save the enriched data once gotten
-  
-        ngrams = self.Association.find_ngrams(self.data, workers = 1, lex_only = lex_only, n_gram_threshold = self.min_count)
-        association_dict = self.Association.calculate_association(ngrams = ngrams, normalization = self.normalization)
+        #For smoothing, get discounts by constraint type
+        if self.normalization == True:
+            discount_dict = self.Association.find_discounts(self.data)
+            self.Load.save_file(discount_dict, self.nickname+".discounts.p")
+            print(discount_dict)
+            print("Discounts ", self.nickname)
+
+        else:
+            discount_dict = False
+
+        ngrams = self.Association.find_ngrams(self.data, lex_only = False, n_gram_threshold = 1)
+        association_dict = self.Association.calculate_association(ngrams = ngrams, normalization = self.normalization, discount_dict = discount_dict)
         
         #Reduce to bigrams
         keepable = lambda x: len(x) > 1
@@ -477,23 +503,18 @@ class C2xG(object):
 
         #Convert to readable CSV
         pairs = []
-        for pair in association_dict.keys():
-            try: 
-                pair[0][0]
-                val1 = self.Load.decode(pair[0])
-                val2 = self.Load.decode(pair[1])
-                go = True
-            #Exceptions are single words, which have no association
-            except Exception as e:
-                go = False
+        for pair in all_ngrams:
+            
+            val1 = self.Load.decode(pair[0])
+            val2 = self.Load.decode(pair[1])
 
-            if go == True:
-                if val1 != "UNK" and val2 != "UNK":
-                    maximum = max(association_dict[pair]["LR"], association_dict[pair]["RL"])
-                    pairs.append([val1, val2, maximum, association_dict[pair]["LR"], association_dict[pair]["RL"], association_dict[pair]["Freq"]])
+            if val1 != "UNK" and val2 != "UNK":
+                maximum = max(association_dict[pair]["LR"], association_dict[pair]["RL"])
+                difference = association_dict[pair]["LR"] - association_dict[pair]["RL"]
+                pairs.append([val1, val2, maximum, difference, association_dict[pair]["LR"], association_dict[pair]["RL"], association_dict[pair]["Freq"]])
 
         #Make dataframe
-        df = pd.DataFrame(pairs, columns = ["Word1", "Word2", "Max", "LR", "RL", "Freq"])
+        df = pd.DataFrame(pairs, columns = ["Word1", "Word2", "Max", "Difference", "LR", "RL", "Freq"])
         df = df.sort_values("Max", ascending = False)
 
         return df
@@ -854,102 +875,8 @@ class C2xG(object):
             
     #-------------------------------------------------------------------------------
     
-    def divide_data(self, cycles, cycle_size, fixed_set = []):
-        
-        data_dict = defaultdict(dict)
-
-        #For a fixed set experiment, we use the same data for all simulations
-        if fixed_set != []:
-
-            data_dict["BeamCandidates"] = fixed_set
-            data_dict["BeamTest"] = fixed_set
-            
-            for cycle in range(cycles):
-                data_dict[cycle]["Test"] = fixed_set
-                data_dict[cycle]["Candidate"] = fixed_set
-                data_dict[cycle]["Background"] = fixed_set
-
-        #Otherwise we get unique data
-        else:
-
-            input_files = self.Load.list_input()        
-            
-            #Get number of files to use for each purpose
-            num_test_files = cycle_size[0]
-            num_candidate_files = cycle_size[1]
-            num_background_files = cycle_size[2]
-            num_cycle_files = cycle_size[0] + cycle_size[1] + cycle_size[2]
-            
-            #Get Beam Search tuning files
-            candidate_i = random.randint(0, len(input_files))
-            candidate_file = input_files.pop(candidate_i)
-            
-            test_i = random.randint(0, len(input_files))
-            test_file = input_files.pop(test_i)
-            
-            #Get and divide input data
-            data_dict["BeamCandidates"] = candidate_file
-            data_dict["BeamTest"] = test_file
-            
-                
-            #Get unique data for each cycle
-            for cycle in range(cycles):
-                    
-                #Randomize remaining files
-                random.shuffle(input_files)
-                cycle_files = []
-                    
-                #Gather as many files as required
-                for segment in range(num_cycle_files):
-                    current_file = input_files.pop()
-                    cycle_files.append(current_file)
-                        
-                #Assign files as final MDL test data
-                random.shuffle(cycle_files)
-                test_files = []
-                for file in range(num_test_files):
-                    current_file = cycle_files.pop()
-                    test_files.append(current_file)
-                data_dict[cycle]["Test"] = test_files
-                    
-                #Assign files as candidate estimation data
-                random.shuffle(cycle_files)
-                candidate_files = []
-                for file in range(num_candidate_files):
-                    current_file = cycle_files.pop()
-                    candidate_files.append(current_file)
-                data_dict[cycle]["Candidate"] = candidate_files
-                    
-                #Assign files as candidate estimation data
-                random.shuffle(cycle_files)
-                background_files = []
-                for file in range(num_background_files):
-                    current_file = cycle_files.pop()
-                    background_files.append(current_file)
-                data_dict[cycle]["Background"] = background_files
-            
-        return data_dict
-        
-    #-------------------------------------------------------------------------------
     
-    def set_progress(self):
-    
-        progress_dict = defaultdict(dict)
-        progress_dict["BeamSearch"] = "None"
-        
-        for cycle in self.data_dict.keys():
-            if isinstance(cycle, int):
-                
-                progress_dict[cycle]["State"] = "Incomplete"
-                progress_dict[cycle]["Background"] = self.data_dict[cycle]["Background"].copy()
-                progress_dict[cycle]["Background_State"] = "None"
-                progress_dict[cycle]["Candidate"] = self.data_dict[cycle]["Candidate"].copy()
-                progress_dict[cycle]["Candidate_State"] = "None"
-                progress_dict[cycle]["Test"] = self.data_dict[cycle]["Test"].copy()
-                progress_dict[cycle]["MDL_State"] = "None"
-            
-        return progress_dict
-    
+   
     #-----------------------------------------------
     
     def fuzzy_jaccard(self, grammar1, grammar2, threshold = 0.70, workers = 2):
