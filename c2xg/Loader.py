@@ -134,33 +134,6 @@ class Loader(object):
         return clean_lines
                 
     #---------------------------------------------------------------#
-    
-    def clean_files(self, filetype = ""):
-    
-        print("\nNow cleaning up after learning cycle.")
-        files_to_remove = []
-        
-        #First, cleaning method if using local data
-        for filename in os.listdir(self.out_dir):
-            filename = self.out_dir + "/" + filename
-            if filetype == "ngrams" or filetype == "":
-                if "ngrams" in filename:
-                    files_to_remove.append(filename)
-                
-            elif filetype == "association" or filetype == "":
-                if "association" in filename:
-                    files_to_remove.append(filename)
-                
-            elif filetype == "candidates" or filetype == "":
-                if "candidates" in filename:
-                    files_to_remove.append(filename)
-                        
-        for file in files_to_remove:
-            if "Final_Grammar" not in file:
-                print("\t\tRemoving " + file)
-                os.remove(os.path.join(self.out_dir, file))
-
-    #---------------------------------------------------------------#
     def get_unk(self, word, type = "cbow"):
     
         if type == "cbow":

@@ -20,14 +20,14 @@ from .Association import calculate_measures
 
 class BeamSearch(object):
 
-    def __init__(self, delta_threshold, association_dict):
+    def __init__(self, delta_threshold, freq_threshold, association_dict):
         
         #Initialize empty candidate stack
         self.candidate_stack = defaultdict(list)
         self.candidates = []
-        self.search_monitor = deque(maxlen = 100)
         self.association_dict = association_dict
         self.delta_threshold = delta_threshold
+        self.freq_threshold = freq_threshold
         
         return
     #--------------------------------------------------------------#
@@ -36,16 +36,19 @@ class BeamSearch(object):
 
         self.candidates = []
         
-        #Loop left-to-right across the line
+        #PART 1: Search for candidates left-to-right across the line
         for i in range(len(line)):
 
             #Start path from each of the current slot-constraints
             for current_start in [(1, line[i][0]), (2, line[i][1]), (2, line[i][2])]:
-
-                #Recursive search from each available path
-                self.recursive_beam(current_start, line, i, len(line))
                 
-        #Evaluate candidate stack
+                #Ignore out of vocabulary representations
+                if current_start[1] != -1:
+
+                    #Recursive search from each available path
+                    self.recursive_beam(current_start, line, i, len(line))
+         
+        #PART 2: Evaluate candidate stack
         for index in self.candidate_stack.keys():
             top_score = 0.0
             for candidate in self.candidate_stack[index]:
@@ -56,7 +59,7 @@ class BeamSearch(object):
                     
             self.candidates.append(top_candidate)
         
-        #Horizontal pruning
+        #PART 3: Horizontal pruning to find nested candidates
         to_pop = []
         for i in range(len(self.candidates)):
             for j in range(len(self.candidates)):
@@ -82,75 +85,66 @@ class BeamSearch(object):
         
         self.candidates = [x for x in self.candidates if x not in to_pop]
         
-        #Reset state
+        #Reset state to prepare for next line
         self.candidate_stack = defaultdict(list)
-        self.search_monitor = deque(maxlen = 100)
 
         return self.candidates
     #--------------------------------------------------------------#
     
     def recursive_beam(self, previous_start, line, i, line_length):
 
-        go = False
+        #Progress down the line
+        i += 1
+
+        #Stop at the end
+        if i < line_length:
         
-        if len(previous_start) < 2:
-            go = True
-            
-        if self.search_monitor.count(previous_start[0:2]) < 80:
-            go = True
-            
-        if go == True:
-            self.search_monitor.append(previous_start[0:2])
-            #Progress down the line
-            i += 1
-
-            #Stop at the end
-            if i < line_length:
                 
-                #For each available next path
-                for start in [(1, line[i][0]), (2, line[i][1]), (3, line[i][2])]:
+            #For each available next path; examine each constraint on its own because overlapping constructions are possible
+            for start in [(1, line[i][0]), (2, line[i][1]), (3, line[i][2])]:
                     
-                    #Create larger path
-                    try:
-                        previous_start = list(ct.concat(previous_start))
-
-                    except:
-                        previous_start = previous_start
+                #Create larger path if the input is not a root node
+                #If previous_start has multiple slots, will join
+                try:
+                    previous_start = list(ct.concat(previous_start))
+                #But single slot inputs will throw an error
+                except Exception as e:
+                    pass
                         
-                    current_path = list(ct.concat([previous_start, start]))
-                    current_path = tuple(ct.partition(2, current_path))
+                #Join and reform into a tuple of (type, constraint)
+                current_path = list(ct.concat([previous_start, start]))
+                current_path = tuple(ct.partition(2, current_path))
+                
+                #Association is pairwise, so for longer sequences only look at final two slots
+                if len(current_path) > 2:
+                    test_path = current_path[-2:]
+                else:
+                    test_path = current_path
+  
+                #Get association statistics for the relevant pair
+                try:
+                    current_dict = self.association_dict[test_path[0]][test_path[1]]
+                #Errors reflect missing pairs which are below the frequency threshold    
+                except Exception as e:
+                    current_dict = {"Max": 0.0, "Frequency": 0.0}
+                 
+                #If the current pair is above the frequency and association thresholds, continue this line of search
+                if current_dict["Max"] > self.delta_threshold and current_dict["Frequency"] > self.freq_threshold:
                     
-                    if len(current_path) > 2:
-                        test_path = current_path[-2:]
-                        current_dict = self.association_dict[test_path]
-                            
-                        if current_dict != {}:
-                                    
-                            delta_p = max(current_dict["LR"], current_dict["RL"])
-                                
-                            if delta_p > self.delta_threshold:
-                                self.recursive_beam(current_path, line, i, line_length)
+                    #Continue search
+                    self.recursive_beam(current_path, line, i, line_length)
                                                             
-                            #This is the end of a candidate sequence
-                            else:
-                                #Has to be at least 3 slots
-                                if len(current_path) > 3:
+                #Search is over, save candidate if possible
+                else:
+                    #Has to be between two and nine slots
+                    if len(current_path) > 2 and len(current_path) < 10:
                                         
-                                    #Remove the bad part
-                                    current_path = current_path[0:-1]
+                        #Remove the weak link
+                        current_path = current_path[0:-1]
                                     
-                                    #Add to candidate_stack
-                                    self.candidate_stack[i - len(current_path) + 1].append(current_path)
-
-                    else:
-                        current_dict = self.association_dict[current_path]
-
-                        if current_dict != {}:
-                            delta_p = max(current_dict["LR"], current_dict["RL"])
-                                
-                            if delta_p > self.delta_threshold:
-                                self.recursive_beam(current_path, line, i, line_length)
-                                
+                        #Add to candidate_stack
+                        self.candidate_stack[i - len(current_path) + 1].append(current_path)
+   
             return
             
     #--------------------------------------------------------------#
@@ -161,7 +155,11 @@ class BeamSearch(object):
         
         for pair in ct.sliding_window(2, current_candidate):
         
-            current_dict = self.association_dict[pair]
+            try:
+                current_dict = self.association_dict[pair[0]][pair[1]]
+            except:
+                current_dict = {}
+
             current_score = max(current_dict["RL"], current_dict["LR"])
             total_score += current_score
         
@@ -170,163 +168,40 @@ class BeamSearch(object):
 
 class Candidates(object):
 
-    def __init__(self, language, Load, workers = 1, association_dict = None):
+    def __init__(self, language, Load, association_dict = None, freq_threshold = 1, delta_threshold = 0.10):
     
-        #Initialize Ingestor
+        #Initialize
         self.language = language
         self.Load = Load
-        self.workers = workers
+        self.freq_threshold = freq_threshold
+        self.delta_threshold = delta_threshold
+        self.association_dict = association_dict
         
-        if association_dict != None:
-            self.association_dict = association_dict
     
     #------------------------------------------------------------------
     
-    def process_file(self, filename, delta_threshold = 0.05, freq_threshold = 1, save = True):
+    def get_candidates(self, input_data):
         
         candidates = []
         starting = time.time()
         
         #Initialize Beam Search class
-        BS = BeamSearch(delta_threshold, self.association_dict)
+        BS = BeamSearch(self.delta_threshold, self.freq_threshold, self.association_dict)
         
-        for line in self.Encoder.load_stream(filename):
+        #Beam Search extraction
+        candidates = list(ct.concat([BS.beam_search(x) for x in input_data]))
 
-            if len(line) > 2:
-                
-                #Beam Search extraction
-                candidates += BS.beam_search(line)
-            
         #Count each candidate, get dictionary with candidate frequencies
         candidates = ct.frequencies(candidates)
         print("\t" + str(len(candidates)) + " candidates before pruning.")
         
-        #Reduce nonce candidates
-        above_zero = lambda x: x > freq_threshold
+        #Reduce candidates
+        above_zero = lambda x: x > self.freq_threshold
         candidates = ct.valfilter(above_zero, candidates)        
             
         #Print time and number of remaining candidates
         print("\t" + str(len(candidates)) + " candidates in " + str(time.time() - starting) + " seconds.")
     
-        if save == True:
-            self.Loader.save_file(candidates, filename + ".candidates.p")
-            return os.path.join(self.Loader.output_dir, filename + ".candidates.p")
-                
-        else:
-            return candidates
+        return candidates
 
     #--------------------------------------------------------------#
-    
-    def merge_candidates(self, output_files, threshold):
-        
-        candidates = []
-        print("Merging " + str(len(output_files)) + " files.")
-        
-        #Load
-        for dict_file in output_files:
-            try:
-                candidates.append(self.Loader.load_file(dict_file))
-            except Exception as e:
-                print("ERROR")
-                print(e)
-        
-        #Merge
-        candidates = ct.merge_with(sum, [x for x in candidates])
-        print("\tTOTAL CANDIDATES BEFORE PRUNING: " + str(len(list(candidates.keys()))))
-        
-        #Prune
-        above_threshold = lambda x: x > threshold
-        candidates = ct.valfilter(above_threshold, candidates)
-        print("\tTOTAL CANDIDATES AFTER PRUNING: " + str(len(list(candidates.keys()))))
-        
-        return candidates
-    #----------------------------------------------------------------------------------------------#
-    
-    def get_association(self, candidate_dict, association_dict = False, save = False):
-    
-        #Initialize Association module
-        Assoc = Association(Loader = self.Loader)
-        
-        if association_dict == False:
-            try:
-                self.association_dict = self.Loader.load_file(self.language + ".association.p")
-                
-            except Exception as e:
-                print(e)
-                print("Missing pairwise counts. Need to run Association.calculate_association() first")
-                sys.kill()
-                
-        else:
-            self.association_dict = association_dict
-        
-        #Process candidatess
-        starting = time.time()
-        candidates = list(candidate_dict.keys())
-        results = [self.get_pairwise_lists(candidate) for candidate in candidates]
-        print(str(len(list(candidate_dict.keys()))) + " candidates in " + str(time.time() - starting) + " seconds.")
-            
-        #Define the DataFrame columns
-        columns = ["candidate", "mean_lr", "mean_rl", "min_lr", "min_rl", "directional_scalar",
-                    "directional_categorical", "reduced_beginning_lr", "reduced_beginning_rl",
-                    "reduced_end_lr", "reduced_end_rl", "endpoint_lr", "endpoint_rl"]
-        
-        results = np.array(results)
-        print(results.shape)
-        
-        if save == True:
-            self.Loader.save_file((candidates, results), self.language + ".candidates_association.p")
-            
-        return results
-    #----------------------------------------------------------------------------------------------#
-        
-    def get_pairwise_lists(self, candidate):
-
-        lr_list = []    #Initiate list of LR association values
-        rl_list = []    #Initiate list of RL association values
-        
-        #Populate the pairwise value lists
-        for current_pair in ct.sliding_window(2, candidate):
-
-            if current_pair in self.association_dict["LR"]:
-                lr_list.append(self.association_dict[current_pair]["LR"])
-            else:
-                lr_list.append(0)
-            
-            if current_pair in self.association_dict["RL"]:
-                rl_list.append(self.association_dict[current_pair]["RL"])
-            else:
-                rl_list.append(0)
-
-        #Send lists to class-external jitted function for processing
-        return_list = calculate_measures(np.array(lr_list), np.array(rl_list))
-        
-        #Check for end-point
-        try:
-            endpoint_lr = self.association_dict[(candidate[0], candidate[-1])]["LR"]
-            endpoint_rl = self.association_dict[(candidate[0], candidate[-1])]["RL"]
-            
-        except Exception as e:
-            endpoint_lr = 0.0
-            endpoint_rl = 0.0
-            
-        #Add Endpoint to return_list
-        return_list.append(endpoint_lr)
-        return_list.append(endpoint_rl)
-        
-        #return_list contains the following items:
-        #--- candidate (representation, index) tuples
-        #--- mean_lr 
-        #--- mean_rl
-        #--- min_lr
-        #--- min_rl
-        #--- directional_scalar
-        #--- directional_categorical
-        #--- reduced_beginning_lr
-        #--- reduced_beginning_rl
-        #--- reduced_end_lr
-        #--- reduced_end_rl
-        #--- endpoint_lr
-        #--- endpoint_rl
-        
-        return return_list
-    #----------------------------------------------------------------------------------------------#

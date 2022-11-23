@@ -104,7 +104,7 @@ class Association(object):
                     discount_dict[ngram_type][freq_strata] = []
                         
                 #Update discount_dict
-                discount_dict[ngram_type][freq_strata].append(ngram_freq - ngram2_freq)
+                discount_dict[ngram_type][freq_strata].append(abs(ngram_freq - ngram2_freq))
                 
             #Unigrams throw indexing errors
             except Exception as e:
