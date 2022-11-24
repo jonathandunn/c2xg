@@ -1,12 +1,8 @@
 import os
-import random
 import numpy as np
 import pandas as pd
-import copy
-import operator
 import pickle
 import codecs
-from collections import defaultdict
 import multiprocessing as mp
 import cytoolz as ct
 from functools import partial
@@ -18,7 +14,6 @@ from .Parser import Parser
 from .Association import Association
 from .Candidates import Candidates
 from .MDL_Learner import MDL_Learner
-from .Parser import parse_examples
 from .Word_Classes import Word_Classes
 #-------------------------------------------------------------------------------
 
@@ -222,34 +217,7 @@ class C2xG(object):
         #Get chunks
         chunks = self.Candidates.get_candidates(self.data)
         
-        
         return
-
-    #------------------------------------------------------------------
-
-    def _detail_model(self) : 
-
-        ## Update model so we can access grammar faster ... 
-        ## Want to make `if construction[0][1] == unit[construction[0][0]-1]` faster
-        ## Dict on construction[0][1] which is self.model[i][0][1] (Call this Y)
-        ## BUT unit[ construction[0][0] - 1 ] changes with unit ... 
-        ## construction[0][0] values are very limited.  (call this X)
-        ## dict[ construction[0][0] ][ construction[0][1] ] = list of constructions
-        
-        model_expanded = dict()
-
-        X = list( set( [ self.model[i][0][0] for i in range(len(self.model)) ] ) )
-        
-        for x in X : 
-            model_expanded[ x ] = defaultdict( list ) 
-            this_x_elems = list()
-            for k, elem in enumerate( self.model ) : 
-                if elem[0][0] != x : 
-                    continue
-                elem_trunc = [ i for i in elem if i != (0,0) ]
-                model_expanded[ x ][ elem[0][1] ].append( ( elem, elem_trunc, k ) )
-        
-        self.detailed_model = ( X, model_expanded ) 
 
     #------------------------------------------------------------------
         

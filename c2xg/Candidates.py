@@ -13,8 +13,7 @@ import operator
 import difflib
 import copy
 
-from .Association import Association
-from .Association import calculate_measures
+from .Parser import Parser
 
 #--------------------------------------------------------------#
 
@@ -50,39 +49,49 @@ class BeamSearch(object):
          
         #PART 2: Evaluate candidate stack
         for index in self.candidate_stack.keys():
+            
+            #Search for each starting node
             top_score = 0.0
+            
+            #Get top total association, allowing for weak links
             for candidate in self.candidate_stack[index]:
                 current_score = self.get_score(candidate)
                 if current_score > top_score:
                     top_score = current_score
                     top_candidate = candidate
-                    
+             
+            #Keep only the best candidate for each node
             self.candidates.append(top_candidate)
+            
+        #Reduce duplicate candidates
+        self.candidates = list(set(self.candidates))
         
         #PART 3: Horizontal pruning to find nested candidates
         to_pop = []
+        
+        #Check each combination of candidates
         for i in range(len(self.candidates)):
             for j in range(len(self.candidates)):
-                if i != j and j > i:
+            
+                #Only check later and larger pairs
+                if j > i and len(self.candidates[i]) != len(self.candidates[j]):
+                
+                    #Get candidates
                     candidate1 = self.candidates[i]
                     candidate2 = self.candidates[j]
                     
-                    s = difflib.SequenceMatcher(None, candidate1, candidate2)
-                    largest = max([x[2] for x in s.get_matching_blocks()])
+                    #Convert to string for test
+                    test1 = str(candidate1).replace("((","(").replace("))",")")
+                    test2 = str(candidate2).replace("((","(").replace("))",")")
                     
-                    if largest > 2:
-                        shortest = min(len(candidate1), len(candidate2))
-                        
-                        if float(largest / shortest) < 0.75:
-                            score1 = self.get_score(candidate1)
-                            score2 = self.get_score(candidate2)
-                            
-                            if score1 < score2:
-                                if candidate1 not in to_pop:
-                                    to_pop.append(candidate1)
-                            elif candidate2 not in to_pop:
-                                to_pop.append(candidate2)
-        
+                    #If nested, remove smaller
+                    if test1 in test2 or test2 in test1:
+                        if len(candidate1) > len(candidate2):
+                            to_pop.append(candidate2)
+                        elif len(candidate1) > len(candidate2):
+                            to_pop.append(candidate1)
+         
+        #Remove smaller nested candidates
         self.candidates = [x for x in self.candidates if x not in to_pop]
         
         #Reset state to prepare for next line
@@ -143,7 +152,8 @@ class BeamSearch(object):
                         current_path = current_path[0:-1]
                                     
                         #Add to candidate_stack
-                        self.candidate_stack[i - len(current_path) + 1].append(current_path)
+                        if current_path not in self.candidate_stack[i - len(current_path) + 1]:
+                            self.candidate_stack[i - len(current_path) + 1].append(current_path)
    
             return
             
@@ -151,18 +161,17 @@ class BeamSearch(object):
     
     def get_score(self, current_candidate):
     
+        #Initialize score
         total_score = 0.0
         
+        #Iterate over pairs of slots constraints
         for pair in ct.sliding_window(2, current_candidate):
         
-            try:
-                current_dict = self.association_dict[pair[0]][pair[1]]
-            except:
-                current_dict = {}
-
-            current_score = max(current_dict["RL"], current_dict["LR"])
+            #Accumulate both directions of association
+            current_dict = self.association_dict[pair[0]][pair[1]]
+            current_score = current_dict["LR"] +  current_dict["RL"]
             total_score += current_score
-        
+
         return total_score
     #--------------------------------------------------------------#
 
@@ -176,8 +185,8 @@ class Candidates(object):
         self.freq_threshold = freq_threshold
         self.delta_threshold = delta_threshold
         self.association_dict = association_dict
+        self.Parse = Parser(self.Load)
         
-    
     #------------------------------------------------------------------
     
     def get_candidates(self, input_data):
@@ -190,18 +199,23 @@ class Candidates(object):
         
         #Beam Search extraction
         candidates = list(ct.concat([BS.beam_search(x) for x in input_data]))
+        print("Before duplicate removal: ", len(candidates))
+        candidates = list(set(candidates))
+        print("After duplicate removal: ", len(candidates))
 
-        #Count each candidate, get dictionary with candidate frequencies
-        candidates = ct.frequencies(candidates)
-        print("\t" + str(len(candidates)) + " candidates before pruning.")
+        #Parse candidates in data because extraction won't estimate frequencies
+        frequencies = np.array(self.Parse.parse_enriched(input_data, grammar = candidates))
+        frequencies = np.sum(frequencies, axis=0)
         
         #Reduce candidates
-        above_zero = lambda x: x > self.freq_threshold
-        candidates = ct.valfilter(above_zero, candidates)        
+        final_candidates = []
+        for i in range(len(candidates)):
+            if frequencies[i] > self.freq_threshold:
+                final_candidates.append(candidates[i])
             
         #Print time and number of remaining candidates
-        print("\t" + str(len(candidates)) + " candidates in " + str(time.time() - starting) + " seconds.")
+        print("After frequency threshold: " + str(len(final_candidates)) + " in " + str(time.time() - starting) + " seconds.")
     
-        return candidates
+        return final_candidates
 
     #--------------------------------------------------------------#
