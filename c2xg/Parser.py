@@ -8,6 +8,96 @@ from scipy.sparse import coo_matrix
 from collections import defaultdict
 
 #--------------------------------------------------------------#
+def parse_examples(construction, line):
+
+    indexes = [-1]
+    matches = 0
+    
+    #Iterate over line from left to right
+    for i in range(len(line)):
+        
+        unit = line[i]
+
+        #Check if the first unit matches, to merit further consideration
+        if construction[0][1] == unit[construction[0][0]-1]:
+                        
+            match = True    #Initiate match flag to True
+
+            #Check each future unit in candidate
+            for j in range(1, len(construction)):
+                            
+                #If we reach the padded part of the construction, break it off
+                if construction[j] == (0,0):
+                    break
+                            
+                #If this unit doesn't match, stop looking
+                if i+j < len(line):
+                    if line[i+j][construction[j][0] - 1] != construction[j][1]:
+                                        
+                        match = False
+                        break
+                        
+                #This construction is longer than the remaining line
+                else:
+                    match = False
+                    break
+
+            #Done with candidate
+            if match == True:
+                matches += 1
+                indexes.append(i)    #Save indexes covered by construction match
+                
+    return construction, indexes[1:], matches
+
+#--------------------------------------------------------------#
+
+def parse_mdl_support(construction, lines):
+
+    indexes = [-1]
+    matches = 0
+    
+    #Iterate over input lines
+    for k in range(len(lines)):
+    
+        #Iterate over line from left to right
+        line = lines[k]
+        
+        for i in range(len(line)):
+            
+            unit = line[i]
+
+            #Check if the first unit matches, to merit further consideration
+            if construction[0][1] == unit[construction[0][0]-1]:
+                            
+                match = True    #Initiate match flag to True
+
+                #Check each future unit in candidate
+                for j in range(1, len(construction)):
+                                
+                    #If we reach the padded part of the construction, break it off
+                    if construction[j] == (0,0):
+                        break
+                                
+                    #If this unit doesn't match, stop looking
+                    if i+j < len(line):
+                        if line[i+j][construction[j][0] - 1] != construction[j][1]:
+                                            
+                            match = False
+                            break
+                            
+                    #This construction is longer than the remaining line
+                    else:
+                        match = False
+                        break
+
+                #Done with candidate
+                if match == True:
+                    matches += 1
+                    indexes.append(tuple((k, list(range(i, i + len(construction))))))    #Save indexes covered by construction match
+          
+    return construction, indexes[1:], matches
+
+#--------------------------------------------------------------#
 
 def _get_candidates( unit, grammar ) : 
         
@@ -159,70 +249,6 @@ class Parser(object):
         #Initialize Parser
         self.language = Load.language
         self.Load = Load
-
-    #--------------------------------------------------------------#
-    
-    def parse_prep(self, files, workers = None):
-
-        #First, load lines into memory
-        lines = []
-        for file in files:
-            lines += [line for line in self.Loader.read_file(file) if len(line) > 1]
-
-        #Second, multi-process encoded lines into memory
-        if workers != None:
-            pool_instance = mp.Pool(processes = workers, maxtasksperchild = None)
-            lines = pool_instance.map(self.Encoder.load, lines, chunksize = 2500)
-            pool_instance.close()
-            pool_instance.join()
-        
-        else:
-            lines = self.Encoder.load_batch(lines)
-
-        #Third, join lines into large numpy array
-        lines = np.vstack(lines)
-
-        return lines
-    
-    #--------------------------------------------------------------#
-    
-    def parse_batch_mdl(self, lines, grammar, freq_threshold, workers = None):
-    
-        #Chunk array for workers
-        total_count = len(lines)
-    
-        if workers != None:
-            #Multi-process by construction
-            pool_instance = mp.Pool(processes = workers, maxtasksperchild = None)
-            results = pool_instance.map(partial(parse_mdl_support, line = lines), grammar, chunksize = 500)
-            pool_instance.close()
-            pool_instance.join()
-
-        else:
-            results = []
-            for construction in grammar:
-                results.append(parse_mdl_support(line = lines, construction = construction))
-        
-        #Find fixed max value for match indexes
-        max_matches = max([len(indexes) for construction, indexes, matches in results])
-        
-        #Initialize lists
-        construction_list = []
-        indexes_list = []
-        matches_list = []
-        vector_list = []
-        
-        #Create fixed-length arrays
-        for i in range(len(results)):
-            construction, indexes, matches = results[i]
-            if matches > freq_threshold:
-                vector_list.append(i)
-                construction_list.append(construction)
-                matches_list.append(matches)
-                indexes_list.append(indexes)
-    
-        #results contains a tuple for each construction in the grammar (indexes[list], matches[int])
-        return construction_list, indexes_list, np.array(matches_list), vector_list
     
     #--------------------------------------------------------------#
     
@@ -244,13 +270,41 @@ class Parser(object):
         if detailed_grammar is None:
             detailed_grammar = detail_model(grammar)
             
-        
-        
-        # #Fast or normal parsing
-        # if not detailed_grammar is None:
+        #Fast parsing
         lines = [parse_fast(line, grammar = detailed_grammar, grammar_len = len(grammar)) for line in lines]
-        # else: 
-        #lines = [parse(line, grammar = detailed_grammar) for line in lines]
     
         return lines
     #--------------------------------------------------------------#
+    
+    def parse_mdl(self, lines, grammar):
+        
+        #Chunk array for workers
+        total_count = len(lines)
+    
+        #Multi-process by construction
+        pool_instance = mp.Pool(processes = mp.cpu_count(), maxtasksperchild = None)
+        results = pool_instance.map(partial(parse_mdl_support, lines = lines), grammar, chunksize = 100)
+        pool_instance.close()
+        pool_instance.join()
+
+        #Find fixed max value for match indexes
+        max_matches = max([len(indexes) for construction, indexes, matches in results])
+        
+        #Initialize lists
+        construction_list = []
+        indexes_list = []
+        matches_list = []
+        vector_list = []
+        
+        #Create fixed-length arrays
+        for i in range(len(results)):
+            construction, indexes, matches = results[i]
+
+            vector_list.append(i)
+            construction_list.append(construction)
+            matches_list.append(matches)
+            indexes_list.append(indexes)
+    
+        #results contains a tuple for each construction in the grammar (indexes[list], matches[int])
+        return construction_list, indexes_list, np.array(matches_list), vector_list
+    

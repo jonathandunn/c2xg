@@ -6,7 +6,6 @@ import pandas as pd
 import cytoolz as ct
 import multiprocessing as mp
 from functools import partial
-from numba import jit
 from collections import defaultdict
 from collections import deque
 import operator
@@ -208,10 +207,10 @@ class Candidates(object):
         frequencies = np.sum(frequencies, axis=0)
         
         #Reduce candidates
-        final_candidates = []
+        final_candidates = {}
         for i in range(len(candidates)):
             if frequencies[i] > self.freq_threshold:
-                final_candidates.append(candidates[i])
+                final_candidates[candidates[i]] = frequencies[i]
             
         #Print time and number of remaining candidates
         print("After frequency threshold: " + str(len(final_candidates)) + " in " + str(time.time() - starting) + " seconds.")

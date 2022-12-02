@@ -208,6 +208,15 @@ class Loader(object):
 
     #---------------------------------------------------------------------------#
     
+    def get_decoder(self):
+    
+        #Get reverse dictionaries for decoding
+        self.cbow_dict = {val: key for (key, val) in self.cbow_names.items()}
+        self.sg_dict = {val: key for (key, val) in self.sg_names.items()}
+        self.word_dict = {val: key for (key, val) in self.indexes.items()}
+        
+    #---------------------------------------------------------------------------#
+    
     def load(self, input_file):
 
         #If only got one file, wrap in list
@@ -218,6 +227,7 @@ class Loader(object):
             return lines
             
     #---------------------------------------------------------------------------#
+    
     #Create categories dictionaries are annotating new corpora
     def add_categories(self, cbow_df, sg_df):
     
@@ -259,7 +269,7 @@ class Loader(object):
             print("Creating centroids for local categories")
             cbow_centroids = {}
             for category, category_df in cbow_df.groupby("Category"):
-                category_name = category_df.loc[:,"Category_Name"].tolist()[0]
+                category_name = str(category_df.loc[:,"Category_Name"].tolist()[0])
                 if "unique" not in category_name:
                     words = category_df.loc[:,"Category"].tolist()
                     ranks = category_df.loc[:,"Rank"].tolist()
@@ -275,7 +285,7 @@ class Loader(object):
             print("Creating centroids for non-local categories")
             sg_centroids = {}
             for category, category_df in sg_df.groupby("Category"):
-                category_name = category_df.loc[:,"Category_Name"].tolist()[0]
+                category_name = str(category_df.loc[:,"Category_Name"].tolist()[0])
                 if "unique" not in category_name:
                     words = category_df.loc[:,"Category"].tolist()
                     ranks = category_df.loc[:,"Rank"].tolist()

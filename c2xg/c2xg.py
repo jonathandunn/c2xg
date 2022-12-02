@@ -13,7 +13,7 @@ from .Loader import Loader
 from .Parser import Parser
 from .Association import Association
 from .Candidates import Candidates
-from .MDL_Learner import MDL_Learner
+from .MDL import Minimum_Description_Length
 from .Word_Classes import Word_Classes
 #-------------------------------------------------------------------------------
 
@@ -140,15 +140,15 @@ class C2xG(object):
             print("Setting min_count to 1 parts per million (min_count = " + str(min_count) + ") (max_words = " + str(self.max_words) + ")")
 
         print("Starting to learn: lexicon")
-        self.min_count = min_count
-        lexicon, phrases, unique_words = self.Load.get_lexicon(input_data, npmi_threshold, self.min_count)
+        self.Load.min_count = min_count
+        lexicon, phrases, unique_words = self.Load.get_lexicon(input_data, npmi_threshold, self.Load.min_count)
 
         n_phrases = len([x for x in lexicon.keys() if " " in x])
         print("Finished with " + str(len(lexicon)-n_phrases) + " words and " + str(n_phrases) + " phrases")
 
         #Save phrases and lexicon
-        self.phrases = phrases
-        self.lexicon = lexicon
+        self.Load.phrases = phrases
+        self.Load.lexicon = lexicon
         
         #Check embeddings
         if self.cbow_model == False and self.sg_model == False:
@@ -158,69 +158,108 @@ class C2xG(object):
         cbow_df_file = os.path.join(self.out_dir, self.nickname + ".categories_cbow.csv")
         if not os.path.exists(cbow_df_file):
             print("Starting cbow word categories")
-            cbow_df, cbow_mean_dict = self.Word_Classes.learn_categories(self.cbow_model, self.lexicon, unique_words = unique_words, variety = "cbow", top_range = cbow_range)
-            cbow_df.to_csv(os.path.join(self.out_dir, self.nickname + ".categories_cbow.csv"), index = False)
-            self.Load.save_file(cbow_mean_dict, self.nickname+".categories_cbow.means.p")   
+            self.Load.cbow_df, self.Load.cbow_mean_dict = self.Word_Classes.learn_categories(self.cbow_model, self.Load.lexicon, unique_words = unique_words, variety = "cbow", top_range = cbow_range)
+            self.Load.cbow_df.to_csv(os.path.join(self.out_dir, self.nickname + ".categories_cbow.csv"), index = False)
+            self.Load.save_file(self.Load.cbow_mean_dict, self.nickname+".categories_cbow.means.p")   
         else:
-            cbow_df = pd.read_csv(cbow_df_file)
-            cbow_mean_dict = self.Load.load_file(self.nickname+".categories_cbow.means.p")
+            self.Load.cbow_df = pd.read_csv(cbow_df_file)
+            self.Load.cbow_mean_dict = self.Load.load_file(self.nickname+".categories_cbow.means.p")
         
         #Now print syntactic clusters
-        print(cbow_df)
+        print(self.Load.cbow_df)
         
         #check for semantic clusters and form them in necessary
         sg_df_file = os.path.join(self.out_dir, self.nickname + ".categories_sg.csv")
         if not os.path.exists(sg_df_file):
             print("Starting sg word categories")
-            sg_df, sg_mean_dict = self.Word_Classes.learn_categories(self.sg_model, self.lexicon, unique_words = unique_words, variety = "sg", top_range = sg_range)
-            sg_df.to_csv(os.path.join(self.out_dir, self.nickname + ".categories_sg.csv"), index = False)
-            self.Load.save_file(sg_mean_dict, self.nickname+".categories_sg.means.p")
+            self.Load.sg_df, self.Load.sg_mean_dict = self.Word_Classes.learn_categories(self.sg_model, self.Load.lexicon, unique_words = unique_words, variety = "sg", top_range = sg_range)
+            self.Load.sg_df.to_csv(os.path.join(self.out_dir, self.nickname + ".categories_sg.csv"), index = False)
+            self.Load.save_file(self.Load.sg_mean_dict, self.nickname+".categories_sg.means.p")
         else:
-            sg_df = pd.read_csv(sg_df_file)
-            sg_mean_dict = self.Load.load_file(self.nickname+".categories_sg.means.p")
+            self.Load.sg_df = pd.read_csv(sg_df_file)
+            self.Load.sg_mean_dict = self.Load.load_file(self.nickname+".categories_sg.means.p")
          
         #Now print semantic clusters
-        print(sg_df)
+        print(self.Load.sg_df)
             
         #Add clusters to loader
-        self.Load.cbow_centroids = cbow_mean_dict
-        self.Load.sg_centroids = sg_mean_dict
-        self.Load.add_categories(cbow_df, sg_df)
+        self.Load.cbow_centroids = self.Load.cbow_mean_dict
+        self.Load.sg_centroids = self.Load.sg_mean_dict
+        self.Load.add_categories(self.Load.cbow_df, self.Load.sg_df)
         
         #Now that we have clusters, enrich input data and save
         if not os.path.exists(os.path.join(self.out_dir, self.nickname+".input_enriched.p")):
             print("Enriching input using syntactic and semantic categories")
-            self.data = self.Load.load(input_data)  #Save the enriched data once gotten
-            self.Load.save_file(self.data, self.nickname+".input_enriched.p")
+            self.Load.data = self.Load.load(input_data)  #Save the enriched data once gotten
+            self.Load.save_file(self.Load.data, self.nickname+".input_enriched.p")
         else:
             print("Loading enriched input")
-            self.data = self.Load.load_file(self.nickname+".input_enriched.p")
+            self.Load.data = self.Load.load_file(self.nickname+".input_enriched.p")
             
         #Get pairwise association with Delta P
         association_file = os.path.join(self.out_dir, self.nickname + ".association.gz")
         if not os.path.exists(association_file):
-            association_df = self.get_association(freq_threshold = self.min_count, normalization = self.normalization, lex_only = False)
-            association_df.to_csv(association_file, compression = "gzip")
+            self.Load.association_df = self.get_association(freq_threshold = self.Load.min_count, normalization = self.normalization, lex_only = False)
+            self.Load.association_df.to_csv(association_file, compression = "gzip")
         else:
-            association_df = pd.read_csv(association_file, index_col = 0)
+            self.Load.association_df = pd.read_csv(association_file, index_col = 0)
             
         #Now print association data
-        print(association_df)
+        print(self.Load.association_df)
         
         #Convert to dict
-        self.get_decoder()
-        self.assoc_dict = self.get_association_dict(association_df)
+        self.Load.get_decoder()
+        self.Load.assoc_dict = self.get_association_dict(self.Load.association_df)
         
-        #Initialize candidates module
-        self.Candidates = Candidates(language = self.language, Load = self.Load, freq_threshold = self.min_count, association_dict = self.assoc_dict)
-        
-        #Get chunks
-        chunks = self.Candidates.get_candidates(self.data)
+        #Get grammar
+        best_delta, best_candidates, best_cost, best_cost_df = self.grid_search()
         
         return
 
     #------------------------------------------------------------------
+    def grid_search(self):
+    
+        print("Starting grid search for beam search parameters.")
+        cost_file = os.path.join(self.out_dir, self.nickname + ".slot_costs.csv")
         
+        #Initialize MDL
+        mdl = Minimum_Description_Length(self.Load, self.Parse)
+        print(mdl.cost_df)
+        mdl.cost_df.to_csv(cost_file)
+        
+        best_mdl = 999999999999 #High initial value
+        
+        #Initialize candidates module
+        for delta_threshold in [0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50]:
+        
+            print(self.nickname, delta_threshold)
+            self.Candidates = Candidates(language = self.language, Load = self.Load, freq_threshold = self.Load.min_count, delta_threshold = delta_threshold, association_dict = self.Load.assoc_dict)
+            
+            #Get chunks
+            chunks = self.Candidates.get_candidates(self.Load.data)
+            
+            #Cost of encoding the grammar
+            chunks_cost, chunk_df = mdl.get_grammar_cost(chunks)
+            #print(chunk_df)
+            
+            #Cost of encoding the data
+            total_mdl, l1_cost, l2_match_cost, l2_regret_cost = mdl.evaluate_grammar(chunks, chunks_cost)
+            
+            #Check if this is the best version
+            if total_mdl < best_mdl:
+                print("New best: " + str(delta_threshold))
+                best_delta = delta_threshold
+                best_candidates = chunks
+                best_cost = chunks_cost
+                best_cost_df = chunk_df
+                
+        #Done with loop
+        print("Best delta: " + str(best_delta))
+        
+        return best_delta, best_candidates, best_cost, best_cost_df  
+            
+    #------------------------------------------------------------------        
+
     def parse_return(self, input, mode = "files", workers = None):
             
         #Make sure grammar is loaded
@@ -347,7 +386,7 @@ class C2xG(object):
         
         #For smoothing, get discounts by constraint type
         if self.normalization == True:
-            discount_dict = self.Association.find_discounts(self.data)
+            discount_dict = self.Association.find_discounts(self.Load.data)
             self.Load.save_file(discount_dict, self.nickname+".discounts.p")
             print(discount_dict)
             print("Discounts ", self.nickname)
@@ -355,7 +394,7 @@ class C2xG(object):
         else:
             discount_dict = False
 
-        ngrams = self.Association.find_ngrams(self.data, lex_only = False, n_gram_threshold = 1)
+        ngrams = self.Association.find_ngrams(self.Load.data, lex_only = False, n_gram_threshold = 1)
         association_dict = self.Association.calculate_association(ngrams = ngrams, normalization = self.normalization, discount_dict = discount_dict)
         
         #Reduce to bigrams
@@ -381,15 +420,6 @@ class C2xG(object):
         return df
  
     #-------------------------------------------------------------------------------
-    
-    def get_decoder(self):
-    
-        #Get reverse dictionaries for decoding
-        self.cbow_dict = {val: key for (key, val) in self.Load.cbow_names.items()}
-        self.sg_dict = {val: key for (key, val) in self.Load.sg_names.items()}
-        self.word_dict = {val: key for (key, val) in self.Load.indexes.items()}
-        
-    #-------------------------------------------------------------------------------
 
     def get_association_dict(self, df):
     
@@ -407,19 +437,19 @@ class C2xG(object):
             
             #Get categories instead of names, 1
             if "sem: " in word1:
-                word1 = (3, self.sg_dict[word1.replace("sem: ", "")])
+                word1 = (3, self.Load.sg_dict[word1.replace("sem: ", "")])
             elif "syn: " in word1:
-                word1 = (2, self.cbow_dict[word1.replace("syn: ", "")])
+                word1 = (2, self.Load.cbow_dict[word1.replace("syn: ", "")])
             else:
-                word1 = (1, self.word_dict[word1])
+                word1 = (1, self.Load.word_dict[word1])
             
             #Get categories instead of names, 2
             if "sem: " in word2:
-                word2 = (3, self.sg_dict[word2.replace("sem: ", "")])
+                word2 = (3, self.Load.sg_dict[word2.replace("sem: ", "")])
             elif "syn: " in word2:
-                word2 = (2, self.cbow_dict[word2.replace("syn: ", "")])
+                word2 = (2, self.Load.cbow_dict[word2.replace("syn: ", "")])
             else:
-                word2 = (1, self.word_dict[word2])
+                word2 = (1, self.Load.word_dict[word2])
             
             if word1 not in assoc_dict:
                 assoc_dict[word1] = {}
@@ -481,22 +511,6 @@ class C2xG(object):
                     
         return match
 
-    #-----------------------------------------------    
-
-    def get_mdl(self, candidates, file, workers = 2, freq_threshold = -1):
-
-        result = eval_mdl([file], 
-                    workers = workers, 
-                    candidates = candidates, 
-                    Load = self.Load, 
-                    Encode = self.Encode, 
-                    Parse = self.Parse, 
-                    freq_threshold = freq_threshold, 
-                    report = True
-                    )
-
-        return result
-        
     #-----------------------------------------------    
     
     def forget_constructions(self, grammar, datasets, workers = None, threshold = 1, adjustment = 0.25, increment_size = 100000):

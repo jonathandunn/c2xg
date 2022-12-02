@@ -7,13 +7,11 @@ import numpy as np
 from collections import defaultdict
 from functools import partial
 import multiprocessing as mp
-from numba import jit
 from sklearn.preprocessing import StandardScaler
 
 #-------------------------------------------------------------------#
 #The main calculation function is outside of the class for jitting
 
-@jit(nopython = True, nogil = True)
 def calculate_measures(lr_list, rl_list):
 
     #Mean Delta-P
