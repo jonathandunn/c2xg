@@ -16,7 +16,7 @@ class Minimum_Description_Length(object):
 
     def __init__(self, Load, Parse):
     
-        print("Initializing MDL Learner for this round (loading data).")
+        print("\tInitializing MDL Learner for this round.")
         
         #Initialize
         self.Parse = Parse
@@ -24,6 +24,11 @@ class Minimum_Description_Length(object):
         
         #Find cost of various slot constraints
         self.cost_df = self.get_constraint_cost()
+        
+        #Only parse candidates once
+        self.candidates = False
+        self.indexes = False
+        self.matches = False
         
         return
     
@@ -56,9 +61,9 @@ class Minimum_Description_Length(object):
             cat_freq = 0
             #Add frequencies for each word in category
             for word in category_df.loc[:,"Word"].values:
-                cat_freq += self.Load.lexicon[word]
+                cat_freq += self.Load.lexicon.get(word, 0)
             #Find the probability of this category 
-            cost = -math.log2(float(cat_freq)/len(self.Load.cbow_df)) + self.type_cost
+            cost = -math.log2(float(max(1, cat_freq))/len(self.Load.cbow_df)) + self.type_cost
             cost_syn[category] = cost
             cost_df.append([2, category, cost])
          
@@ -69,9 +74,9 @@ class Minimum_Description_Length(object):
             cat_freq = 0
             #Add frequencies for each word in category
             for word in category_df.loc[:,"Word"].values:
-                cat_freq += self.Load.lexicon[word]
+                cat_freq += self.Load.lexicon.get(word, 0)
             #Find the probability of this category
-            cost = -math.log2(float(cat_freq)/len(self.Load.sg_df)) + self.type_cost
+            cost = -math.log2(float(max(1, cat_freq))/len(self.Load.sg_df)) + self.type_cost
             cost_sem[category] = cost
             cost_df.append([3, category, cost])
         
@@ -91,13 +96,12 @@ class Minimum_Description_Length(object):
         total = sum(chunks.values())
         chunk_cost = {}
         chunk_df = []
-        print("Total observed constructions")
         
         #Find the cost for each potential construction
         for chunk in chunks:
             
             #First, more likely constructions should cost less
-            prob = chunks[chunk] / float(total)
+            prob = max(1, chunks[chunk]) / float(total)
             cost = -math.log2(prob)
             chunk_cost[chunk] = {}
             chunk_cost[chunk]["Pointer"] = cost
@@ -129,21 +133,36 @@ class Minimum_Description_Length(object):
     
     #---------------------------------------------------------------------------
     
-    def evaluate_grammar(self, grammar, grammar_cost, input_data = None):
+    def evaluate_grammar(self, grammar, grammar_fixed, grammar_cost, chunk_mask = False):
 
         starting = time.time()  #For timing purposes
         
         #Use pre-loaded data or enrich a new corpus
-        if input_data != None:
-            data = self.Load.load(input_data)
-        else:
-            data = self.Load.data
-        
-        grammar_list = list(grammar.keys()) #Fix order of keys
-        
+        data = self.Load.data
+
         #Parse candidates to determine encoding cost
-        candidates, indexes, matches, vector_list = self.Parse.parse_mdl(data, grammar_list)
-        print("\tParsed " + str(len(data)) + " lines with " + str(len(grammar)) + " constructions in " + str(time.time() - starting) + " seconds.")
+        if self.candidates == False and chunk_mask == False:
+            print("\tStarting to parse for MDL support")
+            self.candidates, self.indexes, self.matches, vector_list = self.Parse.parse_mdl(data, grammar_fixed)
+            print("\tParsed " + str(len(data)) + " lines with " + str(len(grammar)) + " constructions in " + str(time.time() - starting) + " seconds.")
+            
+            #Save for local use as well
+            indexes = self.indexes
+            matches = self.matches
+            grammar_list = grammar_fixed
+            
+        #Load subset if already parsed
+        else:
+            print("\t\tLoading subset")
+            indexes = []
+            matches = []
+            grammar_list = []
+            #Get only the current subset
+            for i in range(len(chunk_mask)):
+                if chunk_mask[i] == 1:
+                    indexes.append(self.indexes[i])
+                    matches.append(self.matches[i])
+                    grammar_list.append(grammar_fixed[i])
 
         #Add pre-calculated construction encoding cost
         starting = time.time()

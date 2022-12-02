@@ -198,10 +198,11 @@ class Candidates(object):
         
         #Beam Search extraction
         candidates = list(ct.concat([BS.beam_search(x) for x in input_data]))
-        print("Before duplicate removal: ", len(candidates))
+        print("\t\tChunks before duplicate removal: ", len(candidates))
         candidates = list(set(candidates))
-        print("After duplicate removal: ", len(candidates))
-
+        print("\t\tChunks after duplicate removal: ", len(candidates))
+        
+        print("\t\tNow parsing candidates to find frequencies")
         #Parse candidates in data because extraction won't estimate frequencies
         frequencies = np.array(self.Parse.parse_enriched(input_data, grammar = candidates))
         frequencies = np.sum(frequencies, axis=0)
@@ -209,11 +210,11 @@ class Candidates(object):
         #Reduce candidates
         final_candidates = {}
         for i in range(len(candidates)):
-            if frequencies[i] > self.freq_threshold:
+            if True:    #frequencies[i] > self.freq_threshold:
                 final_candidates[candidates[i]] = frequencies[i]
             
         #Print time and number of remaining candidates
-        print("After frequency threshold: " + str(len(final_candidates)) + " in " + str(time.time() - starting) + " seconds.")
+        print("\t\tExtracted: " + str(len(final_candidates)) + " in " + str(time.time() - starting) + " seconds.")
     
         return final_candidates
 

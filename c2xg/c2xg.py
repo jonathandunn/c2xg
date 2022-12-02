@@ -212,7 +212,10 @@ class C2xG(object):
         self.Load.assoc_dict = self.get_association_dict(self.Load.association_df)
         
         #Get grammar
-        best_delta, best_candidates, best_cost, best_cost_df = self.grid_search()
+        best_delta, best_freq, best_candidates, best_cost, best_cost_df = self.grid_search()
+        print("Best delta: ", best_delta)
+        print("Best freq: ", best_freq)
+        print("Best grammar size ", len(best_candidates))
         
         return
 
@@ -222,41 +225,123 @@ class C2xG(object):
         print("Starting grid search for beam search parameters.")
         cost_file = os.path.join(self.out_dir, self.nickname + ".slot_costs.csv")
         
-        #Initialize MDL
-        mdl = Minimum_Description_Length(self.Load, self.Parse)
-        print(mdl.cost_df)
-        mdl.cost_df.to_csv(cost_file)
+        best_mdl = 999999999999 #High initial value to start search
         
-        best_mdl = 999999999999 #High initial value
+        #Define frequency thresholds up to the minimum slot frequency
+        freq_thresholds = [0.00, 0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.40, 0.45, 0.50]
+        freq_thresholds = [self.Load.min_count - (self.Load.min_count * x) for x in freq_thresholds]
+        freq_thresholds = list(set([int(x) for x in freq_thresholds]))
         
         #Initialize candidates module
-        for delta_threshold in [0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50]:
-        
-            print(self.nickname, delta_threshold)
-            self.Candidates = Candidates(language = self.language, Load = self.Load, freq_threshold = self.Load.min_count, delta_threshold = delta_threshold, association_dict = self.Load.assoc_dict)
+        for delta_threshold in [0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40]:
             
+            print("Starting delta ", delta_threshold)
+            #Initialize MDL
+            mdl = Minimum_Description_Length(self.Load, self.Parse)
+        
+            #Get candidates without frequency threshold
+            self.Candidates = Candidates(language = self.language, Load = self.Load, freq_threshold = self.Load.min_count, delta_threshold = delta_threshold, association_dict = self.Load.assoc_dict)
+
             #Get chunks
             chunks = self.Candidates.get_candidates(self.Load.data)
             
-            #Cost of encoding the grammar
-            chunks_cost, chunk_df = mdl.get_grammar_cost(chunks)
-            #print(chunk_df)
-            
-            #Cost of encoding the data
-            total_mdl, l1_cost, l2_match_cost, l2_regret_cost = mdl.evaluate_grammar(chunks, chunks_cost)
-            
-            #Check if this is the best version
-            if total_mdl < best_mdl:
-                print("New best: " + str(delta_threshold))
-                best_delta = delta_threshold
-                best_candidates = chunks
-                best_cost = chunks_cost
-                best_cost_df = chunk_df
+            first_chunks = True
+
+            #Test frequency threshold within current delta p threshold
+            for construction_freq in freq_thresholds:
+                if construction_freq >= 0:
+                
+                    print("\n\t\t", self.nickname, "Delta: ", delta_threshold, "Freq: ", construction_freq)
+                    
+                    #For the first time, reduce to min frequency and save
+                    if first_chunks == True:
+                        #Reduce chunk set to those above frequency threshold
+                        above_threshold = lambda x: x >= construction_freq
+                        chunks = ct.valfilter(above_threshold, chunks)
+                        grammar_fixed = list(chunks.keys()) #Fix order of keys
+                        current_chunks = chunks
+                    
+                        #Get mask to support caching MDL parsing
+                        chunk_mask = False
+                        first_chunks = False
+                    
+                    #For after the first time, use mask to avoid re-parsing
+                    else:
+                        #Reduce chunk set to those above frequency threshold
+                        above_threshold = lambda x: x >= construction_freq
+                        current_chunks = ct.valfilter(above_threshold, chunks)
+                    
+                        #Get mask to support caching MDL parsing
+                        chunk_mask = [1 if chunks[x] > construction_freq else 0 for x in chunks]
+                        
+                    #Recalculate constraint costs
+                    mdl.get_constraint_cost()
+                
+                    #Cost of encoding the grammar
+                    chunks_cost, chunk_df = mdl.get_grammar_cost(current_chunks)
+                    
+                    #Cost of encoding the data
+                    total_mdl, l1_cost, l2_match_cost, l2_regret_cost = mdl.evaluate_grammar(current_chunks, grammar_fixed, chunks_cost, chunk_mask)
+                    
+                    #Check if this is the best version
+                    if total_mdl < best_mdl:
+                        print("\tNew best: " + str(delta_threshold))
+                        best_delta = delta_threshold
+                        best_freq = construction_freq
+                        best_candidates = current_chunks
+                        best_cost = chunks_cost
+                        best_cost_df = chunk_df
+                        best_mdl = total_mdl
+                        best_grammar_fixed = grammar_fixed
+                        best_chunks = chunks
                 
         #Done with loop
-        print("Best delta: " + str(best_delta))
+        print("Best delta: " + str(best_delta) + " and best freq: " + str(best_freq))
         
-        return best_delta, best_candidates, best_cost, best_cost_df  
+        #Save cost info
+        print(best_cost_df)
+        best_cost_df.to_csv(cost_file)
+        
+        #Determine which constructions are worth encoding
+        print("Checking encoding-cost pruning")
+        best_cost_df.loc[:,"Cost"] = best_cost_df.loc[:,"Pointer"].mul(best_cost_df.loc[:,"Frequency"])
+        test_cost_df = best_cost_df[best_cost_df.loc[:,"Cost"] > best_cost_df.loc[:,"Encoding"]]
+        
+        #Get subset of candidates that pass encoding test
+        current_chunks = {}
+        for row in test_cost_df.itertuples():
+            chunk = row[1]
+            freq = row[2]
+            current_chunks[chunk] = freq
+            
+        #Get mask using reduced dataframe index
+        chunk_mask = []
+        for i in range(len(chunks)):
+            if i in test_cost_df.index:
+                chunk_mask.append(1)
+            else:
+                chunk_mask.append(0)
+                
+        #Cost of encoding the grammar
+        chunks_cost, chunk_df = mdl.get_grammar_cost(current_chunks)
+                    
+        #Cost of encoding the data
+        total_mdl, l1_cost, l2_match_cost, l2_regret_cost = mdl.evaluate_grammar(current_chunks, best_grammar_fixed, chunks_cost, chunk_mask)
+                    
+        #Check if this is the best version
+        if total_mdl < best_mdl:
+            print("\tNew best: " + str(delta_threshold) + " with encoding-based pruning")
+            print(test_cost_df)
+            best_delta = delta_threshold
+            best_freq = construction_freq
+            best_candidates = current_chunks
+            best_cost = chunks_cost
+            best_cost_df = test_cost_df
+            best_mdl = total_mdl
+        else:
+            print("\tEncoding-based pruning did not improve grammar.")
+        
+        return best_delta, best_freq, best_candidates, best_cost, best_cost_df  
             
     #------------------------------------------------------------------        
 
