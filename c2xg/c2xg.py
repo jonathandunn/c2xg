@@ -212,19 +212,39 @@ class C2xG(object):
         self.Load.assoc_dict = self.get_association_dict(self.Load.association_df)
         
         #Get grammar
-        best_delta, best_freq, best_candidates, best_cost, best_cost_df = self.grid_search()
-        print("Best delta: ", best_delta)
-        print("Best freq: ", best_freq)
-        print("Best grammar size ", len(best_candidates))
+        best_delta, best_freq, best_candidates, best_cost, best_cost_df, encoding_pruning = self.grid_search()
+        print("")
+        print("Best Delta Threshold: ", best_delta)
+        print("Best Freq Threshold: ", best_freq)
+        print("Encoding-based Pruning: ", encoding_pruning)
+        print("Final Grammar Size ", len(best_candidates))
+        
+        #Save cost info
+        best_cost_df.loc[:,"Construction"] = self.decode(best_cost_df.loc[:,"Chunk"].values)
+        print(best_cost_df)
+        cost_file = os.path.join(self.out_dir, self.nickname + ".slot_costs.csv")
+        best_cost_df.to_csv(cost_file)
         
         return
 
     #------------------------------------------------------------------
+    def decode(self, constructions):
+    
+        return_constructions = []
+        
+        #Iterate over items in grammar
+        for construction in constructions:
+        
+            #Decode current construction
+            construction = self.Load.decode_construction(construction)
+            return_constructions.append(construction)
+    
+        return return_constructions
+        
+    #------------------------------------------------------------------
     def grid_search(self):
     
         print("Starting grid search for beam search parameters.")
-        cost_file = os.path.join(self.out_dir, self.nickname + ".slot_costs.csv")
-        
         best_mdl = 999999999999 #High initial value to start search
         
         #Define frequency thresholds up to the minimum slot frequency
@@ -298,10 +318,6 @@ class C2xG(object):
         #Done with loop
         print("Best delta: " + str(best_delta) + " and best freq: " + str(best_freq))
         
-        #Save cost info
-        print(best_cost_df)
-        best_cost_df.to_csv(cost_file)
-        
         #Determine which constructions are worth encoding
         print("Checking encoding-cost pruning")
         best_cost_df.loc[:,"Cost"] = best_cost_df.loc[:,"Pointer"].mul(best_cost_df.loc[:,"Frequency"])
@@ -314,34 +330,35 @@ class C2xG(object):
             freq = row[2]
             current_chunks[chunk] = freq
             
-        #Get mask using reduced dataframe index
-        chunk_mask = []
-        for i in range(len(chunks)):
-            if i in test_cost_df.index:
-                chunk_mask.append(1)
-            else:
-                chunk_mask.append(0)
+        test_grammar_fixed = list(current_chunks.keys()) #Fix order of keys
+     
+        #Initialize MDL
+        mdl = Minimum_Description_Length(self.Load, self.Parse)
+                
+        #Recalculate constraint costs
+        mdl.get_constraint_cost()
                 
         #Cost of encoding the grammar
         chunks_cost, chunk_df = mdl.get_grammar_cost(current_chunks)
                     
         #Cost of encoding the data
-        total_mdl, l1_cost, l2_match_cost, l2_regret_cost = mdl.evaluate_grammar(current_chunks, best_grammar_fixed, chunks_cost, chunk_mask)
+        total_mdl, l1_cost, l2_match_cost, l2_regret_cost = mdl.evaluate_grammar(current_chunks, test_grammar_fixed, chunks_cost)
                     
         #Check if this is the best version
         if total_mdl < best_mdl:
             print("\tNew best: " + str(delta_threshold) + " with encoding-based pruning")
-            print(test_cost_df)
             best_delta = delta_threshold
             best_freq = construction_freq
             best_candidates = current_chunks
             best_cost = chunks_cost
             best_cost_df = test_cost_df
             best_mdl = total_mdl
+            encoding_pruning = "Yes"
         else:
             print("\tEncoding-based pruning did not improve grammar.")
+            encoding_pruning = "No"
         
-        return best_delta, best_freq, best_candidates, best_cost, best_cost_df  
+        return best_delta, best_freq, best_candidates, best_cost, best_cost_df, encoding_pruning
             
     #------------------------------------------------------------------        
 

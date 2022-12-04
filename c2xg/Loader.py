@@ -192,19 +192,50 @@ class Loader(object):
 
     #---------------------------------------------------------------------------#
     
-    def decode_construction(self, item):
-        
-        sequence = []
-        for pair in item:
+    def decode_construction(self, construction):
 
-            try:
-                val = self.decoding_dict[pair[0]][pair[1]]
-            except:
-                val = "UNK"
-
-            sequence.append(val)
+        #Initialize empty string
+        construction_string = ""
             
-        return "[ " + " -- ".join(sequence) + " ]"
+        #Iterate over slots
+        for i in range(len(construction)):
+            current_slot = construction[i]
+                
+            #Lex
+            if current_slot[0] == 1:
+                current_slot = "LEX: " + self.indexes[current_slot[1]]
+                
+            #Syn
+            elif current_slot[0] == 2:
+                current_slot = "SYN: " + self.cbow_names[current_slot[1]]
+                
+            #Sem
+            elif current_slot[0] == 3:
+                current_slot = "SEM: " + self.sg_names[current_slot[1]]
+                
+            #Add constraint to string
+            construction_string += current_slot
+            
+            #Get transition symbol
+            if i+1 < len(construction):
+                pair = (construction[i], construction[i+1])
+                assoc = self.assoc_dict[pair[0]][pair[1]]
+                difference = assoc["LR"] - assoc["RL"]
+                
+                #LR is stronger
+                if difference > 0.1:
+                    transition = " > "
+                #RL is stronger
+                elif difference < -0.1:
+                    transition = " < "
+                #Neither dominates
+                else:
+                    transition = " -- "
+                    
+                #Add transition to construction
+                construction_string += transition
+            
+        return construction_string
 
     #---------------------------------------------------------------------------#
     
