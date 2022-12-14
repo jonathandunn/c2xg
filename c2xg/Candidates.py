@@ -32,20 +32,21 @@ class BeamSearch(object):
     
     def beam_search(self, line):
 
+        starting = time.time()
         self.candidates = []
         
         #PART 1: Search for candidates left-to-right across the line
         for i in range(len(line)):
 
             #Start path from each of the current slot-constraints
-            for current_start in [(1, line[i][0]), (2, line[i][1]), (2, line[i][2])]:
+            for current_start in [(1, line[i][0]), (2, line[i][1]), (3, line[i][2])]:
                 
                 #Ignore out of vocabulary representations
                 if current_start[1] != -1:
 
                     #Recursive search from each available path
                     self.recursive_beam(current_start, line, i, len(line))
-         
+    
         #PART 2: Evaluate candidate stack
         for index in self.candidate_stack.keys():
             
@@ -64,7 +65,7 @@ class BeamSearch(object):
             
         #Reduce duplicate candidates
         self.candidates = list(set(self.candidates))
-        
+
         #PART 3: Horizontal pruning to find nested candidates
         to_pop = []
         
@@ -106,53 +107,55 @@ class BeamSearch(object):
 
         #Stop at the end
         if i < line_length:
+            #Final constructions must be less than 10
+            if len(previous_start) < 9:
         
-                
-            #For each available next path; examine each constraint on its own because overlapping constructions are possible
-            for start in [(1, line[i][0]), (2, line[i][1]), (3, line[i][2])]:
-                    
-                #Create larger path if the input is not a root node
-                #If previous_start has multiple slots, will join
-                try:
-                    previous_start = list(ct.concat(previous_start))
-                #But single slot inputs will throw an error
-                except Exception as e:
-                    pass
+                #For each available next path; examine each constraint on its own because overlapping constructions are possible
+                for start in [(1, line[i][0]), (2, line[i][1]), (3, line[i][2])]:
                         
-                #Join and reform into a tuple of (type, constraint)
-                current_path = list(ct.concat([previous_start, start]))
-                current_path = tuple(ct.partition(2, current_path))
-                
-                #Association is pairwise, so for longer sequences only look at final two slots
-                if len(current_path) > 2:
-                    test_path = current_path[-2:]
-                else:
-                    test_path = current_path
-  
-                #Get association statistics for the relevant pair
-                try:
-                    current_dict = self.association_dict[test_path[0]][test_path[1]]
-                #Errors reflect missing pairs which are below the frequency threshold    
-                except Exception as e:
-                    current_dict = {"Max": 0.0, "Frequency": 0.0}
-                 
-                #If the current pair is above the frequency and association thresholds, continue this line of search
-                if current_dict["Max"] > self.delta_threshold and current_dict["Frequency"] > self.freq_threshold:
+                    #Create larger path if the input is not a root node
+                    #If previous_start has multiple slots, will join
+                    try:
+                        previous_start = list(ct.concat(previous_start))
+                    #But single slot inputs will throw an error
+                    except Exception as e:
+                        pass
+                            
+                    #Join and reform into a tuple of (type, constraint)
+                    current_path = list(ct.concat([previous_start, start]))
+                    current_path = tuple(ct.partition(2, current_path))
                     
-                    #Continue search
-                    self.recursive_beam(current_path, line, i, line_length)
-                                                            
-                #Search is over, save candidate if possible
-                else:
-                    #Has to be between two and nine slots
-                    if len(current_path) > 2 and len(current_path) < 10:
+                    #Association is pairwise, so for longer sequences only look at final two slots
+                    if len(current_path) > 2:
+                        test_path = current_path[-2:]
+                    else:
+                        test_path = current_path
+      
+                    #Get association statistics for the relevant pair
+                    try:
+                        current_dict = self.association_dict[test_path[0]][test_path[1]]
+
+                    #Errors reflect missing pairs which are below the frequency threshold    
+                    except Exception as e:
+                        current_dict = {"Max": 0.0, "Frequency": 0.0}
+                     
+                    #If the current pair is above the frequency and association thresholds, continue this line of search
+                    if current_dict["Max"] > self.delta_threshold and current_dict["Frequency"] > self.freq_threshold:
+                        
+                        #Continue search
+                        self.recursive_beam(current_path, line, i, line_length)
+                                                                
+                    #Search is over, save candidate if possible
+                    else:
+                        #Has to be between two and nine slots
+                        if len(current_path) > 2 and len(current_path) < 10:
+                                            
+                            #Remove the weak link
+                            current_path = current_path[0:-1]
                                         
-                        #Remove the weak link
-                        current_path = current_path[0:-1]
-                                    
-                        #Add to candidate_stack
-                        if current_path not in self.candidate_stack[i - len(current_path) + 1]:
-                            self.candidate_stack[i - len(current_path) + 1].append(current_path)
+                            #Add to candidate_stack
+                            if current_path not in self.candidate_stack[i - len(current_path) + 1]:
+                                self.candidate_stack[i - len(current_path) + 1].append(current_path)
    
             return
             
@@ -195,9 +198,11 @@ class Candidates(object):
         
         #Initialize Beam Search class
         BS = BeamSearch(self.delta_threshold, self.freq_threshold, self.association_dict)
-        
+
         #Beam Search extraction
-        candidates = list(ct.concat([BS.beam_search(x) for x in input_data]))
+        candidates = [BS.beam_search(x) for x in input_data]
+
+        candidates = list(ct.concat(candidates))
         print("\t\tChunks before duplicate removal: ", len(candidates))
         candidates = list(set(candidates))
         print("\t\tChunks after duplicate removal: ", len(candidates))

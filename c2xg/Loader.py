@@ -63,30 +63,7 @@ class Loader(object):
             time.sleep(100)
             with open(os.path.join(self.out_dir, filename), "wb") as handle:
                 pickle.dump(file, handle, protocol = 3)
-                
-    #---------------------------------------------------------------#
-    
-    def list_input(self):
-    
-        files = []    #Initiate list of files
-        
-        for filename in os.listdir(self.input_dir):
-            files.append(filename)
-                
-        return [x for x in files if x.endswith(".txt") or x.endswith(".gz")]
-            
-    #---------------------------------------------------------------#
-    
-    def list_output(self, type = ""):
-    
-        files = []    #Initiate list of files
-        
-        for filename in os.listdir(self.output_dir):
-            if type in filename:
-                files.append(filename)
-                
-        return files
-            
+                 
     #---------------------------------------------------------------#
     
     def load_file(self, filename):
@@ -151,13 +128,13 @@ class Loader(object):
     #---------------------------------------------------------------#
     
     def decode(self, item):
-        
+
         #1 = LEX; 2 = SYN; 3 = SEM
         try:
             rep = item[0]
             index = item[1]
-            word = self.indexes.get(index, "UNK")
-            
+            word = self.lex_decode.get(index, "UNK")
+
             #Get lexical item
             if rep == 1:
                 value = word
@@ -166,27 +143,33 @@ class Loader(object):
             elif rep == 2:
                 #Get existing category
                 try:
-                    value = self.cbow[word]["Category"]
+                    value = self.cbow_decode[index]
+
                 #Or use embedding to assign to category
-                except:
+                except Exception as e:
                     value = self.get_unk(word, "cbow")
+                    value = self.cbow_decode[value]
+                    print("152", e)
                     
-                value = "syn: " + self.cbow_names[value]
+                value = "syn:" + str(index) + "_" + str(value)
             
             #Get sg category
             elif rep == 3:
                 #Get existing category
                 try:
-                    value = self.sg[word]["Category"]
+                    value = self.sg_decode[index]
                 #Or use embedding to assign category
-                except:
+                except Exception as e:
                     value = self.get_unk(word, "sg")
+                    value = self.sg_decode[value]
+                    print("165", e)
                     
-                value = "sem: " + self.sg_names[value]
+                value = "sem:" + str(index) + "_" + str(value)
           
         #Catch items that are improperly formatted
         except Exception as e:
             value = "UNK"
+            print("172", e)
             
         return value        
 
@@ -200,18 +183,21 @@ class Loader(object):
         #Iterate over slots
         for i in range(len(construction)):
             current_slot = construction[i]
-                
+
             #Lex
             if current_slot[0] == 1:
-                current_slot = "LEX: " + self.indexes[current_slot[1]]
+                value = self.lex_decode[current_slot[1]]
+                current_slot = "lex:" + str(value)
                 
             #Syn
             elif current_slot[0] == 2:
-                current_slot = "SYN: " + self.cbow_names[current_slot[1]]
+                value = self.cbow_decode[current_slot[1]]
+                current_slot = "syn:" + str(current_slot[1]) + "_" + str(value)
                 
             #Sem
             elif current_slot[0] == 3:
-                current_slot = "SEM: " + self.sg_names[current_slot[1]]
+                value = self.sg_decode[current_slot[1]]
+                current_slot = "sem:" + str(current_slot[1]) + "_" + str(value)
                 
             #Add constraint to string
             construction_string += current_slot
@@ -236,15 +222,6 @@ class Loader(object):
                 construction_string += transition
             
         return construction_string
-
-    #---------------------------------------------------------------------------#
-    
-    def get_decoder(self):
-    
-        #Get reverse dictionaries for decoding
-        self.cbow_dict = {val: key for (key, val) in self.cbow_names.items()}
-        self.sg_dict = {val: key for (key, val) in self.sg_names.items()}
-        self.word_dict = {val: key for (key, val) in self.indexes.items()}
         
     #---------------------------------------------------------------------------#
     
@@ -262,38 +239,50 @@ class Loader(object):
     #Create categories dictionaries are annotating new corpora
     def add_categories(self, cbow_df, sg_df):
     
+        #Dictionaries with ranking info
         self.cbow = {}
         self.sg = {}
-        self.cbow_names = {}
-        self.sg_names = {}
-        self.indexes = {}
+        
+        #Encoding and decoding dictionaries
+        self.cbow_encode = {}
+        self.cbow_decode = {}
+        self.sg_encode = {}
+        self.sg_decode = {}
+        self.lex_encode = {}
+        self.lex_decode = {}
         
         #Create dictionary for the local (cbow) category for each word
         for row in cbow_df.itertuples():
+            #Get row
             index = row[0]
             rank = row[1]
             word = row[2]
             category = row[3]
             category_name = row[4]
+            #Add to dictionary
             self.cbow[word] = {}
             self.cbow[word]["Category"] = category
             self.cbow[word]["Similarity"] = rank
             self.cbow[word]["Index"] = index
-            self.indexes[index] = word
-            self.cbow_names[category] = category_name
+            self.lex_encode[word] = index
+            self.lex_decode[index] = word
+            self.cbow_encode[word] = category
+            self.cbow_decode[category] = category_name
         
         #Create dictionary for the non-local (sg) category for each word
         for row in sg_df.itertuples():
+            #Get row
             index = row[0]
             rank = row[1]
             word = row[2]
             category = row[3]
             category_name = row[4]
+            #Add to dictionary
             self.sg[word] = {}
             self.sg[word]["Category"] = category
             self.sg[word]["Similarity"] = rank
-            self.sg[word]["Index"] = index
-            self.sg_names[category] = category_name
+            self.sg_encode[word] = category
+            self.sg_decode[category] = category_name
             
         #Get centroids for each cbow category for OOV words
         if self.cbow_centroids == False:
@@ -368,18 +357,25 @@ class Loader(object):
     #---------------------------------------------------------------------------#
     def enrich(self, word):
     
-        #If the word is in the cbow dictionary, get its index
+        #Lex
         try:
-            syn = self.cbow[word]["Category"]
-            index = self.cbow[word]["Index"]
+            index = self.lex_encode[word]
+
+        except:
+            index = -1
+        
+        #Syn
+        try:
+            syn = self.cbow_encode[word]
+
         #OOV, get category by embedding
         except:
             syn = self.get_unk(word, type = "cbow")
-            index = -1
             
         #Check sg dictionary
         try:
-            sem = self.sg[word]["Category"]
+            sem = self.sg_encode[word]
+
         #OOV, get category
         except:
             sem = self.get_unk(word, type = "sg")

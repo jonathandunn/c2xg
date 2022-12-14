@@ -20,12 +20,11 @@ from .Word_Classes import Word_Classes
 class C2xG(object):
     
     def __init__(self, data_dir = None, language = "eng", nickname = "cxg", model = None, 
-                    normalization = True, max_words = False, fast_parse = False, 
-                    cbow_file = "", sg_file = "", workers = 1):
+                    normalization = True, max_words = False, cbow_file = "", sg_file = ""):
     
         #Initialize
         self.nickname = nickname
-        self.workers = workers
+        self.workers = mp.cpu_count()
 
         if max_words != False:
             self.nickname += "." + language + "." + str(int(max_words/1000)) + "k_words" 
@@ -53,12 +52,14 @@ class C2xG(object):
         self.cbow_file = os.path.join(self.out_dir, cbow_file)
         self.sg_file = os.path.join(self.out_dir, sg_file)
         
+        #Load existing cbow embeddings
         if os.path.exists(self.cbow_file):
             print("Using for local word embeddings: ", self.cbow_file)
             self.cbow_model = self.load_embeddings(self.cbow_file)
         else:
             self.cbow_model = False
         
+        #Load existing sg embeddings
         if os.path.exists(self.sg_file):
             print("Using for non-local word embeddings: ", self.sg_file)
             self.sg_model = self.load_embeddings(self.sg_file)
@@ -96,11 +97,6 @@ class C2xG(object):
         #Take model as input
         elif isinstance(model, list):
             self.model = model
-
-        if fast_parse: 
-            self._detail_model() ## self.detailed_model set by this. 
-        else: 
-            self.detailed_model = None
 
     #------------------------------------------------------------------
     def load_embeddings(self, model_file):
@@ -208,11 +204,10 @@ class C2xG(object):
         print(self.Load.association_df)
         
         #Convert to dict
-        self.Load.get_decoder()
         self.Load.assoc_dict = self.get_association_dict(self.Load.association_df)
-        
+
         #Get grammar
-        best_delta, best_freq, best_candidates, best_cost, best_cost_df, encoding_pruning = self.grid_search()
+        best_delta, best_freq, best_candidates, best_cost, best_cost_df, best_chunk_df, encoding_pruning = self.grid_search()
         print("")
         print("Best Delta Threshold: ", best_delta)
         print("Best Freq Threshold: ", best_freq)
@@ -222,8 +217,10 @@ class C2xG(object):
         #Save cost info
         best_cost_df.loc[:,"Construction"] = self.decode(best_cost_df.loc[:,"Chunk"].values)
         print(best_cost_df)
-        cost_file = os.path.join(self.out_dir, self.nickname + ".slot_costs.csv")
+        cost_file = os.path.join(self.out_dir, self.nickname + ".grammar_costs.csv")
         best_cost_df.to_csv(cost_file)
+        slot_cost_file = os.path.join(self.out_dir, self.nickname + ".slot_costs.csv")
+        best_chunk_df.to_csv(slot_cost_file)
         
         return
 
@@ -258,13 +255,13 @@ class C2xG(object):
             print("Starting delta ", delta_threshold)
             #Initialize MDL
             mdl = Minimum_Description_Length(self.Load, self.Parse)
-        
+
             #Get candidates without frequency threshold
             self.Candidates = Candidates(language = self.language, Load = self.Load, freq_threshold = self.Load.min_count, delta_threshold = delta_threshold, association_dict = self.Load.assoc_dict)
 
             #Get chunks
             chunks = self.Candidates.get_candidates(self.Load.data)
-            
+
             first_chunks = True
 
             #Test frequency threshold within current delta p threshold
@@ -314,6 +311,7 @@ class C2xG(object):
                         best_mdl = total_mdl
                         best_grammar_fixed = grammar_fixed
                         best_chunks = chunks
+                        best_slot_df = mdl.cost_df
                 
         #Done with loop
         print("Best delta: " + str(best_delta) + " and best freq: " + str(best_freq))
@@ -351,14 +349,16 @@ class C2xG(object):
             best_freq = construction_freq
             best_candidates = current_chunks
             best_cost = chunks_cost
+            best_chunk_df = chunk_df
             best_cost_df = test_cost_df
             best_mdl = total_mdl
             encoding_pruning = "Yes"
+            best_slot_df = mdl.cost_df
         else:
             print("\tEncoding-based pruning did not improve grammar.")
             encoding_pruning = "No"
         
-        return best_delta, best_freq, best_candidates, best_cost, best_cost_df, encoding_pruning
+        return best_delta, best_freq, best_candidates, best_cost, best_cost_df, best_slot_df, encoding_pruning
             
     #------------------------------------------------------------------        
 
@@ -507,6 +507,7 @@ class C2xG(object):
         pairs = []
         for pair in all_ngrams:
             
+            #Decode to readable annotations
             val1 = self.Load.decode(pair[0])
             val2 = self.Load.decode(pair[1])
 
@@ -522,7 +523,17 @@ class C2xG(object):
         return df
  
     #-------------------------------------------------------------------------------
+    def clean_label(self, label):
+    
+        start = label.find(":")
+        label = label[start+1:]
 
+        end = label.find("_")
+        label = label[:end]
+        
+        return int(label)
+    #-------------------------------------------------------------------------------
+    
     def get_association_dict(self, df):
     
         assoc_dict = {}
@@ -536,22 +547,22 @@ class C2xG(object):
             lr = row[5]
             rl = row[6]
             freq = row[7]
-            
+
             #Get categories instead of names, 1
-            if "sem: " in word1:
-                word1 = (3, self.Load.sg_dict[word1.replace("sem: ", "")])
-            elif "syn: " in word1:
-                word1 = (2, self.Load.cbow_dict[word1.replace("syn: ", "")])
+            if "sem:" in word1:
+                word1 = (3, self.clean_label(word1))
+            elif "syn:" in word1:
+                word1 = (2, self.clean_label(word1))
             else:
-                word1 = (1, self.Load.word_dict[word1])
+                word1 = (1, self.Load.lex_encode[word1])
             
             #Get categories instead of names, 2
-            if "sem: " in word2:
-                word2 = (3, self.Load.sg_dict[word2.replace("sem: ", "")])
-            elif "syn: " in word2:
-                word2 = (2, self.Load.cbow_dict[word2.replace("syn: ", "")])
+            if "sem:" in word2:
+                word2 = (3, self.clean_label(word2))
+            elif "syn:" in word2:
+                word2 = (2, self.clean_label(word2))
             else:
-                word2 = (1, self.Load.word_dict[word2])
+                word2 = (1, self.Load.lex_encode[word2])
             
             if word1 not in assoc_dict:
                 assoc_dict[word1] = {}

@@ -29,7 +29,7 @@ class Minimum_Description_Length(object):
         self.candidates = False
         self.indexes = False
         self.matches = False
-        
+
         return
     
 #---------------------------------------------------------------------------    
@@ -51,8 +51,8 @@ class Minimum_Description_Length(object):
                 freq = self.Load.lexicon[word]
                 prob = freq/float(total_words)
                 cost = -math.log2(prob) + self.type_cost
-                cost_lex[self.Load.word_dict[word]] = cost
-                cost_df.append([1, self.Load.word_dict[word], cost])
+                cost_lex[self.Load.lex_encode[word]] = cost
+                cost_df.append([1, self.Load.lex_encode[word], cost])
         
         #Get cbow probabilities and cost
         cost_syn = {}
@@ -85,7 +85,8 @@ class Minimum_Description_Length(object):
         self.cost_syn = cost_syn
         self.cost_sem = cost_sem
         cost_df = pd.DataFrame(cost_df, columns = ["Type", "Value", "Cost"])
-        
+        self.cost_df = cost_df
+
         return cost_df
         
     #---------------------------------------------------------------------------
