@@ -157,18 +157,24 @@ class Word_Classes(object):
             ranks.loc[:,"Category"] = category            
 
             #Second, get the best example of the category
-            mean_vector = model.wv.get_mean_vector(keys=ranks.loc[:,"Word"], weights=ranks.loc[:,"Rank"], pre_normalize=True, post_normalize=False)
+            mean_vector = model.wv.get_mean_vector(keys=ranks.loc[:,"Word"], weights=ranks.loc[:,"Rank"], pre_normalize=True, post_normalize=True)
             mean_dict[category] = mean_vector
 
             #Third, filter the best examples to reflect this particular lexicon
             exemplars = model.wv.similar_by_vector(mean_vector, topn=10000)
             exemplars = [x for x,y in exemplars if x in vocab.keys()]
-            mode_val = mode(list(vocab.values()))[0]
-            thresh_freq = mode_val * 3
-            #print("Threshold freq", thresh_freq)
+            exemplars = [x for x in exemplars if x in word_list]
 
             #Make sure exemplars are relatively common words
-            exemplars = [x for x in exemplars if vocab[x] > thresh_freq]
+            #mode_val = mode(list(vocab.values()))[0]
+            #thresh_freq = mode_val * 3
+            #exemplars = [x for x in exemplars if vocab[x] > thresh_freq]
+            
+            #If there are no exemplars, just use the first ones
+            if len(exemplars) < 2:
+                exemplars = category_df.loc[:,"Word"].values
+            
+            #Choose the top ones
             exemplars = exemplars[:2]
             name_dict[category] = exemplars
             exemplar_name = "_".join(exemplars)

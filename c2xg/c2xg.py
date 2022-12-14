@@ -206,21 +206,33 @@ class C2xG(object):
         #Convert to dict
         self.Load.assoc_dict = self.get_association_dict(self.Load.association_df)
 
-        #Get grammar
-        best_delta, best_freq, best_candidates, best_cost, best_cost_df, best_chunk_df, encoding_pruning = self.grid_search()
-        print("")
-        print("Best Delta Threshold: ", best_delta)
-        print("Best Freq Threshold: ", best_freq)
-        print("Encoding-based Pruning: ", encoding_pruning)
-        print("Final Grammar Size ", len(best_candidates))
-        
-        #Save cost info
-        best_cost_df.loc[:,"Construction"] = self.decode(best_cost_df.loc[:,"Chunk"].values)
-        print(best_cost_df)
+        #Set grammar output filenames
         cost_file = os.path.join(self.out_dir, self.nickname + ".grammar_costs.csv")
-        best_cost_df.to_csv(cost_file)
         slot_cost_file = os.path.join(self.out_dir, self.nickname + ".slot_costs.csv")
-        best_chunk_df.to_csv(slot_cost_file)
+        
+        #Check if grammar output exists
+        if not os.path.exists(cost_file):
+        
+            #Search for best grammar
+            best_delta, best_freq, best_candidates, best_cost, best_cost_df, best_chunk_df, encoding_pruning = self.grid_search()
+            print("")
+            print("Best Delta Threshold: ", best_delta)
+            print("Best Freq Threshold: ", best_freq)
+            print("Encoding-based Pruning: ", encoding_pruning)
+            print("Final Grammar Size ", len(best_candidates))
+        
+            #Save grammar and cost info
+            best_cost_df.loc[:,"Construction"] = self.decode(best_cost_df.loc[:,"Chunk"].values)
+            best_cost_df.to_csv(cost_file)
+            best_chunk_df.to_csv(slot_cost_file)
+        
+        #Or load existing grammar
+        else:
+            best_cost_df = pd.read_csv(cost_file, index_col = 0)
+            best_chunk_df = pd.read_csv(slot_cost_file, index_col = 0)
+            
+        print(best_cost_df)
+        print(best_chunk_df)
         
         return
 
@@ -302,7 +314,7 @@ class C2xG(object):
                     
                     #Check if this is the best version
                     if total_mdl < best_mdl:
-                        print("\tNew best: " + str(delta_threshold))
+                        print("\tNew best: Delta " + str(delta_threshold) + " and Freq: " + str(construction_freq))
                         best_delta = delta_threshold
                         best_freq = construction_freq
                         best_candidates = current_chunks

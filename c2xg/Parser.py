@@ -4,7 +4,7 @@ import numpy as np
 import cytoolz as ct
 import multiprocessing as mp
 from functools import partial
-from scipy.sparse import coo_matrix
+from scipy import sparse
 from collections import defaultdict
 
 #--------------------------------------------------------------#
@@ -271,8 +271,9 @@ class Parser(object):
             detailed_grammar = detail_model(grammar)
             
         #Fast parsing
-        lines = [parse_fast(line, grammar = detailed_grammar, grammar_len = len(grammar)) for line in lines]
-    
+        lines = [sparse.coo_matrix(parse_fast(line, grammar = detailed_grammar, grammar_len = len(grammar))) for line in lines]
+        lines = sparse.vstack(lines)
+
         return lines
     #--------------------------------------------------------------#
     

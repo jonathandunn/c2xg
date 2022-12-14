@@ -169,7 +169,6 @@ class Loader(object):
         #Catch items that are improperly formatted
         except Exception as e:
             value = "UNK"
-            print("172", e)
             
         return value        
 

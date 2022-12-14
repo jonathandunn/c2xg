@@ -209,9 +209,10 @@ class Candidates(object):
         
         print("\t\tNow parsing candidates to find frequencies")
         #Parse candidates in data because extraction won't estimate frequencies
-        frequencies = np.array(self.Parse.parse_enriched(input_data, grammar = candidates))
+        frequencies = self.Parse.parse_enriched(input_data, grammar = candidates)
         frequencies = np.sum(frequencies, axis=0)
-        
+        frequencies = frequencies.tolist()[0]
+
         #Reduce candidates
         final_candidates = {}
         for i in range(len(candidates)):
