@@ -176,6 +176,10 @@ class Loader(object):
     
     def decode_construction(self, construction):
 
+        #Input may be a string rather than tuple
+        if isinstance(construction, str):
+            construction = eval(construction)
+
         #Initialize empty string
         construction_string = ""
             
@@ -317,7 +321,7 @@ class Loader(object):
     
     #---------------------------------------------------------------------------#
         
-    def clean(self, line):
+    def clean(self, line, encode=True):
 
         #Use clean-text
         line = clean(line,
@@ -348,8 +352,9 @@ class Loader(object):
             line = self.phrases[line]
             
         #If categories have been learned, add them
-        if self.cbow != False and self.sg != False:
-            line = [self.enrich(x) for x in line]
+        if encode == True:
+            if self.cbow != False and self.sg != False:
+                line = [self.enrich(x) for x in line]
 
         return line
 

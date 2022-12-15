@@ -123,7 +123,7 @@ class C2xG(object):
         
     #------------------------------------------------------------------
 
-    def learn(self, input_data, npmi_threshold = 0.75, min_count = None, cbow_range = False, sg_range = False):
+    def learn(self, input_data, npmi_threshold = 0.75, min_count = None, cbow_range = False, sg_range = False, get_examples = True):
 
         #Adjust min_count to be 1 parts per million using max_words parameter
         if min_count == None:
@@ -233,6 +233,10 @@ class C2xG(object):
             
         print(best_cost_df)
         print(best_chunk_df)
+        
+        #Get examples if requested
+        if get_examples == True:
+            self.print_examples(grammar = best_cost_df.loc[:,"Chunk"].values, input_file = input_data, n = 25)
         
         return
 
@@ -438,59 +442,77 @@ class C2xG(object):
             #Prune to actual constraints
             x = [y for y in x if y[0] != 0]
             length = len(x)
-            construction = self.Encode.decode_construction(x)
+            construction = self.Load.decode_construction(x)
 
             print(i, construction)
             return_list.append(str(i) + ": " + str(construction))
 
         return return_list
     #-------------------------------------------------------------------------------
-    def print_examples(self, input_file, output_file, n):
+    def print_examples(self, grammar, input_file, n, output = None):
 
-        #Read and write in the default data directories
-        output_file = os.path.join(self.out_dir, output_file)
-
-        #Save the pre-processed lines, to save time later
-        line_list = []
-        for line, encoding in self.Encode.load_examples(input_file):
-            line_list.append([line, encoding])
-
-        with codecs.open(output_file, "w", encoding = "utf-8") as fw:
-            for i in range(len(self.model)):
+        #Default output
+        if output == None:
+            output = self.nickname + ".examples.txt"
             
-                x = self.model[i]
+        #Read and write in the default data directories
+        output_file = os.path.join(self.out_dir, output)
+        
+        #Check if input is file or enriched data
+        if isinstance(input_file, str):
+            #Get text and enriched text
+            lines_text = self.Load.read_file(input_file)
+            lines_text = [self.Load.clean(x, encode = False) for x in lines_text]
+            lines_enriched = [[self.Load.enrich(x) for x in y] for y in lines_text]
+
+        #Open write file
+        with codecs.open(output_file, "w", encoding = "utf-8") as fw:
+            
+            #Iterate over constructions
+            for i in range(len(grammar)):
+            
+                x = grammar[i]
                 printed_examples = []
 
                 #Prune to actual constraints
-                x = [y for y in x if y[0] != 0]
-                length = len(x)
-                construction = self.Encode.decode_construction(x)
+                construction = self.Load.decode_construction(x)
 
                 print(i, construction)
                 fw.write(str(i) + "\t")
                 fw.write(construction)
                 fw.write("\n")
-
+                
+                #Input may be a string rather than tuple
+                if isinstance(x, str):
+                    x = eval(x)
+                #Determine how long sequence should be 
+                length = len(x)
                 #Track how many examples have been found
                 counter = 0
 
-                for line, encoding in line_list:
+                #Iterate over lines
+                for j in range(len(lines_text)):
+                    if counter < n:
 
-                    construction_thing, indexes, matches = parse_examples(x, encoding)
+                        line = lines_text[j]
+                        encoding = lines_enriched[j]
+                        
+                        #Parse examples
+                        construction_thing, indexes, matches = self.Parse.parse_examples(x, encoding)
 
-                    if matches > 0:
-                        for index in indexes:
-                            
-                            text = line.split()[index:index+length]
-
-                            if text not in printed_examples:
-                                counter += 1
-                                printed_examples.append(text)
-                                fw.write("\t" + str(counter) + "\t" + str(text) + "\n")
-                    
-                    #Stop looking for examples at threshold
-                    if counter > n:
-                        break
+                        if matches > 0:
+                            for index in indexes:
+                                
+                                text = line[index:index+length]
+                                
+                                if text not in printed_examples:
+                                    counter += 1
+                                    printed_examples.append(text)
+                                    fw.write("\t" + str(counter) + "\t" + str(text) + "\n")
+                        
+                        #Stop looking for examples at threshold
+                        if counter > n:
+                            break
                 
                 #End of examples for this construction
                 fw.write("\n\n")

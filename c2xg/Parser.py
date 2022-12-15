@@ -8,7 +8,7 @@ from scipy import sparse
 from collections import defaultdict
 
 #--------------------------------------------------------------#
-def parse_examples(construction, line):
+def parse_for_examples(construction, line):
 
     indexes = [-1]
     matches = 0
@@ -262,6 +262,11 @@ class Parser(object):
 
             yield matches
                 
+    #--------------------------------------------------------------#
+    def parse_examples(self, construction, line):
+    
+            construction_thing, indexes, matches = parse_for_examples(construction, line)
+            return construction_thing, indexes, matches
     #--------------------------------------------------------------#
     
     def parse_enriched(self, lines, grammar, detailed_grammar = None):
