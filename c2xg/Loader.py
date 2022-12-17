@@ -35,6 +35,7 @@ class Loader(object):
         self.cbow_centroids = False
         self.sg_centroids = False
         self.workers = workers
+        self.clips = False
 
         #Check that directories exist
         if in_dir != None:
@@ -182,7 +183,15 @@ class Loader(object):
 
         #Initialize empty string
         construction_string = ""
-            
+        clip_index = False
+        
+        #Check for clipping info
+        if self.clips != False:
+            if construction in self.clips:
+                clip_index = self.clips[construction]
+            else:
+                clip_index = False
+
         #Iterate over slots
         for i in range(len(construction)):
             current_slot = construction[i]
@@ -207,23 +216,31 @@ class Loader(object):
             
             #Get transition symbol
             if i+1 < len(construction):
-                pair = (construction[i], construction[i+1])
-                assoc = self.assoc_dict[pair[0]][pair[1]]
-                difference = assoc["LR"] - assoc["RL"]
+            
+                #Add clip notation if necessary
+                if clip_index != False and clip_index == i:
+                    transition = " --CLIP-- "
                 
-                #LR is stronger
-                if difference > 0.1:
-                    transition = " > "
-                #RL is stronger
-                elif difference < -0.1:
-                    transition = " < "
-                #Neither dominates
+                #Get transition symbol if no clipping
                 else:
-                    transition = " -- "
+                
+                    pair = (construction[i], construction[i+1])
+                    assoc = self.assoc_dict[pair[0]][pair[1]]
+                    difference = assoc["LR"] - assoc["RL"]
                     
+                    #LR is stronger
+                    if difference > 0.1:
+                        transition = " > "
+                    #RL is stronger
+                    elif difference < -0.1:
+                        transition = " < "
+                    #Neither dominates
+                    else:
+                        transition = " -- "
+                        
                 #Add transition to construction
                 construction_string += transition
-            
+                    
         return construction_string
         
     #---------------------------------------------------------------------------#

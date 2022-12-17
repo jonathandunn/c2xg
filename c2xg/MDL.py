@@ -52,7 +52,7 @@ class Minimum_Description_Length(object):
                 prob = freq/float(total_words)
                 cost = -math.log2(prob) + self.type_cost
                 cost_lex[self.Load.lex_encode[word]] = cost
-                cost_df.append([1, self.Load.lex_encode[word], cost])
+                cost_df.append([1, word, self.Load.lex_encode[word], cost])
         
         #Get cbow probabilities and cost
         cost_syn = {}
@@ -65,7 +65,7 @@ class Minimum_Description_Length(object):
             #Find the probability of this category 
             cost = -math.log2(float(max(1, cat_freq))/len(self.Load.cbow_df)) + self.type_cost
             cost_syn[category] = cost
-            cost_df.append([2, category, cost])
+            cost_df.append([2, self.Load.cbow_decode[category], category, cost])
          
         #Get sg probabilities and cost
         cost_sem = {}
@@ -78,13 +78,13 @@ class Minimum_Description_Length(object):
             #Find the probability of this category
             cost = -math.log2(float(max(1, cat_freq))/len(self.Load.sg_df)) + self.type_cost
             cost_sem[category] = cost
-            cost_df.append([3, category, cost])
+            cost_df.append([3, self.Load.sg_decode[category], category, cost])
         
         #Save slot encoding costs
         self.cost_lex = cost_lex
         self.cost_syn = cost_syn
         self.cost_sem = cost_sem
-        cost_df = pd.DataFrame(cost_df, columns = ["Type", "Value", "Cost"])
+        cost_df = pd.DataFrame(cost_df, columns = ["Type", "Name", "Value", "Cost"])
         self.cost_df = cost_df
 
         return cost_df
@@ -125,6 +125,7 @@ class Minimum_Description_Length(object):
                 
             #Done with construction
             chunk_cost[chunk]["Encoding"] = cost
+            
             chunk_df.append([chunk, chunks[chunk], chunk_cost[chunk]["Pointer"], chunk_cost[chunk]["Encoding"]])
         
         #Create readable df

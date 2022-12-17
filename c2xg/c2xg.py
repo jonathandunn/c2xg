@@ -11,6 +11,7 @@ from gensim.models.fasttext import load_facebook_model
 
 from .Loader import Loader
 from .Parser import Parser
+from .Parser import parse
 from .Association import Association
 from .Candidates import Candidates
 from .MDL import Minimum_Description_Length
@@ -233,13 +234,129 @@ class C2xG(object):
             
         print(best_cost_df)
         print(best_chunk_df)
+        grammar_df = best_cost_df
         
+        #Grammar file name
+        grammar_file = os.path.join(self.out_dir, self.nickname + ".grammar_clipping.csv")
+        
+        #Check if grammar file exists
+        if not os.path.exists(grammar_file):
+        
+            #Clip constructions together
+            grammar, self.Load.clips = self.clip_constructions(grammar_df, self.Load.min_count)
+            
+            #Get costs for new grammar
+            print("Recalculating encoding costs")
+            mdl = Minimum_Description_Length(self.Load, self.Parse)
+            grammar_cost, grammar_df = mdl.get_grammar_cost(grammar)
+            grammar_df.loc[:,"Construction"] = self.decode(grammar_df.loc[:,"Chunk"].values)
+            slot_df = mdl.cost_df
+            
+            #Save
+            grammar_df.to_csv(grammar_file)
+            self.Load.save_file(self.Load.clips, self.nickname+".grammar_clipping_indexes.p")
+        
+        #Load grammar
+        else:
+            print("Loading clipped grammar")
+            grammar_df = pd.read_csv(grammar_file, index_col = 0)
+            self.Load.clips = self.Load.load_file(self.nickname+".grammar_clipping_indexes.p")
+            
+        print(grammar_df)
+
         #Get examples if requested
         if get_examples == True:
-            self.print_examples(grammar = best_cost_df.loc[:,"Chunk"].values, input_file = input_data, n = 25)
-        
+            example_file = os.path.join(self.out_dir, self.nickname + ".examples.txt")
+            if not os.path.exists(example_file):
+                self.print_examples(grammar = grammar_df.loc[:,"Chunk"].values, input_file = input_data, n = 25)
+                
         return
 
+    #------------------------------------------------------------------
+    def clip_constructions(self, grammar_df, min_count):
+    
+        #First generate all possible merged constructions, recursively
+        grammar = {}
+        print("Searching for overlapping constructions to clip together.")
+        
+        #Iterate over grammar to get constructions and frequency
+        for row in grammar_df.itertuples():
+            chunk = row[1]
+            freq = row[2]
+
+            #Input may be a string rather than tuple
+            if isinstance(chunk, str):
+                chunk = eval(chunk)
+            
+            #Add to dict
+            grammar[chunk] = freq
+
+        #Get starting size
+        starting = len(grammar)
+        
+        #Dictionary for saving clip index
+        clips = {}
+        reject_list = []
+        
+        #Continue merging until no new constructions
+        while True:
+            
+            #Initialize for new clipped constructions
+            round_counter = 0
+            new_constructions = {}
+            
+            #Double loop for comparing constructions
+            for key1 in grammar:
+                for key2 in grammar:
+                    if key1 != key2:
+                    
+                        construction1 = key1
+                        construction2 = key2
+                        new_construction = None
+                        
+                        #Check for 1-2 overlap
+                        if construction1[-1] == construction2[0]:
+                            new_construction = construction1 + construction2[1:]
+                            clip_index = len(construction1)
+                        
+                        #Check for 2-1 overlap
+                        if construction2[-1] == construction1[0]:
+                            new_construction = construction2 + construction1[1:]
+                            clip_index = len(construction2)
+                            
+                        #Evaluate potential clipping
+                        if new_construction != None:
+                            if new_construction not in grammar:
+                                if new_construction not in reject_list:
+                            
+                                    #Length check
+                                    if len(new_construction) < 10:
+                                        #Parse candidates in data because extraction won't estimate frequencies
+                                        lines = list(ct.concat([parse(line, grammar = [new_construction]) for line in self.Load.data]))
+                                        freq = sum(lines)
+                                        
+                                        #Only keep observed second-order constructions
+                                        if freq > min_count:
+                                            new_constructions[new_construction] = freq
+                                            clips[new_construction] = clip_index
+                                            round_counter += 1
+                                            
+                                        #If frequency check fails, don't reconsider
+                                        else:
+                                            reject_list.append(new_construction)
+                        
+            #Done with loop
+            print("\t\t New clipped constructions this round: " + str(round_counter))
+            grammar = ct.merge(grammar, new_constructions)
+            
+            #End loop check
+            if round_counter == 0:
+                break
+                    
+        print("Finished clipping constructions, from " + str(starting) + " to " + str(len(grammar)))
+
+        return grammar, clips
+    
     #------------------------------------------------------------------
     def decode(self, constructions):
     
@@ -473,7 +590,11 @@ class C2xG(object):
             
                 x = grammar[i]
                 printed_examples = []
-
+                
+                #Input may be a string rather than tuple
+                if isinstance(x, str):
+                    x = eval(x)
+                    
                 #Prune to actual constraints
                 construction = self.Load.decode_construction(x)
 
@@ -482,9 +603,6 @@ class C2xG(object):
                 fw.write(construction)
                 fw.write("\n")
                 
-                #Input may be a string rather than tuple
-                if isinstance(x, str):
-                    x = eval(x)
                 #Determine how long sequence should be 
                 length = len(x)
                 #Track how many examples have been found
