@@ -217,13 +217,13 @@ class C2xG(object):
         if grammar_type == "syn":
             self.Load.data = [[(-1, unit[1], -1) for unit in line] for line in self.Load.actual_data]
         #Full lex/syn/sem
-        else:
+        elif grammar_type == "full":
             self.Load.data = self.Load.actual_data 
-            
+
         #Get pairwise association with Delta P
         association_file = os.path.join(self.out_dir, self.nickname + "." + grammar_type + ".association.gz")
         if not os.path.exists(association_file):
-            self.Load.association_df = self.get_association(freq_threshold = self.Load.min_count, normalization = self.normalization, lex_only = False)
+            self.Load.association_df = self.get_association(freq_threshold = self.Load.min_count, normalization = self.normalization, grammar_type = grammar_type, lex_only = False)
             self.Load.association_df.to_csv(association_file, compression = "gzip")
         else:
             self.Load.association_df = pd.read_csv(association_file, index_col = 0)
@@ -295,7 +295,7 @@ class C2xG(object):
         if get_examples == True:
             example_file = os.path.join(self.out_dir, self.nickname + "." + grammar_type + ".examples.txt")
             if not os.path.exists(example_file):
-                self.print_examples(grammar = grammar_df.loc[:,"Chunk"].values, input_file = input_data, n = 25)
+                self.print_examples(grammar = grammar_df.loc[:,"Chunk"].values, input_file = input_data, output = self.nickname + "." + grammar_type + ".examples.txt", n = 25)
                 
         return grammar_df
 
@@ -664,12 +664,12 @@ class C2xG(object):
                 fw.write("\n\n")
     #-------------------------------------------------------------------------------
 
-    def get_association(self, freq_threshold = 1, normalization = True, lex_only = False):
+    def get_association(self, freq_threshold = 1, normalization = True, grammar_type = "full", lex_only = False):
         
         #For smoothing, get discounts by constraint type
         if self.normalization == True:
             discount_dict = self.Association.find_discounts(self.Load.data)
-            self.Load.save_file(discount_dict, self.nickname+".discounts.p")
+            self.Load.save_file(discount_dict, self.nickname+ "." + grammar_type + ".discounts.p")
             print(discount_dict)
             print("Discounts ", self.nickname)
 
