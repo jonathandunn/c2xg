@@ -11,7 +11,8 @@ from gensim.models.fasttext import load_facebook_model
 
 from .Loader import Loader
 from .Parser import Parser
-from .Parser import parse
+from .Parser import parse_fast
+from .Parser import detail_model
 from .Association import Association
 from .Candidates import Candidates
 from .MDL import Minimum_Description_Length
@@ -191,10 +192,36 @@ class C2xG(object):
             self.Load.save_file(self.Load.data, self.nickname+".input_enriched.p")
         else:
             print("Loading enriched input")
-            self.Load.data = self.Load.load_file(self.nickname+".input_enriched.p")
+            self.Load.actual_data = self.Load.load_file(self.nickname+".input_enriched.p")
+            
+        #Get lexical only constructions
+        print("Starting lexical only constructions.")
+        grammar_df_lex = self.process_grammar(input_data, grammar_type = "lex", get_examples = get_examples)
+        
+        #Get syntactic only constructions
+        print("Starting syntactic only constructions.")
+        grammar_df_syn = self.process_grammar(input_data, grammar_type = "syn", get_examples = get_examples)
+        
+        #Get full constructions
+        print("Starting full constructions.")
+        grammar_df_all = self.process_grammar(input_data, grammar_type = "full", get_examples = get_examples)
+            
+    #------------------------------------------------------------------        
+            
+    def process_grammar(self, input_data, grammar_type = "full", get_examples = True):
+    
+        #Lexical only
+        if grammar_type == "lex":
+            self.Load.data = [[(unit[0], -1, -1) for unit in line] for line in self.Load.actual_data]
+        #Syntax only
+        if grammar_type == "syn":
+            self.Load.data = [[(-1, unit[1], -1) for unit in line] for line in self.Load.actual_data]
+        #Full lex/syn/sem
+        else:
+            self.Load.data = self.Load.actual_data 
             
         #Get pairwise association with Delta P
-        association_file = os.path.join(self.out_dir, self.nickname + ".association.gz")
+        association_file = os.path.join(self.out_dir, self.nickname + "." + grammar_type + ".association.gz")
         if not os.path.exists(association_file):
             self.Load.association_df = self.get_association(freq_threshold = self.Load.min_count, normalization = self.normalization, lex_only = False)
             self.Load.association_df.to_csv(association_file, compression = "gzip")
@@ -208,8 +235,8 @@ class C2xG(object):
         self.Load.assoc_dict = self.get_association_dict(self.Load.association_df)
 
         #Set grammar output filenames
-        cost_file = os.path.join(self.out_dir, self.nickname + ".grammar_costs.csv")
-        slot_cost_file = os.path.join(self.out_dir, self.nickname + ".slot_costs.csv")
+        cost_file = os.path.join(self.out_dir, self.nickname + "." + grammar_type + ".grammar_costs.csv")
+        slot_cost_file = os.path.join(self.out_dir, self.nickname + "." + grammar_type + ".slot_costs.csv")
         
         #Check if grammar output exists
         if not os.path.exists(cost_file):
@@ -237,7 +264,7 @@ class C2xG(object):
         grammar_df = best_cost_df
         
         #Grammar file name
-        grammar_file = os.path.join(self.out_dir, self.nickname + ".grammar_clipping.csv")
+        grammar_file = os.path.join(self.out_dir, self.nickname + "." + grammar_type + ".grammar_clipping.csv")
         
         #Check if grammar file exists
         if not os.path.exists(grammar_file):
@@ -254,23 +281,23 @@ class C2xG(object):
             
             #Save
             grammar_df.to_csv(grammar_file)
-            self.Load.save_file(self.Load.clips, self.nickname+".grammar_clipping_indexes.p")
+            self.Load.save_file(self.Load.clips, self.nickname + "." + grammar_type + ".grammar_clipping_indexes.p")
         
         #Load grammar
         else:
             print("Loading clipped grammar")
             grammar_df = pd.read_csv(grammar_file, index_col = 0)
-            self.Load.clips = self.Load.load_file(self.nickname+".grammar_clipping_indexes.p")
+            self.Load.clips = self.Load.load_file(self.nickname + "." + grammar_type + ".grammar_clipping_indexes.p")
             
         print(grammar_df)
 
         #Get examples if requested
         if get_examples == True:
-            example_file = os.path.join(self.out_dir, self.nickname + ".examples.txt")
+            example_file = os.path.join(self.out_dir, self.nickname + "." + grammar_type + ".examples.txt")
             if not os.path.exists(example_file):
                 self.print_examples(grammar = grammar_df.loc[:,"Chunk"].values, input_file = input_data, n = 25)
                 
-        return
+        return grammar_df
 
     #------------------------------------------------------------------
     def clip_constructions(self, grammar_df, min_count):
@@ -332,7 +359,8 @@ class C2xG(object):
                                     #Length check
                                     if len(new_construction) < 10:
                                         #Parse candidates in data because extraction won't estimate frequencies
-                                        lines = list(ct.concat([parse(line, grammar = [new_construction]) for line in self.Load.data]))
+                                        new_construction_test = detail_model([new_construction])
+                                        lines = list(ct.concat([parse_fast(line, grammar = new_construction_test, grammar_len = 1) for line in self.Load.data]))
                                         freq = sum(lines)
                                         
                                         #Only keep observed second-order constructions
