@@ -244,11 +244,14 @@ def _validate(lines, grammar, grammar_detailed):
 
 class Parser(object):
 
-    def __init__(self, Load):
+    def __init__(self, Load = None):
     
         #Initialize Parser
-        self.language = Load.language
-        self.Load = Load
+        if Load != None:
+            self.language = Load.language
+        
+        if Load != None:
+            self.Load = Load
     
     #--------------------------------------------------------------#
     
@@ -289,7 +292,7 @@ class Parser(object):
     
         #Multi-process by construction
         pool_instance = mp.Pool(processes = mp.cpu_count(), maxtasksperchild = None)
-        results = pool_instance.map(partial(parse_mdl_support, lines = lines), grammar, chunksize = 100)
+        results = pool_instance.map(partial(parse_mdl_support, lines = lines), grammar, chunksize = 2500)
         pool_instance.close()
         pool_instance.join()
 

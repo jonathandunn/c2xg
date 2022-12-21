@@ -85,7 +85,7 @@ class Loader(object):
     
     #---------------------------------------------------------------#
     
-    def read_file(self, file):
+    def read_file(self, file, iterating = False):
     
         max_counter = 0
         clean_lines = []
@@ -99,16 +99,36 @@ class Loader(object):
             with gzip.open(os.path.join(self.in_dir, file), "rb") as fo:
                 lines = fo.readlines()
         
-        #Ensure utf-8 input
-        for line in lines:
-            line = line.decode("utf-8", errors = "replace")
-            #Control the amount of input data
-            if self.max_words != False:
-                if max_counter < self.max_words:
-                    if len(line) > 2:
-                        max_counter += len(line.split())
-                        clean_lines.append(line)
+        #Get data up to max words
+        if iterating == False:
+            for line in lines:
+                #Ensure utf-8 input
+                line = line.decode("utf-8", errors = "replace")
+                #Control the amount of input data
+                if self.max_words != False:
+                    if max_counter < self.max_words:
+                        if len(line) > 2:
+                            max_counter += len(line.split())
+                            clean_lines.append(line)
                             
+        #Get data up to max words
+        elif iterating != False:
+            #Define number of words to discard first and then the stopping point
+            start = iterating[0]
+            stop = iterating[1]
+
+            #Iterate over lines
+            for line in lines:
+                #Ensure utf-8 input
+                line = line.decode("utf-8", errors = "replace")
+                if len(line) > 2:
+                    max_counter += len(line.split())
+                
+                    #Start after existing data is passed
+                    #In between, accumulate data
+                    if max_counter > start and max_counter < stop:
+                        clean_lines.append(line)
+                        
         return clean_lines
                 
     #---------------------------------------------------------------#

@@ -1,4 +1,5 @@
 import os
+import time
 import numpy as np
 import pandas as pd
 import pickle
@@ -17,6 +18,69 @@ from .Association import Association
 from .Candidates import Candidates
 from .MDL import Minimum_Description_Length
 from .Word_Classes import Word_Classes
+
+#------------------------------------------------------------------
+    
+def process_clipping(input_tuple, grammar_list):
+    
+    #For multi-processing
+    i = input_tuple[0]
+    j = input_tuple[1]
+
+    construction1 = grammar_list[i]
+    construction2 = grammar_list[j]
+    new_construction = False
+                            
+    #Check for 1-2 overlap
+    if construction1[-1] == construction2[0]:
+        new_construction = construction1 + construction2[1:]
+        clip_index = len(construction1)
+                            
+    #Check for 2-1 overlap
+    elif construction2[-1] == construction1[0]:
+        new_construction = construction2 + construction1[1:]
+        clip_index = len(construction2)
+                                
+    #Evaluate potential clipping
+    if new_construction != False:
+                            
+        #Length check
+        if len(new_construction) < 10:
+            if new_construction not in grammar_list:
+                return (new_construction, clip_index)
+ 
+#-------------------------------------------------------------------------------
+
+def process_clipping_parsing(input_tuple, data, min_count):
+
+    #Initialize parser
+    Parse = Parser()
+    
+    #Unpack input
+    candidate_pool = input_tuple[0]
+    clip_pool = input_tuple[1]
+    
+    #Parse
+    frequencies = Parse.parse_enriched(data, grammar = candidate_pool)
+    frequencies = np.sum(frequencies, axis=0)
+    frequencies = frequencies.tolist()[0]
+    
+    clips = {}
+    new_constructions = {}
+
+    #Check candidates
+    for i in range(len(candidate_pool)):
+        new_construction = candidate_pool[i]
+        freq = frequencies[i]
+                
+        #Freq check
+        if freq > min_count:
+            clip_index = clip_pool[i]
+            new_constructions[new_construction] = freq
+            clips[new_construction] = clip_index
+            
+    return new_constructions, clips
+
 #-------------------------------------------------------------------------------
 
 class C2xG(object):
@@ -125,7 +189,7 @@ class C2xG(object):
         
     #------------------------------------------------------------------
 
-    def learn(self, input_data, npmi_threshold = 0.75, min_count = None, cbow_range = False, sg_range = False, get_examples = True):
+    def learn(self, input_data, npmi_threshold = 0.75, min_count = None, cbow_range = False, sg_range = False, get_examples = True, increments = 50000):
 
         #Adjust min_count to be 1 parts per million using max_words parameter
         if min_count == None:
@@ -196,16 +260,60 @@ class C2xG(object):
             
         #Get lexical only constructions
         print("Starting lexical only constructions.")
-        grammar_df_lex = self.process_grammar(input_data, grammar_type = "lex", get_examples = get_examples)
+        grammar_df_lex, clips_lex = self.process_grammar(input_data, grammar_type = "lex", get_examples = get_examples)
         
         #Get syntactic only constructions
         print("Starting syntactic only constructions.")
-        grammar_df_syn = self.process_grammar(input_data, grammar_type = "syn", get_examples = get_examples)
+        grammar_df_syn, clips_syn = self.process_grammar(input_data, grammar_type = "syn", get_examples = get_examples)
         
         #Get full constructions
         print("Starting full constructions.")
-        grammar_df_all = self.process_grammar(input_data, grammar_type = "full", get_examples = get_examples)
+        grammar_df_all, clips_all = self.process_grammar(input_data, grammar_type = "full", get_examples = get_examples)
+        
+        #Forgetting for lexical grammar
+        forget_name_lex = os.path.join(self.out_dir, self.nickname + ".lex.grammar_forgetting.csv")
+        if not os.path.exists(forget_name_lex):
+            grammar_df_lex = self.forget_constructions(grammar_df_lex.loc[:,"Chunk"], input_data, threshold = 1, adjustment = 0.20, rounds = 30, increment_size = increments)
+            grammar_df_lex.to_csv(forget_name_lex)
+        else:
+            grammar_df_lex = pd.read_csv(forget_name_lex, index_col = 0)
             
+        print(grammar_df_lex)
+        
+        #Forgetting for syntactic grammar
+        forget_name_syn = os.path.join(self.out_dir, self.nickname + ".syn.grammar_forgetting.csv")
+        if not os.path.exists(forget_name_syn):
+            grammar_df_syn = self.forget_constructions(grammar_df_syn.loc[:,"Chunk"], input_data, threshold = 1, adjustment = 0.20, rounds = 30, increment_size = increments)
+            grammar_df_syn.to_csv(forget_name_syn)
+        else:
+            grammar_df_syn = pd.read_csv(forget_name_syn, index_col = 0)
+            
+        print(grammar_df_syn)
+        
+        #Forgetting for full grammar
+        forget_name_full = os.path.join(self.out_dir, self.nickname + ".full.grammar_forgetting.csv")
+        if not os.path.exists(forget_name_full):
+            grammar_df_full = self.forget_constructions(grammar_df_all.loc[:,"Chunk"], input_data, threshold = 1, adjustment = 0.20, rounds = 30, increment_size = increments)
+            grammar_df_full.to_csv(forget_name_full)
+        else:
+            grammar_df_full = pd.read_csv(forget_name_full, index_col = 0)
+            
+        print(grammar_df_full)
+        
+        #Combine grammars
+        print("Merging scaffolded grammars")
+        grammar_df = pd.concat([grammar_df_lex, grammar_df_syn, grammar_df_full], axis = 0, ignore_index = True)
+        self.Load.clips = ct.merge(clips_lex, clips_syn, clips_all)
+        print(grammar_df)
+        
+        #Get examples if requested
+        if get_examples == True:
+            example_file_all = os.path.join(self.out_dir, self.nickname + "." + "forgetting_all" + ".examples.txt")
+            if not os.path.exists(example_file_all):
+                self.print_examples(grammar = grammar_df.loc[:,"Chunk"].values, input_file = input_data, output = self.nickname + "." + "forgetting_all" + ".examples.txt", n = 100)
+                
+        return grammar_df
+        
     #------------------------------------------------------------------        
             
     def process_grammar(self, input_data, grammar_type = "full", get_examples = True):
@@ -295,16 +403,16 @@ class C2xG(object):
         if get_examples == True:
             example_file = os.path.join(self.out_dir, self.nickname + "." + grammar_type + ".examples.txt")
             if not os.path.exists(example_file):
-                self.print_examples(grammar = grammar_df.loc[:,"Chunk"].values, input_file = input_data, output = self.nickname + "." + grammar_type + ".examples.txt", n = 25)
+                self.print_examples(grammar = grammar_df.loc[:,"Chunk"].values, input_file = input_data, output = self.nickname + "." + grammar_type + ".examples.txt", n = 100)
                 
-        return grammar_df
+        return grammar_df, self.Load.clips
 
     #------------------------------------------------------------------
     def clip_constructions(self, grammar_df, min_count):
     
         #First generate all possible merged constructions, recursively
         grammar = {}
-        print("Searching for overlapping constructions to clip together.")
+        print("Preparing for clipping search")
         
         #Iterate over grammar to get constructions and frequency
         for row in grammar_df.itertuples():
@@ -319,11 +427,12 @@ class C2xG(object):
             grammar[chunk] = freq
 
         #Get starting size
-        starting = len(grammar)
+        starting_size = len(grammar)
         
         #Dictionary for saving clip index
         clips = {}
         reject_list = []
+        current_search = False
         
         #Continue merging until no new constructions
         while True:
@@ -331,57 +440,84 @@ class C2xG(object):
             #Initialize for new clipped constructions
             round_counter = 0
             new_constructions = {}
+            candidate_pool = []
+            clip_pool = []
             
             #Double loop for comparing constructions
-            for key1 in grammar:
-                for key2 in grammar:
-                    if key1 != key2:
-                    
-                        construction1 = key1
-                        construction2 = key2
-                        new_construction = None
-                        
-                        #Check for 1-2 overlap
-                        if construction1[-1] == construction2[0]:
-                            new_construction = construction1 + construction2[1:]
-                            clip_index = len(construction1)
-                        
-                        #Check for 2-1 overlap
-                        if construction2[-1] == construction1[0]:
-                            new_construction = construction2 + construction1[1:]
-                            clip_index = len(construction2)
-                            
-                        #Evaluate potential clipping
-                        if new_construction != None:
-                            if new_construction not in grammar:
-                                if new_construction not in reject_list:
-                            
-                                    #Length check
-                                    if len(new_construction) < 10:
-                                        #Parse candidates in data because extraction won't estimate frequencies
-                                        new_construction_test = detail_model([new_construction])
-                                        lines = list(ct.concat([parse_fast(line, grammar = new_construction_test, grammar_len = 1) for line in self.Load.data]))
-                                        freq = sum(lines)
-                                        
-                                        #Only keep observed second-order constructions
-                                        if freq > min_count:
-                                            new_constructions[new_construction] = freq
-                                            clips[new_construction] = clip_index
-                                            round_counter += 1
-                                            
-                                        #If frequency check fails, don't reconsider
-                                        else:
-                                            reject_list.append(new_construction)
-                        
-            #Done with loop
+            grammar_list = list(grammar.keys())
+            
+            #Multi-process by construction
+            starting = time.time()
+            
+            if current_search == False:
+                print("\t\tChecking that there are no duplicates (a full grammar search)")
+                results = list(ct.concat([[(i, j) for j in range(len(grammar_list)) if j < i] for i in range(len(grammar_list))]))
+            else:
+                print("\t\tChecking in current search with " + str(len(current_search)))
+                results = list(ct.concat([[(i, j) for j in range(len(grammar_list))] for i in range(len(grammar_list)) if grammar_list[i] in current_search]))
+            
+            print("\t\tTotal of " + str(len(results)) + " pairs to check.")
+            pool_instance = mp.Pool(processes = mp.cpu_count(), maxtasksperchild = None)
+            results = pool_instance.map(partial(process_clipping, grammar_list = grammar_list), results, chunksize = 20000)
+            pool_instance.close()
+            pool_instance.join()            
+            
+            print("\t\tNow Reducing. Size of results: " + str(len(results)) + " and size of grammar: " + str(len(grammar_list)))
+            results = [x for x in results if x != None]
+            results = list(set(results))
+            
+            print("\t\tMerging " + str(len(results)) + " search results.")
+            #Separate into candidates and clip indexes
+            candidate_pool = [x[0] for x in results]
+            clip_pool = [x[1] for x in results]
+            del results
+            print("\t\tDone in total: " + str(time.time() - starting))
+            
+            #Done with loop; now keep only observed second-order constructions
+            #Parse candidates in data
+            starting = time.time()
+            print("\t\tFinished generating clips; now parsing " + str(len(candidate_pool)) + " possible clips.")
+            candidate_pool = list(ct.partition_all(20000, candidate_pool))
+            clip_pool = list(ct.partition_all(20000, clip_pool))
+            
+            #Reformat for multi-processing
+            input_tuples = []
+            for i in range(len(candidate_pool)):
+                input_tuples.append((candidate_pool[i], clip_pool[i]))
+                
+            del candidate_pool
+            del clip_pool
+            
+            pool_instance = mp.Pool(processes = min(25, mp.cpu_count()), maxtasksperchild = 1)
+            output = pool_instance.map(partial(process_clipping_parsing, data = self.Load.data, min_count = min_count), input_tuples, chunksize = 1)
+            pool_instance.close()
+            pool_instance.join()   
+            
+            del input_tuples
+            
+            #Combine from multi-processing
+            for i in range(len(output)):
+                temp_new_constructions = output[i][0]
+                temp_clips = output[i][1]
+                new_constructions = ct.merge(new_constructions, temp_new_constructions)
+                clips = ct.merge(clips, temp_clips)
+                
+            del output
+            
+            #Count new constructions
+            round_counter = len(new_constructions)    
+            print("\t\tDone in total: " + str(time.time() - starting))
+            
+            #Merge and display results
             print("\t\t New clipped constructions this round: " + str(round_counter))
             grammar = ct.merge(grammar, new_constructions)
+            current_search = list(new_constructions.keys())
             
             #End loop check
             if round_counter == 0:
                 break
                     
-        print("Finished clipping constructions, from " + str(starting) + " to " + str(len(grammar)))
+        print("Finished clipping constructions, from " + str(starting_size) + " to " + str(len(grammar)))
 
         return grammar, clips
     
@@ -413,7 +549,7 @@ class C2xG(object):
         #Initialize candidates module
         for delta_threshold in [0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40]:
             
-            print("Starting delta ", delta_threshold)
+            print("\tStarting delta ", delta_threshold)
             #Initialize MDL
             mdl = Minimum_Description_Length(self.Load, self.Parse)
 
@@ -806,32 +942,63 @@ class C2xG(object):
 
     #-----------------------------------------------    
     
-    def forget_constructions(self, grammar, datasets, workers = None, threshold = 1, adjustment = 0.25, increment_size = 100000):
+    def forget_constructions(self, grammar, input_data, threshold = 1, adjustment = 0.20, rounds = 30, increment_size = 50000):
 
+        #Input may be a string rather than tuple
+        if isinstance(grammar[0], str):
+            grammar = [eval(chunk) for chunk in grammar]
+            
+        #Initialize round counter and construction weights
+        print("Starting to prune grammar with construction forgetting.")
         round = 0
         weights = [1 for x in range(len(grammar))]
         
-        for i in range(20):
-            
-            print(round, len(grammar))
+        #Track frequencies during pruning
+        return_grammar = {} 
+        for construction in grammar:
+            return_grammar[construction] = 0
+        
+        #Iterate forgetting over specified number of rounds
+        for i in range(rounds):
+        
+            print("\tStarting forgetting round " + str(round) + " with remaining constructions " + str(len(grammar)))
+            #Get current data
+            data = self.Load.read_file(input_data, iterating = (self.max_words + (i*increment_size), self.max_words + ((i*increment_size)+increment_size)))
+            data = [self.Load.clean(line) for line in data]
+
+            print("\tFinished enriching, now parsing")
             round += 1
-                
-            for i in range(len(datasets)):
+                            
+            #Ensure enoguh data for pruning
+            if len(data) > 10:
             
-                dataset = datasets[i]
-            
-                data_parse, data_keep = self.step_data(dataset, increment_size)
-                datasets[i] = data_keep
+                #Get frequency for each construction
+                detailed_grammar = detail_model(grammar)
+                frequencies = self.Parse.parse_enriched(data, grammar = grammar, detailed_grammar = detailed_grammar)
+                frequencies = np.sum(frequencies, axis=0)
+                frequencies = frequencies.tolist()[0]
                 
-                if len(dataset) > 25:
-                    self.model = grammar
-                    self._detail_model()
-                    vector = np.array(self.parse_return(data_parse, mode = "lines"))
-                    vector = np.sum(vector, axis = 0)
-                    weights = [1 if vector[i] > threshold else weights[i]-adjustment for i in range(len(weights))]
+                #Update frequencies
+                for i in range(len(grammar)):
+                    return_grammar[grammar[i]] += frequencies[i]
+                
+                #Adjust weights given frequencies
+                weights = [1 if frequencies[i] >= threshold else weights[i]-adjustment for i in range(len(weights))]
                     
-            grammar = [grammar[i] for i in range(len(grammar)) if weights[i] >= 0.0001]
-            weights = [weights[i] for i in range(len(weights)) if weights[i] >= 0.0001]
+                #Prune grammar using weights
+                grammar = [grammar[i] for i in range(len(grammar)) if weights[i] >= 0.0001]
+                weights = [weights[i] for i in range(len(weights)) if weights[i] >= 0.0001]
                 
-        return grammar
+                #Prune frequency dict
+                allowed = lambda x: x in grammar
+                return_grammar = ct.keyfilter(allowed, return_grammar)
+               
+        #Finished with forgetting-based learning, now save grammar
+        #Get costs for new grammar
+        print("Finished. Now recalculating encoding costs")
+        mdl = Minimum_Description_Length(self.Load, self.Parse)
+        grammar_cost, grammar_df = mdl.get_grammar_cost(return_grammar)
+        grammar_df.loc[:,"Construction"] = self.decode(grammar_df.loc[:,"Chunk"].values)
+
+        return grammar_df
     #-----------------------------------------------

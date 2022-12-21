@@ -14,6 +14,19 @@ import copy
 
 from .Parser import Parser
 
+#---------------------------------------------
+def process_parsing(candidate_pool, data):
+
+    #Initialize parser
+    Parse = Parser()
+    
+    #Parse
+    frequencies = Parse.parse_enriched(data, grammar = candidate_pool)
+    frequencies = np.sum(frequencies, axis=0)
+    frequencies = frequencies.tolist()[0]
+            
+    return frequencies
+
 #--------------------------------------------------------------#
 
 class BeamSearch(object):
@@ -209,9 +222,15 @@ class Candidates(object):
         
         print("\t\tNow parsing candidates to find frequencies")
         #Parse candidates in data because extraction won't estimate frequencies
-        frequencies = self.Parse.parse_enriched(input_data, grammar = candidates)
-        frequencies = np.sum(frequencies, axis=0)
-        frequencies = frequencies.tolist()[0]
+        candidates_pool = list(ct.partition_all(1000, candidates))
+        pool_instance = mp.Pool(processes = min(25, mp.cpu_count()), maxtasksperchild = 1)
+        frequencies = pool_instance.map(partial(process_parsing, data = input_data), candidates_pool, chunksize = 1)
+        pool_instance.close()
+        pool_instance.join()  
+        
+        #Merge results
+        frequencies = list(ct.concat(frequencies))
+        del candidates_pool
 
         #Reduce candidates
         final_candidates = {}
