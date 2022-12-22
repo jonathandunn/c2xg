@@ -9,6 +9,7 @@ import cytoolz as ct
 from functools import partial
 from pathlib import Path
 from gensim.models.fasttext import load_facebook_model
+from gensim.models.phrases import Phrases
 
 from .Loader import Loader
 from .Parser import Parser
@@ -133,36 +134,10 @@ class C2xG(object):
             self.sg_model = False
 
         #Initialize modules
-        self.Load = Loader(in_dir, out_dir, language = self.language, max_words = max_words, nickname = self.nickname, sg_model = self.sg_model, cbow_model = self.cbow_model, workers = self.workers)
+        self.Load = Loader(in_dir, out_dir, language = self.language, max_words = max_words, nickname = self.nickname, sg_model = self.sg_model, cbow_model = self.cbow_model)
         self.Association = Association(Load = self.Load, nickname = self.nickname)
         self.Parse = Parser(self.Load)
         self.Word_Classes = Word_Classes(self.Load)
-        
-        #Try to load default or specified model
-        if model == "default":
-            model = self.language + ".Grammar.v3.p"
-            print("Using default grammar")
-
-        #Try to load grammar from file
-        if isinstance(model, str):
-
-            try:
-                modelname = None
-                if os.path.isfile( model ) :
-                    modelname = model
-                else :
-                    modelname = Path(__file__).parent / os.path.join("data", "models", model)
-
-                with open(modelname, "rb") as handle:
-                    self.model = pickle.load(handle)
-        
-            except Exception as e:
-                print("Using empty grammar")
-                self.model = None
-            
-        #Take model as input
-        elif isinstance(model, list):
-            self.model = model
 
     #------------------------------------------------------------------
     def load_embeddings(self, model_file):
@@ -189,7 +164,7 @@ class C2xG(object):
         
     #------------------------------------------------------------------
 
-    def learn(self, input_data, npmi_threshold = 0.75, min_count = None, cbow_range = False, sg_range = False, get_examples = True, increments = 50000):
+    def learn(self, input_data, npmi_threshold = 0.75, min_count = None, cbow_range = False, sg_range = False, get_examples = True, increments = 50000, learning_rounds = 20, forgetting_rounds = 40):
 
         #Adjust min_count to be 1 parts per million using max_words parameter
         if min_count == None:
@@ -249,11 +224,52 @@ class C2xG(object):
         self.Load.sg_centroids = self.Load.sg_mean_dict
         self.Load.add_categories(self.Load.cbow_df, self.Load.sg_df)
         
+        #STARTING ON-GOING LEARNING AFTER THIS
+        base_nickname = self.nickname
+        for learning_round in range(learning_rounds):
+        
+            #Update nickname
+            self.nickname = base_nickname + "_round" + str(learning_round)
+            print("Starting new learning round: " + self.nickname)  
+
+            #First round doesn't merge or update lexicon
+            if learning_round == 0:
+                grammar_df_lex, grammar_df_syn, grammar_df_full, clips_lex, clips_syn, clips_full = learning_streaming(input_data, get_examples, forgetting_rounds, increments)
+                
+            #Otherwise merge with existing
+            else:
+            
+                #Increment starting index
+                self.Load.starting_index += self.max_words
+            
+                #Update phrases
+                data = self.Load.load(input_data)
+                current_phrases = self.Load.phrases.phrasegrams
+                phrase_model = Phrases(data, min_count = min_count, threshold = npmi_threshold, scoring = "npmi", delimiter = " ")
+                phrase_model = phrase_model.freeze()
+                phrase_model.phrasegrams = ct.merge(current_phrases, phrase_model.phrasegrams)
+                self.Load.phrases = phrase_model
+                print("\t Expanding lexical phrases from " + str(len(current_phrases)) + " to " + str(len(phrase_model)))
+                
+                #Get new and merged grammars
+                grammar_df_lex, grammar_df_syn, grammar_df_full, clips_lex, clips_syn, clips_full = learning_streaming(input_data, get_examples, forgetting_rounds, increments, grammar_df_lex, grammar_df_syn, grammar_df_full, clips_lex, clips_syn, clips_full)
+                
+        #Finished with all learning rounds
+        print(grammar_df_lex)
+        print(grammar_df_syn)
+        print(grammar_df_full)
+        print("Finished!")
+        
+        return grammar_df_lex, grammar_df_syn, grammar_df_full
+    #------------------------------------------------------------------------------------------------
+        
+    def learn_streaming(self, input_data, get_examples, forgetting_rounds, increments, temp_grammar_df_lex = False, temp_grammar_df_syn = False, temp_grammar_df_full = False, temp_clips_lex = False, temp_clips_syn = False, temp_clips_full = False):
+        
         #Now that we have clusters, enrich input data and save
         if not os.path.exists(os.path.join(self.out_dir, self.nickname+".input_enriched.p")):
             print("Enriching input using syntactic and semantic categories")
-            self.Load.data = self.Load.load(input_data)  #Save the enriched data once gotten
-            self.Load.save_file(self.Load.data, self.nickname+".input_enriched.p")
+            self.Load.actual_data = self.Load.load(input_data)  #Save the enriched data once gotten
+            self.Load.save_file(self.Load.actual_data, self.nickname+".input_enriched.p")
         else:
             print("Loading enriched input")
             self.Load.actual_data = self.Load.load_file(self.nickname+".input_enriched.p")
@@ -268,42 +284,83 @@ class C2xG(object):
         
         #Get full constructions
         print("Starting full constructions.")
-        grammar_df_all, clips_all = self.process_grammar(input_data, grammar_type = "full", get_examples = get_examples)
+        grammar_df_full, clips_full = self.process_grammar(input_data, grammar_type = "full", get_examples = get_examples)
         
-        #Forgetting for lexical grammar
-        forget_name_lex = os.path.join(self.out_dir, self.nickname + ".lex.grammar_forgetting.csv")
-        if not os.path.exists(forget_name_lex):
-            grammar_df_lex = self.forget_constructions(grammar_df_lex.loc[:,"Chunk"], input_data, threshold = 1, adjustment = 0.20, rounds = 30, increment_size = increments)
-            grammar_df_lex.to_csv(forget_name_lex)
-        else:
-            grammar_df_lex = pd.read_csv(forget_name_lex, index_col = 0)
+        #If not the first round, now merge existing grammars before forgetting
+        if temp_grammar_df_lex != False:
             
-        print(grammar_df_lex)
+            print("\tMerging lexical grammar: " + str(len(grammar_df_lex)) + " with " + str(len(temp_grammar_df_lex)))
+            grammar_df_lex = pd.concat([grammar_df_lex, temp_grammar_df_lex], axis = 0, ignore_index = True)
+            grammar_df_lex = grammar_df_lex.drop_duplicates(subset = "Chunk", keep = "first")
+            print(grammar_df_lex)
+            clips_lex = ct.merge(clips_lex, temp_clips_lex)
+                
+            print("\tMerging syntactic grammar: " + str(len(grammar_df_syn)) + " with " + str(len(temp_grammar_df_syn)))
+            grammar_df_syn = pd.concat([grammar_df_syn, temp_grammar_df_syn], axis = 0, ignore_index = True)
+            grammar_df_syn = grammar_df_syn.drop_duplicates(subset = "Chunk", keep = "first")
+            print(grammar_df_syn)
+            clips_syn = ct.merge(clips_syn, temp_clips_syn)
+                
+            print("\tMerging full grammar: " + str(len(grammar_df_full)) + " with " + str(len(temp_grammar_df_full)))
+            grammar_df_full = pd.concat([grammar_df_full, temp_grammar_df_full], axis = 0, ignore_index = True)
+            grammar_df_full = grammar_df_full.drop_duplicates(subset = "Chunk", keep = "first")
+            print(grammar_df_full)
+            clips_full = ct.merge(clips_full, temp_clips_full)
         
-        #Forgetting for syntactic grammar
-        forget_name_syn = os.path.join(self.out_dir, self.nickname + ".syn.grammar_forgetting.csv")
-        if not os.path.exists(forget_name_syn):
-            grammar_df_syn = self.forget_constructions(grammar_df_syn.loc[:,"Chunk"], input_data, threshold = 1, adjustment = 0.20, rounds = 30, increment_size = increments)
-            grammar_df_syn.to_csv(forget_name_syn)
-        else:
-            grammar_df_syn = pd.read_csv(forget_name_syn, index_col = 0)
-            
-        print(grammar_df_syn)
+        #Check if forgetting is desired
+        if increments != False:
         
-        #Forgetting for full grammar
-        forget_name_full = os.path.join(self.out_dir, self.nickname + ".full.grammar_forgetting.csv")
-        if not os.path.exists(forget_name_full):
-            grammar_df_full = self.forget_constructions(grammar_df_all.loc[:,"Chunk"], input_data, threshold = 1, adjustment = 0.20, rounds = 30, increment_size = increments)
-            grammar_df_full.to_csv(forget_name_full)
-        else:
-            grammar_df_full = pd.read_csv(forget_name_full, index_col = 0)
+            #Forgetting for lexical grammar
+            forget_name_lex = os.path.join(self.out_dir, self.nickname + ".lex.grammar_forgetting.csv")
+            if not os.path.exists(forget_name_lex):
+                grammar_df_lex, clips_lex = self.forget_constructions(grammar_df_lex.loc[:,"Chunk"], input_data, threshold = 1, adjustment = 0.20, 
+                                                                rounds = forgetting_rounds, increment_size = increments, name = "lex", clips = clips_lex, temp_grammar = temp_grammar_df_lex)
+                grammar_df_lex.to_csv(forget_name_lex)
+                self.Load.save_file(clips_lex, self.nickname+".clips_lex_forgetting.p")
+            else:
+                grammar_df_lex = pd.read_csv(forget_name_lex, index_col = 0)
+                clips_lex = self.Load.load_file(self.nickname+".clips_lex_forgetting.p")
+                
+            print(grammar_df_lex)
             
-        print(grammar_df_full)
+            #Forgetting for syntactic grammar
+            forget_name_syn = os.path.join(self.out_dir, self.nickname + ".syn.grammar_forgetting.csv")
+            if not os.path.exists(forget_name_syn):
+                grammar_df_syn, clips_syn = self.forget_constructions(grammar_df_syn.loc[:,"Chunk"], input_data, threshold = 1, adjustment = 0.20, 
+                                                            rounds = forgetting_rounds, increment_size = increments, name = "syn", clips = clips_syn, temp_grammar = temp_grammar_df_syn)
+                grammar_df_syn.to_csv(forget_name_syn)
+                self.Load.save_file(clips_syn, self.nickname+".clips_syn_forgetting.p")
+            else:
+                grammar_df_syn = pd.read_csv(forget_name_syn, index_col = 0)
+                clips_syn = self.Load.load_file(self.nickname+".clips_syn_forgetting.p")
+                
+            print(grammar_df_syn)
+            
+            #Forgetting for full grammar
+            forget_name_full = os.path.join(self.out_dir, self.nickname + ".full.grammar_forgetting.csv")
+            if not os.path.exists(forget_name_full):
+                grammar_df_full, clips_full = self.forget_constructions(grammar_df_full.loc[:,"Chunk"], input_data, threshold = 1, adjustment = 0.20, 
+                                                            rounds = forgetting_rounds, increment_size = increments, name = "full", clips = clips_full, temp_grammar = temp_grammar_df_full)
+                grammar_df_full.to_csv(forget_name_full)
+                self.Load.save_file(clips_full, self.nickname+".clips_full_forgetting.p")
+            else:
+                grammar_df_full = pd.read_csv(forget_name_full, index_col = 0)
+                clips_full = self.Load.load_file(self.nickname+".clips_full_forgetting.p")
+                
+            print(grammar_df_full)
         
         #Combine grammars
         print("Merging scaffolded grammars")
+        grammar_df_lex.loc[:,"Type"] = "Lexical-Only"
+        grammar_df_syn.loc[:,"Type"] = "Syntactic-Only"
+        grammar_df_full.loc[:,"Type"] = "Full Grammar"
         grammar_df = pd.concat([grammar_df_lex, grammar_df_syn, grammar_df_full], axis = 0, ignore_index = True)
-        self.Load.clips = ct.merge(clips_lex, clips_syn, clips_all)
+        grammar_df = grammar_df.drop_duplicates(subset = "Chunk", keep = "first")
+        self.Load.clips = ct.merge(clips_lex, clips_syn, clips_full)
+        
+        #Save grammars
+        grammar_df.to_csv(self.nickname + ".forgetting_merged_grammar.csv")
+        self.Load.save_file(self.Load.clips, self.nickname + ".forgetting_merged_grammar_clips.p")
         print(grammar_df)
         
         #Get examples if requested
@@ -312,7 +369,7 @@ class C2xG(object):
             if not os.path.exists(example_file_all):
                 self.print_examples(grammar = grammar_df.loc[:,"Chunk"].values, input_file = input_data, output = self.nickname + "." + "forgetting_all" + ".examples.txt", n = 100)
                 
-        return grammar_df
+        return grammar_df_lex, grammar_df_syn, grammar_df_full, clips_lex, clips_syn, clips_full
         
     #------------------------------------------------------------------        
             
@@ -942,16 +999,26 @@ class C2xG(object):
 
     #-----------------------------------------------    
     
-    def forget_constructions(self, grammar, input_data, threshold = 1, adjustment = 0.20, rounds = 30, increment_size = 50000):
+    def forget_constructions(self, grammar, input_data, threshold = 1, adjustment = 0.20, rounds = 30, increment_size = 50000, name = "full", clips = False, temp_grammar = False):
 
         #Input may be a string rather than tuple
         if isinstance(grammar[0], str):
             grammar = [eval(chunk) for chunk in grammar]
+        
+        #Prepare existing grammar for reduced weight reduction
+        if temp_grammar != False:
+            temp_grammar = temp_grammar.loc[:,"Chunk"].tolist()
+            if isinstance(temp_grammar[0], str):
+                temp_grammar = [eval(chunk) for chunk in temp_grammar]
+            
+        #Clipped constructions decay at half the rate
+        adjustment_clips = adjustment/2
             
         #Initialize round counter and construction weights
         print("Starting to prune grammar with construction forgetting.")
         round = 0
         weights = [1 for x in range(len(grammar))]
+        history = [] #Save the forgetting rate
         
         #Track frequencies during pruning
         return_grammar = {} 
@@ -961,12 +1028,11 @@ class C2xG(object):
         #Iterate forgetting over specified number of rounds
         for i in range(rounds):
         
-            print("\tStarting forgetting round " + str(round) + " with remaining constructions " + str(len(grammar)))
+            print("\tStarting forgetting round " + str(round) + " with remaining constructions " + str(len(grammar)) + " for " + name)
             #Get current data
             data = self.Load.read_file(input_data, iterating = (self.max_words + (i*increment_size), self.max_words + ((i*increment_size)+increment_size)))
             data = [self.Load.clean(line) for line in data]
 
-            print("\tFinished enriching, now parsing")
             round += 1
                             
             #Ensure enoguh data for pruning
@@ -983,8 +1049,41 @@ class C2xG(object):
                     return_grammar[grammar[i]] += frequencies[i]
                 
                 #Adjust weights given frequencies
-                weights = [1 if frequencies[i] >= threshold else weights[i]-adjustment for i in range(len(weights))]
+                new_weights = []
                     
+                #For each weight
+                for i in range(len(weights)):
+                    
+                    #Get current weight and current construction
+                    weight = weights[i]
+                    construction = grammar[i]
+                        
+                    #Second-order are reduced at half the rate
+                    if construction in clips:
+                        temp_increment = adjustment_clips
+                    #First-order are reduced at full rate
+                    else:
+                        temp_increment = adjustment
+                    
+                    #Constructions from existing grammar are reduced at half the rate
+                    if temp_grammar != False:
+                        if construction in temp_grammar:
+                            temp_increment = temp_increment/2
+                            print("Found existing")
+                            
+                    #Return weight to 1 if above threshold 
+                    if frequencies[i] >= threshold:
+                        weight = 1
+                    #Reduce weight if below threshold
+                    else:
+                        weight = weight - temp_increment
+                            
+                    #Store new weight
+                    new_weights.append(weight)
+                 
+                #Replace weights array
+                weights = new_weights
+                
                 #Prune grammar using weights
                 grammar = [grammar[i] for i in range(len(grammar)) if weights[i] >= 0.0001]
                 weights = [weights[i] for i in range(len(weights)) if weights[i] >= 0.0001]
@@ -992,6 +1091,9 @@ class C2xG(object):
                 #Prune frequency dict
                 allowed = lambda x: x in grammar
                 return_grammar = ct.keyfilter(allowed, return_grammar)
+                
+                #Store rate info
+                history.append([name, round, len(grammar)])
                
         #Finished with forgetting-based learning, now save grammar
         #Get costs for new grammar
@@ -999,6 +1101,18 @@ class C2xG(object):
         mdl = Minimum_Description_Length(self.Load, self.Parse)
         grammar_cost, grammar_df = mdl.get_grammar_cost(return_grammar)
         grammar_df.loc[:,"Construction"] = self.decode(grammar_df.loc[:,"Chunk"].values)
+        
+        #Save history
+        history = pd.DataFrame(history, columns = ["Type", "Round", "Grammar Size"])
+        history.to_csv(os.path.join(self.out_dir, self.nickname + ".forgetting_rates." + name + ".csv"))
+        
+        #Get reduced clips
+        new_clips = {}
+        for key in clips:
+            if key in grammar:
+                new_clips[key] = clips[key]
+                
+        print("\t\tValidating: grammar and clips: " + str(len(grammar_df)) + " and " + str(len(new_clips)))
 
-        return grammar_df
+        return grammar_df, new_clips
     #-----------------------------------------------

@@ -18,7 +18,7 @@ from sklearn.metrics import pairwise_distances
 #The loader object handles all file access
 class Loader(object):
 
-    def __init__(self, in_dir = None, out_dir = None, workers = 1,
+    def __init__(self, in_dir = None, out_dir = None,
                     nickname = "", language = "eng", max_words = False, 
                     phrases = False, sg_model = False, cbow_model = False):
     
@@ -34,8 +34,8 @@ class Loader(object):
         self.cbow_model = cbow_model
         self.cbow_centroids = False
         self.sg_centroids = False
-        self.workers = workers
         self.clips = False
+        self.starting_location = 0
 
         #Check that directories exist
         if in_dir != None:
@@ -88,6 +88,7 @@ class Loader(object):
     def read_file(self, file, iterating = False):
     
         max_counter = 0
+        starting_counter = 0
         clean_lines = []
 
         #Read lines from uncompressed text file
@@ -104,12 +105,15 @@ class Loader(object):
             for line in lines:
                 #Ensure utf-8 input
                 line = line.decode("utf-8", errors = "replace")
-                #Control the amount of input data
-                if self.max_words != False:
-                    if max_counter < self.max_words:
-                        if len(line) > 2:
-                            max_counter += len(line.split())
-                            clean_lines.append(line)
+                starting_counter += len(line.split())
+                
+                if starting_counter > self.starting_index:
+                    #Control the amount of input data
+                    if self.max_words != False:
+                        if max_counter < self.max_words:
+                            if len(line) > 2:
+                                max_counter += len(line.split())
+                                clean_lines.append(line)
                             
         #Get data up to max words
         elif iterating != False:
@@ -121,13 +125,16 @@ class Loader(object):
             for line in lines:
                 #Ensure utf-8 input
                 line = line.decode("utf-8", errors = "replace")
-                if len(line) > 2:
-                    max_counter += len(line.split())
+                starting_counter += len(line.split())
                 
-                    #Start after existing data is passed
-                    #In between, accumulate data
-                    if max_counter > start and max_counter < stop:
-                        clean_lines.append(line)
+                if starting_counter > self.starting_index:
+                    if len(line) > 2:
+                        max_counter += len(line.split())
+                    
+                        #Start after existing data is passed
+                        #In between, accumulate data
+                        if max_counter > start and max_counter < stop:
+                            clean_lines.append(line)
                         
         return clean_lines
                 
