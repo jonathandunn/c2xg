@@ -66,6 +66,8 @@ class Word_Classes(object):
             #If unspecified, set cbow max clusters
             if top_range == False:
                 top_range = 250
+            if top_range > len(vocab):
+                top_range = len(vocab)-10
             cluster_range = range(top_range, 25, -5)
 
         #Set clusters for semantic domains
@@ -73,8 +75,10 @@ class Word_Classes(object):
             #If unspecified, set sg max clusters
             if top_range == False:
                 top_range = 2500
+            if top_range > len(vocab):
+                top_range = len(vocab)-10
             cluster_range = range(top_range,250, -50)
-
+            
         #Get the word embeddings specific to this lexicon
         #remove phrases because their vectors aren't trained
         word_list = [x for x in vocab.keys() if " " not in x]
@@ -82,7 +86,10 @@ class Word_Classes(object):
 
         #Don't cluster very frequency words because they have their own behaviour
         word_list = [x for x in word_list if x not in unique_words.loc[:,"Word"].values]
-
+        
+        #Ensure not more clusters than words
+        cluster_range = [x for x in list(cluster_range) if x < len(word_list)]
+        
         #Get word vectors only for vocab
         vectors = []
         for word in word_list:

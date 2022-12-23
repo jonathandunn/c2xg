@@ -35,7 +35,7 @@ class Loader(object):
         self.cbow_centroids = False
         self.sg_centroids = False
         self.clips = False
-        self.starting_location = 0
+        self.starting_index = 0
 
         #Check that directories exist
         if in_dir != None:
@@ -140,18 +140,22 @@ class Loader(object):
                 
     #---------------------------------------------------------------#
     def get_unk(self, word, type = "cbow"):
-    
+
         if type == "cbow":
             vector = self.cbow_model.wv[word]
             centroids = [self.cbow_centroids[x] for x in sorted(self.cbow_centroids.keys())]
             distances = pairwise_distances(vector.reshape(1, -1), centroids, metric="cosine", n_jobs=1) 
+            index = np.argmin(distances)
+            self.cbow_encode[word] = index
             
         elif type == "sg":
             vector = self.sg_model.wv[word]
             centroids = [self.sg_centroids[x] for x in sorted(self.sg_centroids.keys())]
             distances = pairwise_distances(vector.reshape(1, -1), centroids, metric="cosine", n_jobs=1)
+            index = np.argmin(distances)
+            self.sg_encode[word] = index
         
-        return np.argmin(distances)
+        return index
     
     #---------------------------------------------------------------#
     
@@ -252,17 +256,24 @@ class Loader(object):
                 else:
                 
                     pair = (construction[i], construction[i+1])
-                    assoc = self.assoc_dict[pair[0]][pair[1]]
-                    difference = assoc["LR"] - assoc["RL"]
                     
-                    #LR is stronger
-                    if difference > 0.1:
-                        transition = " > "
-                    #RL is stronger
-                    elif difference < -0.1:
-                        transition = " < "
-                    #Neither dominates
-                    else:
+                    #For grammars in previous corpora, transition may be missing
+                    try:
+                        assoc = self.assoc_dict[pair[0]][pair[1]]
+                        difference = assoc["LR"] - assoc["RL"]
+                        
+                        #LR is stronger
+                        if difference > 0.1:
+                            transition = " > "
+                        #RL is stronger
+                        elif difference < -0.1:
+                            transition = " < "
+                        #Neither dominates
+                        else:
+                            transition = " -- "
+                    
+                    #By default, no direction
+                    except:
                         transition = " -- "
                         
                 #Add transition to construction
@@ -284,85 +295,178 @@ class Loader(object):
     #---------------------------------------------------------------------------#
     
     #Create categories dictionaries are annotating new corpora
-    def add_categories(self, cbow_df, sg_df):
+    def add_categories(self, cbow_df, sg_df, lexicon, phrases, full_lexicon, unique_words, update = False):
     
-        #Dictionaries with ranking info
-        self.cbow = {}
-        self.sg = {}
+        #Convert unique words from df to lsit
+        unique_words = unique_words.loc[:,"Word"].tolist()
         
-        #Encoding and decoding dictionaries
-        self.cbow_encode = {}
-        self.cbow_decode = {}
-        self.sg_encode = {}
-        self.sg_decode = {}
-        self.lex_encode = {}
-        self.lex_decode = {}
+        #Load dictionaries if possible
+        cbow_filename = self.nickname + ".cbow_dict.p"
+        sg_filename = self.nickname + ".sg_dict.p"
+        cbow_encode_filename = self.nickname + ".cbow_encode.p"
+        cbow_decode_filename = self.nickname + ".cbow_decode.p"
+        sg_encode_filename = self.nickname + ".sg_encode.p"
+        sg_decode_filename = self.nickname + ".sg_decode.p"
+        lex_encode_filename = self.nickname + ".lex_encode.p"
+        lex_decode_filename = self.nickname + ".lex_decode.p"
         
-        #Create dictionary for the local (cbow) category for each word
-        for row in cbow_df.itertuples():
-            #Get row
-            index = row[0]
-            rank = row[1]
-            word = row[2]
-            category = row[3]
-            category_name = row[4]
-            #Add to dictionary
-            self.cbow[word] = {}
-            self.cbow[word]["Category"] = category
-            self.cbow[word]["Similarity"] = rank
-            self.cbow[word]["Index"] = index
-            self.lex_encode[word] = index
-            self.lex_decode[index] = word
-            self.cbow_encode[word] = category
-            self.cbow_decode[category] = category_name
-        
-        #Create dictionary for the non-local (sg) category for each word
-        for row in sg_df.itertuples():
-            #Get row
-            index = row[0]
-            rank = row[1]
-            word = row[2]
-            category = row[3]
-            category_name = row[4]
-            #Add to dictionary
-            self.sg[word] = {}
-            self.sg[word]["Category"] = category
-            self.sg[word]["Similarity"] = rank
-            self.sg_encode[word] = category
-            self.sg_decode[category] = category_name
+        #Check if exist
+        if not os.path.exists(os.path.join(self.out_dir, cbow_filename)):
             
-        #Get centroids for each cbow category for OOV words
-        if self.cbow_centroids == False:
-            print("Creating centroids for local categories")
-            cbow_centroids = {}
-            for category, category_df in cbow_df.groupby("Category"):
-                category_name = str(category_df.loc[:,"Category_Name"].tolist()[0])
-                if "unique" not in category_name:
-                    words = category_df.loc[:,"Category"].tolist()
-                    ranks = category_df.loc[:,"Rank"].tolist()
-                    current_centroid =  self.cbow_model.wv.get_mean_vector(keys=words, weights=ranks, pre_normalize=True, post_normalize=False)
-                    cbow_centroids[category] = current_centroid
-            #Centroids as a list where the index = the cluster id
-            self.cbow_centroids = {}
-            for i in range(len(cbow_centroids)):
-                self.cbow_centroids[i] = cbow_centroids[i]
-                
-        #Get centroids for each sg category for OOV words
-        if self.sg_centroids == False:
-            print("Creating centroids for non-local categories")
-            sg_centroids = {}
-            for category, category_df in sg_df.groupby("Category"):
-                category_name = str(category_df.loc[:,"Category_Name"].tolist()[0])
-                if "unique" not in category_name:
-                    words = category_df.loc[:,"Category"].tolist()
-                    ranks = category_df.loc[:,"Rank"].tolist()
-                    current_centroid =  self.sg_model.wv.get_mean_vector(keys=words, weights=ranks, pre_normalize=True, post_normalize=False)
-                    sg_centroids[category] = current_centroid
-            #Centroids as a list where the index = the cluster id
-            self.sg_centroids = {}
-            for i in range(len(sg_centroids)):
-                self.sg_centroids[i] = sg_centroids[i]
+            print("Creating encoder/decoder resources.")
     
+            #Dictionaries with ranking info
+            self.cbow = {}
+            self.sg = {}
+            
+            #Encoding and decoding dictionaries
+            self.cbow_encode = {}
+            self.cbow_decode = {}
+            self.sg_encode = {}
+            self.sg_decode = {}
+            self.lex_encode = {}
+            self.lex_decode = {}
+            
+            #Create dictionary for the local (cbow) category for each word
+            for row in cbow_df.itertuples():
+                #Get row
+                index = row[0]
+                rank = row[1]
+                word = row[2]
+                category = row[3]
+                category_name = row[4]
+                #Add to dictionary
+                self.cbow[word] = {}
+                self.cbow[word]["Category"] = category
+                self.cbow[word]["Similarity"] = rank
+                self.cbow[word]["Index"] = index
+                self.lex_encode[word] = index
+                self.lex_decode[index] = word
+                self.cbow_encode[word] = category
+                self.cbow_decode[category] = category_name
+            
+            #Create dictionary for the non-local (sg) category for each word
+            for row in sg_df.itertuples():
+                #Get row
+                index = row[0]
+                rank = row[1]
+                word = row[2]
+                category = row[3]
+                category_name = row[4]
+                self.sg_decode[category] = category_name
+                #Add to dictionary, but not unique words
+                if word not in unique_words:
+                    self.sg[word] = {}
+                    self.sg[word]["Category"] = category
+                    self.sg[word]["Similarity"] = rank
+                    self.sg_encode[word] = category
+                
+            #Get centroids for each cbow category for OOV words
+            if self.cbow_centroids == False:
+                print("Creating centroids for local categories")
+                cbow_centroids = {}
+                for category, category_df in cbow_df.groupby("Category"):
+                    category_name = str(category_df.loc[:,"Category_Name"].tolist()[0])
+                    if "unique" not in category_name:
+                        words = category_df.loc[:,"Category"].tolist()
+                        ranks = category_df.loc[:,"Rank"].tolist()
+                        current_centroid =  self.cbow_model.wv.get_mean_vector(keys=words, weights=ranks, pre_normalize=True, post_normalize=False)
+                        cbow_centroids[category] = current_centroid
+                #Centroids as a list where the index = the cluster id
+                self.cbow_centroids = {}
+                for i in range(len(cbow_centroids)):
+                    self.cbow_centroids[i] = cbow_centroids[i]
+                    
+            #Get centroids for each sg category for OOV words
+            if self.sg_centroids == False:
+                print("Creating centroids for non-local categories")
+                sg_centroids = {}
+                for category, category_df in sg_df.groupby("Category"):
+                    category_name = str(category_df.loc[:,"Category_Name"].tolist()[0])
+                    if "unique" not in category_name:
+                        words = category_df.loc[:,"Category"].tolist()
+                        ranks = category_df.loc[:,"Rank"].tolist()
+                        current_centroid =  self.sg_model.wv.get_mean_vector(keys=words, weights=ranks, pre_normalize=True, post_normalize=False)
+                        sg_centroids[category] = current_centroid
+                #Centroids as a list where the index = the cluster id
+                self.sg_centroids = {}
+                for i in range(len(sg_centroids)):
+                    self.sg_centroids[i] = sg_centroids[i]
+                    
+            #Assign OOV words to classes
+            for word in full_lexicon.loc[:,"Word"].tolist():
+
+                if word not in self.cbow_encode:
+                    temp_cbow = self.get_unk(word, type = "cbow")
+                    self.cbow_encode[word] = temp_cbow
+                    
+                    #Don't get semantic domains for unique words
+                    if word not in unique_words:
+                        temp_sg = self.get_unk(word, type = "sg")
+                        self.sg_encode[word] = temp_sg
+            
+            #Save to file
+            self.save_file(self.cbow, cbow_filename)
+            self.save_file(self.sg, sg_filename)
+            self.save_file(self.cbow_encode, cbow_encode_filename)
+            self.save_file(self.cbow_decode, cbow_decode_filename)
+            self.save_file(self.sg_encode, sg_encode_filename)
+            self.save_file(self.sg_decode, sg_decode_filename)
+            self.save_file(self.lex_encode, lex_encode_filename)
+            self.save_file(self.lex_decode, lex_decode_filename)
+    
+        #Load from file
+        else:
+            print("Loading encoding/decoding resources")
+            self.cbow = self.load_file(cbow_filename)
+            self.sg = self.load_file(sg_filename)
+            self.cbow_encode = self.load_file(cbow_encode_filename)
+            self.cbow_decode = self.load_file(cbow_decode_filename)
+            self.sg_encode = self.load_file(sg_encode_filename)
+            self.sg_decode = self.load_file(sg_decode_filename)
+            self.lex_encode = self.load_file(lex_encode_filename)
+            self.lex_decode = self.load_file(lex_decode_filename)
+            
+            #Update with new lexical items
+            if update == True:
+            
+                #Get starting size
+                starting_sizes = (len(self.lex_encode), len(self.cbow_encode), len(self.sg_encode))
+                
+                #Get next lex integer
+                max_index = max(list(self.lex_encode.values())) + 1
+            
+                #Process new words
+                for word in full_lexicon.loc[:,"Word"].tolist():
+                    if word not in self.lex_encode:
+                    
+                        self.lex_encode[word] = max_index
+                        self.lex_decode[max_index] = word
+                        max_index += 1
+                
+                        if word not in self.cbow_encode:
+                            temp_cbow = self.get_unk(word, type = "cbow")
+                            self.cbow_encode[word] = temp_cbow
+                            
+                            #Don't get semantic domains for unique words
+                            if word not in unique_words:
+                                temp_sg = self.get_unk(word, type = "sg")
+                                self.sg_encode[word] = temp_sg
+                                
+                #Display results and save
+                ending_sizes = (len(self.lex_encode), len(self.cbow_encode), len(self.sg_encode))
+                print("\tExpanding lexicon-cbow-sg from " + str(starting_sizes) + " to " + str(ending_sizes))
+                
+                #Save to file
+                self.save_file(self.cbow, cbow_filename)
+                self.save_file(self.sg, sg_filename)
+                self.save_file(self.cbow_encode, cbow_encode_filename)
+                self.save_file(self.cbow_decode, cbow_decode_filename)
+                self.save_file(self.sg_encode, sg_encode_filename)
+                self.save_file(self.sg_decode, sg_decode_filename)
+                self.save_file(self.lex_encode, lex_encode_filename)
+                self.save_file(self.lex_decode, lex_decode_filename)
+
     #---------------------------------------------------------------------------#
         
     def clean(self, line, encode=True):
@@ -437,7 +541,9 @@ class Loader(object):
 
         if isinstance(input_data, str):
             
-            data = self.load(input_data)
+            #Get data
+            data = self.read_file(input_data)
+            data = [self.clean(line, encode = False) for line in data]
 
             #Find phrases, then freeze
             phrase_model = Phrases(data, min_count = min_count, threshold = npmi_threshold, scoring = "npmi", delimiter = " ")
@@ -462,6 +568,7 @@ class Loader(object):
             unique_words = full_lexicon_df[full_lexicon_df.loc[:,"Frequency"] > threshold]
 
             #Prepare to estimate Zipfian distribution
+            full_lexicon_df.loc[:,"Actual_Frequency"] = full_lexicon_df.loc[:,"Frequency"]
             full_lexicon_df.loc[:,"Frequency"] = np.log10(full_lexicon_df.loc[:,"Frequency"])
             full_lexicon_df.loc[:,"Rank"] = np.log10(full_lexicon_df.loc[:,"Rank"])
 
@@ -496,10 +603,7 @@ class Loader(object):
             for key in remove_list:
                 lexicon.pop(key)
 
-            #Save phrases for future cleaning
-            self.phrases = phrases
-
-            return lexicon, phrases, unique_words
+            return lexicon, phrases, unique_words, full_lexicon_df
 
     #---------------------------------------------------------------------------#
             

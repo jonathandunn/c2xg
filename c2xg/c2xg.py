@@ -175,17 +175,41 @@ class C2xG(object):
             elif self.max_words > 1000000:
                 min_count = int(self.max_words/1000000 * 1)
             print("Setting min_count to 1 parts per million (min_count = " + str(min_count) + ") (max_words = " + str(self.max_words) + ")")
-
-        print("Starting to learn: lexicon")
+ 
+        #Filenames for lexicon and phrases
+        lex_file = self.nickname + ".lexicon.p"
+        phrase_file = self.nickname + ".phrases.p"
+        unique_file = os.path.join(self.out_dir, self.nickname + ".unique_words.csv")
         self.Load.min_count = min_count
-        lexicon, phrases, unique_words = self.Load.get_lexicon(input_data, npmi_threshold, self.Load.min_count)
+        
+        #If lexicon and phrases don't exist
+        if not os.path.exists(os.path.join(self.out_dir, lex_file)):
+            print("Starting to learn: lexicon")
+            lexicon, phrases, unique_words, self.Load.full_lexicon = self.Load.get_lexicon(input_data, npmi_threshold, self.Load.min_count)
 
-        n_phrases = len([x for x in lexicon.keys() if " " in x])
-        print("Finished with " + str(len(lexicon)-n_phrases) + " words and " + str(n_phrases) + " phrases")
+            n_phrases = len([x for x in lexicon.keys() if " " in x])
+            print("Finished with " + str(len(lexicon)-n_phrases) + " words and " + str(n_phrases) + " phrases")
 
-        #Save phrases and lexicon
-        self.Load.phrases = phrases
-        self.Load.lexicon = lexicon
+            #Save phrases and lexicon
+            self.Load.phrases = phrases
+            self.Load.lexicon = lexicon
+            
+            #Store lexicon and phrases
+            self.Load.save_file(lexicon, lex_file)
+            self.Load.save_file(phrases.phrasegrams, phrase_file)
+            unique_words.to_csv(unique_file)
+            
+        #Load existing lexicon and phrases, reconstitute phrases
+        else:
+            print("Loading lexicon and phrases")
+            self.Load.full_lexicon = pd.read_csv(os.path.join(self.out_dir, self.nickname+".full_lexicon.csv"))
+            self.Load.lexicon = self.Load.load_file(lex_file)
+            unique_words = pd.read_csv(unique_file, index_col = 0)
+            temp_phrases = self.Load.load_file(phrase_file)
+            self.Load.phrases = Phrases(["holder"], min_count = min_count, threshold = npmi_threshold, scoring = "npmi", delimiter = " ")
+            self.Load.phrases = self.Load.phrases.freeze()
+            self.Load.phrases.phrasegrams = temp_phrases
+            del temp_phrases
         
         #Check embeddings
         if self.cbow_model == False and self.sg_model == False:
@@ -222,7 +246,7 @@ class C2xG(object):
         #Add clusters to loader
         self.Load.cbow_centroids = self.Load.cbow_mean_dict
         self.Load.sg_centroids = self.Load.sg_mean_dict
-        self.Load.add_categories(self.Load.cbow_df, self.Load.sg_df)
+        self.Load.add_categories(self.Load.cbow_df, self.Load.sg_df, self.Load.lexicon, self.Load.phrases.phrasegrams, self.Load.full_lexicon, unique_words)
         
         #STARTING ON-GOING LEARNING AFTER THIS
         base_nickname = self.nickname
@@ -230,11 +254,12 @@ class C2xG(object):
         
             #Update nickname
             self.nickname = base_nickname + "_round" + str(learning_round)
+            self.Load.nickname = self.nickname
             print("Starting new learning round: " + self.nickname)  
 
             #First round doesn't merge or update lexicon
             if learning_round == 0:
-                grammar_df_lex, grammar_df_syn, grammar_df_full, clips_lex, clips_syn, clips_full = learning_streaming(input_data, get_examples, forgetting_rounds, increments)
+                grammar_df_lex, grammar_df_syn, grammar_df_full, clips_lex, clips_syn, clips_full = self.learn_streaming(input_data, get_examples, forgetting_rounds, increments)
                 
             #Otherwise merge with existing
             else:
@@ -242,17 +267,35 @@ class C2xG(object):
                 #Increment starting index
                 self.Load.starting_index += self.max_words
             
+                #Load new data
+                lexicon, phrases, unique_words, full_lexicon = self.Load.get_lexicon(input_data, npmi_threshold, min_count)
+                
                 #Update phrases
-                data = self.Load.load(input_data)
                 current_phrases = self.Load.phrases.phrasegrams
-                phrase_model = Phrases(data, min_count = min_count, threshold = npmi_threshold, scoring = "npmi", delimiter = " ")
-                phrase_model = phrase_model.freeze()
-                phrase_model.phrasegrams = ct.merge(current_phrases, phrase_model.phrasegrams)
-                self.Load.phrases = phrase_model
-                print("\t Expanding lexical phrases from " + str(len(current_phrases)) + " to " + str(len(phrase_model)))
+                self.Load.phrases.phrasegrams = ct.merge(current_phrases, phrases.phrasegrams)
+                print("\t Expanding lexical phrases from " + str(len(current_phrases)) + " to " + str(len(self.Load.phrases.phrasegrams)))
+                
+                #Update the lexicon
+                start_size = len(self.Load.lexicon)
+                max_index = max(list(self.Load.lex_decode.keys()))
+
+                for word in lexicon:
+                    #Update frequencies for existing words
+                    if word in self.Load.lexicon:
+                        self.Load.lexicon[word] += lexicon[word]
+                    #Add new words
+                    else:
+                        max_index += 1
+                        self.Load.lexicon[word] = lexicon[word]
+                        #Update encoding
+                        self.Load.lex_decode[max_index] = word
+                        self.Load.lex_encode[word] = max_index
+
+                print("\t Expanding lexicon from " + str(start_size) + " to " + str(len(self.Load.lexicon)))
+                self.Load.add_categories(self.Load.cbow_df, self.Load.sg_df, self.Load.lexicon, self.Load.phrases.phrasegrams, full_lexicon, unique_words, update = True)
                 
                 #Get new and merged grammars
-                grammar_df_lex, grammar_df_syn, grammar_df_full, clips_lex, clips_syn, clips_full = learning_streaming(input_data, get_examples, forgetting_rounds, increments, grammar_df_lex, grammar_df_syn, grammar_df_full, clips_lex, clips_syn, clips_full)
+                grammar_df_lex, grammar_df_syn, grammar_df_full, clips_lex, clips_syn, clips_full = self.learn_streaming(input_data, get_examples, forgetting_rounds, increments, grammar_df_lex, grammar_df_syn, grammar_df_full, clips_lex, clips_syn, clips_full)
                 
         #Finished with all learning rounds
         print(grammar_df_lex)
@@ -263,7 +306,7 @@ class C2xG(object):
         return grammar_df_lex, grammar_df_syn, grammar_df_full
     #------------------------------------------------------------------------------------------------
         
-    def learn_streaming(self, input_data, get_examples, forgetting_rounds, increments, temp_grammar_df_lex = False, temp_grammar_df_syn = False, temp_grammar_df_full = False, temp_clips_lex = False, temp_clips_syn = False, temp_clips_full = False):
+    def learn_streaming(self, input_data, get_examples, forgetting_rounds, increments, temp_grammar_df_lex = None, temp_grammar_df_syn = None, temp_grammar_df_full = None, temp_clips_lex = None, temp_clips_syn = None, temp_clips_full = None):
         
         #Now that we have clusters, enrich input data and save
         if not os.path.exists(os.path.join(self.out_dir, self.nickname+".input_enriched.p")):
@@ -287,23 +330,26 @@ class C2xG(object):
         grammar_df_full, clips_full = self.process_grammar(input_data, grammar_type = "full", get_examples = get_examples)
         
         #If not the first round, now merge existing grammars before forgetting
-        if temp_grammar_df_lex != False:
+        if temp_clips_lex != None:
             
             print("\tMerging lexical grammar: " + str(len(grammar_df_lex)) + " with " + str(len(temp_grammar_df_lex)))
             grammar_df_lex = pd.concat([grammar_df_lex, temp_grammar_df_lex], axis = 0, ignore_index = True)
             grammar_df_lex = grammar_df_lex.drop_duplicates(subset = "Chunk", keep = "first")
+            grammar_df_lex.loc[:,"Type"] = "Lexical-Only"
             print(grammar_df_lex)
             clips_lex = ct.merge(clips_lex, temp_clips_lex)
                 
             print("\tMerging syntactic grammar: " + str(len(grammar_df_syn)) + " with " + str(len(temp_grammar_df_syn)))
             grammar_df_syn = pd.concat([grammar_df_syn, temp_grammar_df_syn], axis = 0, ignore_index = True)
             grammar_df_syn = grammar_df_syn.drop_duplicates(subset = "Chunk", keep = "first")
+            grammar_df_syn.loc[:,"Type"] = "Syntactic-Only"
             print(grammar_df_syn)
             clips_syn = ct.merge(clips_syn, temp_clips_syn)
                 
             print("\tMerging full grammar: " + str(len(grammar_df_full)) + " with " + str(len(temp_grammar_df_full)))
             grammar_df_full = pd.concat([grammar_df_full, temp_grammar_df_full], axis = 0, ignore_index = True)
             grammar_df_full = grammar_df_full.drop_duplicates(subset = "Chunk", keep = "first")
+            grammar_df_full.loc[:,"Type"] = "Full Grammar"
             print(grammar_df_full)
             clips_full = ct.merge(clips_full, temp_clips_full)
         
@@ -999,14 +1045,13 @@ class C2xG(object):
 
     #-----------------------------------------------    
     
-    def forget_constructions(self, grammar, input_data, threshold = 1, adjustment = 0.20, rounds = 30, increment_size = 50000, name = "full", clips = False, temp_grammar = False):
+    def forget_constructions(self, grammar, input_data, threshold = 1, adjustment = 0.20, rounds = 30, increment_size = 50000, name = "full", clips = False, temp_grammar = []):
 
         #Input may be a string rather than tuple
-        if isinstance(grammar[0], str):
-            grammar = [eval(chunk) for chunk in grammar]
+        grammar = [eval(chunk) if isinstance(chunk, str) else chunk for chunk in grammar]
         
         #Prepare existing grammar for reduced weight reduction
-        if temp_grammar != False:
+        if len(temp_grammar) > 5:
             temp_grammar = temp_grammar.loc[:,"Chunk"].tolist()
             if isinstance(temp_grammar[0], str):
                 temp_grammar = [eval(chunk) for chunk in temp_grammar]
@@ -1069,7 +1114,6 @@ class C2xG(object):
                     if temp_grammar != False:
                         if construction in temp_grammar:
                             temp_increment = temp_increment/2
-                            print("Found existing")
                             
                     #Return weight to 1 if above threshold 
                     if frequencies[i] >= threshold:
