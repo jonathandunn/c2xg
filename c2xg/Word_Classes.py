@@ -101,7 +101,7 @@ class Word_Classes(object):
         print(len(word_list), vectors.shape)
 
         print("Getting cosine distance matrix")
-        distances = pairwise_distances(X=vectors, Y=vectors, metric='cosine', n_jobs=30)
+        distances = pairwise_distances(X=vectors, Y=vectors, metric='cosine', n_jobs=mp.cpu_count())
         del vectors
         
         #Initialize search
@@ -116,7 +116,7 @@ class Word_Classes(object):
                                 medoids = n_clusters, 
                                 max_iter=100000, 
                                 init='build', 
-                                n_cpu=30
+                                n_cpu=mp.cpu_count(),
                                 )
             
             sh = kmedoids.medoid_silhouette(diss = distances, meds = km.labels)[0]
@@ -124,7 +124,7 @@ class Word_Classes(object):
             
             #Check for a better score
             if sh > optimum_sh + (sh * 0.001):
-                print("Better Silhoutette score obtained: ", optimum_sh, " now ", sh)
+                print("\t\tBetter Silhoutette score obtained: ", optimum_sh, " now ", sh)
                 optimum_sh = sh
                 optimum_clusters = n_clusters
                 n_turns_no_change = 0
@@ -136,8 +136,8 @@ class Word_Classes(object):
             else:
                 n_turns_no_change += 1
                 
-            if n_turns_no_change > 5:
-                print("No change for 5 iterations, stopping now.")
+            if n_turns_no_change > 2:
+                print("No change for 3 iterations, stopping now.")
                 break
         
         results = []
@@ -193,7 +193,7 @@ class Word_Classes(object):
 
         for phrase in phrase_list:
             vector = model.wv[phrase]
-            distances = pairwise_distances(vector.reshape(1, -1), list(mean_dict.values()), metric="cosine", n_jobs=-1)
+            distances = pairwise_distances(vector.reshape(1, -1), list(mean_dict.values()), metric="cosine", n_jobs=mp.cpu_count())
             phrase_cluster = np.argmin(distances)
             phrase_cluster_name = "_".join(name_dict[phrase_cluster])
             phrase_results.append([0.0, phrase, phrase_cluster, phrase_cluster_name])
@@ -222,3 +222,54 @@ class Word_Classes(object):
         return cluster_df, mean_dict
         
     #-------------------------------------------------------------------------------#
+    
+    def learn_construction_categories(self, grammar, similarity_matrix):
+    
+        #Set range of construction clusters
+        cluster_range = range(int(len(grammar)/5), 10, -10)
+        
+        #Initialize search
+        optimum_clusters = 0
+        optimum_sh = 0.0
+        n_turns_no_change = 0
+        
+        #Iterate over potential numbers of clusters
+        for n_clusters in cluster_range:
+            
+            km = kmedoids.fasterpam(diss = similarity_matrix, 
+                                medoids = n_clusters, 
+                                max_iter=100000, 
+                                init='build', 
+                                n_cpu=mp.cpu_count(),
+                                )
+            
+            sh = kmedoids.medoid_silhouette(diss = similarity_matrix, meds = km.labels)[0]
+            print("\t", n_clusters, ": With ", km.n_iter, " iterations and ", km.n_swap, " swaps. Loss:", km.loss, " Silhoutette: ", sh)
+            
+            #Check for a better score
+            if sh > optimum_sh + (sh * 0.001):
+                print("\t\tBetter Silhoutette score obtained: ", optimum_sh, " now ", sh)
+                optimum_sh = sh
+                optimum_clusters = n_clusters
+                n_turns_no_change = 0
+                
+                #Save current best clusters
+                cluster_labels = km.labels
+                cluster_exemplars = km.medoids
+                
+            else:
+                n_turns_no_change += 1
+                
+            if n_turns_no_change > 5:
+                print("No change for 6 iterations, stopping now.")
+                break
+        
+        results = []
+        for i in range(len(cluster_labels)):
+            member_construction = grammar[i]
+            cluster = cluster_labels[i]
+            results.append([member_construction, cluster])
+        
+        cluster_df = pd.DataFrame(results, columns = ["Chunk", "Cluster"])
+    
+        return cluster_df

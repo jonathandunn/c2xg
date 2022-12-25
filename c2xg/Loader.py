@@ -206,20 +206,24 @@ class Loader(object):
 
     #---------------------------------------------------------------------------#
     
-    def decode_construction(self, construction):
+    def decode_construction(self, construction, clips = None):
 
         #Input may be a string rather than tuple
         if isinstance(construction, str):
             construction = eval(construction)
+            
+        #No specific clips are passed, used default
+        if clips == False:
+            clips = self.clips
 
         #Initialize empty string
         construction_string = ""
         clip_index = False
         
         #Check for clipping info
-        if self.clips != False:
-            if construction in self.clips:
-                clip_index = self.clips[construction]
+        if clips != None:
+            if construction in clips:
+                clip_index = clips[construction]
             else:
                 clip_index = False
 
