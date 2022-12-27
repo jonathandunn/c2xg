@@ -34,7 +34,7 @@ class Loader(object):
         self.cbow_model = cbow_model
         self.cbow_centroids = False
         self.sg_centroids = False
-        self.clips = False
+        self.clips = None
         self.starting_index = 0
 
         #Check that directories exist
@@ -213,7 +213,7 @@ class Loader(object):
             construction = eval(construction)
             
         #No specific clips are passed, used default
-        if clips == False:
+        if clips == None:
             clips = self.clips
 
         #Initialize empty string
