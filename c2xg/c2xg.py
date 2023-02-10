@@ -30,38 +30,42 @@ def token_similarity(input_tuple, examples_dict):
     construction1 = input_tuple[0]
     construction2 = input_tuple[1]
     
+    #Initialize matrix
+    overlaps = []
+    
     #Get examples
     examples1 = examples_dict[construction1]
     examples2 = examples_dict[construction2]
-        
+    
     #No need to check the same examples against one another
     if examples1 == examples2:
         return 0.0
+        
+    elif len(examples1) < 1 or len(examples2) < 1:
+        return 1.0
+    
+    elif None in examples1 or None in examples2:
+        return 1.0
             
     else:
         #Look for overlaps between all pairs of examples and take the lowest one (low = similar)
-        overlaps = [[process_token_similarity(string1.split(), string2.split()) for string2 in examples2] for string1 in examples1]
-        overlaps = list(ct.concat(overlaps))
-        overlaps.append(1.0)
-            
-        return min(overlaps)
-            
-#----------------------------------------------------------
-    
-def process_token_similarity(string1, string2):
-    
-    #Sequence matching algorithm (by words)
-    s = difflib.SequenceMatcher(None, string1, string2)
-    length = max(len(string1), len(string2))
-    overlap = sum([x[2] for x in s.get_matching_blocks()]) / float(length)
+        for string1 in examples1:
+            for string2 in examples2:
+                    
+                #Sequence matching algorithm (by words)
+                s = difflib.SequenceMatcher(None, string1, string2)
+                length = max(len(string1), len(string2))
+                overlap = sum([x[2] for x in s.get_matching_blocks()]) / float(length)
         
-    #Only count as a match if sufficient overlap
-    if overlap > 0.75:
-        return 0.0
-    #Otherwise there is no match
-    else:
+                #Only count as a match if sufficient overlap
+                if overlap > 0.75:
+                
+                    #Return with the first match
+                    return 0.0
+          
+        #Only process the entire cycle if no close matches are found
         return 1.0
-   
+             
 #------------------------------------------------------------------
     
 def process_clipping(input_tuple, grammar_list):
@@ -306,17 +310,11 @@ class C2xG(object):
 
             #First round doesn't merge or update lexicon
             if learning_round == 0:
+            
                 grammar_df_lex, grammar_df_syn, grammar_df_full, clips_lex, clips_syn, clips_full = self.learn_streaming(input_data, get_examples, forgetting_rounds, increments)
                 
             #Otherwise merge with existing
             else:
-            
-                #Determine if need to cluster constructions at end
-                if learning_round >= learning_rounds - 1:
-                    run_networks = True
-                else:
-                    run_networks = False
-                    
             
                 #Increment starting index, including for the data used for forgetting
                 self.Load.starting_index += self.max_words + (forgetting_rounds * increments)
@@ -351,10 +349,20 @@ class C2xG(object):
                 #Get new and merged grammars
                 grammar_df_lex, grammar_df_syn, grammar_df_full, clips_lex, clips_syn, clips_full = self.learn_streaming(input_data, get_examples, forgetting_rounds, increments, 
                                                                                                                             grammar_df_lex, grammar_df_syn, grammar_df_full, 
-                                                                                                                            clips_lex, clips_syn, clips_full, 
-                                                                                                                            run_networks = run_networks)
+                                                                                                                            clips_lex, clips_syn, clips_full)
                 
-        #Finished with all learning rounds
+        #Finished with all learning rounds, now the final pruning and clustering
+        #Update nickname
+        self.nickname = base_nickname + "_final_round"
+        self.Load.nickname = self.nickname
+        print("Starting final forgetting round with clustering: " + self.nickname)  
+        
+        #Increment starting index, including for the data used for forgetting
+        self.Load.starting_index += self.max_words + (forgetting_rounds * increments)
+        
+        grammar_df_lex, grammar_df_syn, grammar_df_full, clips_lex, clips_syn, clips_full = self.learn_final_steps(input_data, forgetting_rounds, increments,
+                                                                                                                            grammar_df_lex, grammar_df_syn, grammar_df_full, 
+                                                                                                                            clips_lex, clips_syn, clips_full)
         print(grammar_df_lex)
         print(grammar_df_syn)
         print(grammar_df_full)
@@ -363,10 +371,9 @@ class C2xG(object):
         return grammar_df_lex, grammar_df_syn, grammar_df_full
     #------------------------------------------------------------------------------------------------
         
-    def learn_streaming(self, input_data, get_examples, forgetting_rounds, increments, 
+    def learn_streaming(self, input_data, forgetting_rounds, increments, get_examples = False,
                             temp_grammar_df_lex = [], temp_grammar_df_syn = [], temp_grammar_df_full = [], 
-                            temp_clips_lex = None, temp_clips_syn = None, temp_clips_full = None,
-                            run_networks = False):
+                            temp_clips_lex = None, temp_clips_syn = None, temp_clips_full = None):
         
         #Now that we have clusters, enrich input data and save
         if not os.path.exists(os.path.join(self.out_dir, self.nickname+".input_enriched.p")):
@@ -378,16 +385,28 @@ class C2xG(object):
             self.Load.actual_data = self.Load.load_file(self.nickname+".input_enriched.p")
             
         #Get lexical only constructions
-        print("Starting lexical only constructions.")
-        grammar_df_lex, clips_lex = self.process_grammar(input_data, grammar_type = "lex", get_examples = get_examples)
+        if not os.path.exists(os.path.join(self.out_dir, self.nickname+".lex.grammar_clipping.csv")):
+            print("Starting lexical only constructions.")
+            grammar_df_lex, clips_lex = self.process_grammar(input_data, grammar_type = "lex", get_examples = get_examples)
+        else:
+            grammar_df_lex = pd.read_csv(os.path.join(self.out_dir, self.nickname+".lex.grammar_clipping.csv"), index_col = 0)
+            clips_lex = self.Load.load_file(self.nickname+".lex.grammar_clipping_indexes.p")
         
         #Get syntactic only constructions
-        print("Starting syntactic only constructions.")
-        grammar_df_syn, clips_syn = self.process_grammar(input_data, grammar_type = "syn", get_examples = get_examples)
+        if not os.path.exists(os.path.join(self.out_dir, self.nickname+".syn.grammar_clipping.csv")):
+            print("Starting syntactic only constructions.")
+            grammar_df_syn, clips_syn = self.process_grammar(input_data, grammar_type = "syn", get_examples = get_examples)
+        else:
+            grammar_df_syn = pd.read_csv(os.path.join(self.out_dir, self.nickname+".syn.grammar_clipping.csv"), index_col = 0)
+            clips_syn = self.Load.load_file(self.nickname+".syn.grammar_clipping_indexes.p")
         
         #Get full constructions
-        print("Starting full constructions.")
-        grammar_df_full, clips_full = self.process_grammar(input_data, grammar_type = "full", get_examples = get_examples)
+        if not os.path.exists(os.path.join(self.out_dir, self.nickname+".full.grammar_clipping.csv")):
+            print("Starting full constructions.")
+            grammar_df_full, clips_full = self.process_grammar(input_data, grammar_type = "full", get_examples = get_examples)
+        else:
+            grammar_df_full = pd.read_csv(os.path.join(self.out_dir, self.nickname+".full.grammar_clipping.csv"), index_col = 0)
+            clips_full = self.Load.load_file(self.nickname+".full.grammar_clipping_indexes.p")
         
         #If not the first round, now merge existing grammars before forgetting
         if temp_clips_lex != None:
@@ -469,70 +488,103 @@ class C2xG(object):
         self.Load.save_file(self.Load.clips, self.nickname + ".forgetting_merged_grammar_clips.p")
         print(grammar_df)
         
-        #Check if we need to get structure in the grammar
-        if run_networks == True:
-        
-            #Clustering lexical constructions
-            lex_cluster_examples_file = self.nickname + ".grammar_lex_clusters_examples.txt"
-            
-            if not os.path.exists(os.path.join(self.out_dir, lex_cluster_examples_file)):
-                print("Starting to cluster lexical constructions.")
-                
-                lex_clusters_constructions_df = self.get_construction_similarity(grammar_df_lex.loc[:,"Chunk"].tolist())
-                print("\t Getting examples for token similarity.")
-                examples_dict = self.print_examples(grammar = grammar_df_lex.loc[:,"Chunk"], input_file = input_data, output = False, n = 100, send_back=True)
-                lex_clusters_tokens_df = self.get_token_similarity(grammar_df_lex.loc[:,"Chunk"].tolist(), examples_dict)
-                #Merge clusters and save
-                lex_cluster_df = pd.merge(lex_clusters_constructions_df, lex_clusters_tokens_df, on = "Chunk")
-                lex_cluster_df.columns = ["Chunk", "Type_Clusters", "Token_Clusters"]
-                lex_cluster_df.loc[:,"Construction"] = self.decode(lex_cluster_df.loc[:,"Chunk"].values, clips = clips_lex)
-                print(lex_cluster_df)
-                lex_cluster_df.to_csv(os.path.join(self.out_dir, self.nickname + ".grammar_lex_clusters.csv"))
-                #Save examples
-                self.print_examples_clusters(examples_dict, lex_cluster_df, clips_lex, output_file = lex_cluster_examples_file)
-                
-            #Clustering syntactic constructions
-            syn_cluster_examples_file = self.nickname + ".grammar_syn_clusters_examples.txt"
-            
-            if not os.path.exists(os.path.join(self.out_dir, syn_cluster_examples_file)):
-                print("Starting to cluster syntactic constructions.")
-                
-                syn_clusters_constructions_df = self.get_construction_similarity(grammar_df_syn.loc[:,"Chunk"].tolist())
-                print("\t Getting examples for token similarity.")
-                examples_dict = self.print_examples(grammar = grammar_df_syn.loc[:,"Chunk"], input_file = input_data, output = False, n = 100, send_back=True)
-                syn_clusters_tokens_df = self.get_token_similarity(grammar_df_syn.loc[:,"Chunk"].tolist(), examples_dict)
-                #Merge clusters and save
-                syn_cluster_df = pd.merge(syn_clusters_constructions_df, syn_clusters_tokens_df, on = "Chunk")
-                syn_cluster_df.columns = ["Chunk", "Type_Clusters", "Token_Clusters"]
-                syn_cluster_df.loc[:,"Construction"] = self.decode(syn_cluster_df.loc[:,"Chunk"].values, clips = clips_syn)
-                print(syn_cluster_df)
-                syn_cluster_df.to_csv(os.path.join(self.out_dir, self.nickname + ".grammar_syn_clusters.csv"))
-                #Save examples
-                self.print_examples_clusters(examples_dict, syn_cluster_df, clips_syn, output_file = syn_cluster_examples_file)
-                
-            #Clustering full constructions
-            full_cluster_examples_file = self.nickname + ".grammar_full_clusters_examples.txt"
-            
-            if not os.path.exists(os.path.join(self.out_dir, full_cluster_examples_file)):
-                print("Starting to cluster full constructions.")
-                
-                full_clusters_constructions_df = self.get_construction_similarity(grammar_df_full.loc[:,"Chunk"].tolist())
-                print("\t Getting examples for token similarity.")
-                examples_dict = self.print_examples(grammar = grammar_df_full.loc[:,"Chunk"], input_file = input_data, output = False, n = 100, send_back=True)
-                full_clusters_tokens_df = self.get_token_similarity(grammar_df_full.loc[:,"Chunk"].tolist(), examples_dict)
-                #Merge clusters and save
-                full_cluster_df = pd.merge(full_clusters_constructions_df, full_clusters_tokens_df, on = "Chunk")
-                full_cluster_df.columns = ["Chunk", "Type_Clusters", "Token_Clusters"]
-                full_cluster_df.loc[:,"Construction"] = self.decode(full_cluster_df.loc[:,"Chunk"].values, clips = clips_full)
-                print(full_cluster_df)
-                full_cluster_df.to_csv(os.path.join(self.out_dir, self.nickname + ".grammar_full_clusters.csv"))
-                #Save examples
-                self.print_examples_clusters(examples_dict, full_cluster_df, clips_full, output_file = full_cluster_examples_file)
-        
         return grammar_df_lex, grammar_df_syn, grammar_df_full, clips_lex, clips_syn, clips_full
         
-    #------------------------------------------------------------------        
+    #------------------------------------------------------------------
+    def learn_final_steps(self, input_data, forgetting_rounds, increments, grammar_df_lex, grammar_df_syn, grammar_df_full, clips_lex, clips_syn, clips_full):
+    
+        #First, a final round of forgetting where all constructions are old
+        #Forgetting for lexical grammar
+        forget_name_lex = os.path.join(self.out_dir, self.nickname + ".lex.grammar_forgetting.csv")
+        if not os.path.exists(forget_name_lex):
+            grammar_df_lex, clips_lex = self.forget_constructions(grammar_df_lex.loc[:,"Chunk"], input_data, threshold = 1, adjustment = 0.20, 
+                                                                rounds = forgetting_rounds, increment_size = increments, name = "lex", clips = clips_lex, temp_grammar = grammar_df_lex)
+            grammar_df_lex.to_csv(forget_name_lex)
+            self.Load.save_file(clips_lex, self.nickname+".clips_lex_forgetting.p")
+        else:
+            grammar_df_lex = pd.read_csv(forget_name_lex, index_col = 0)
+            clips_lex = self.Load.load_file(self.nickname+".clips_lex_forgetting.p")
+                
+        print(grammar_df_lex)
+
+        #Forgetting for syntactic grammar
+        forget_name_syn = os.path.join(self.out_dir, self.nickname + ".syn.grammar_forgetting.csv")
+        if not os.path.exists(forget_name_syn):
+            grammar_df_syn, clips_syn = self.forget_constructions(grammar_df_syn.loc[:,"Chunk"], input_data, threshold = 1, adjustment = 0.20, 
+                                                            rounds = forgetting_rounds, increment_size = increments, name = "syn", clips = clips_syn, temp_grammar = grammar_df_syn)
+            grammar_df_syn.to_csv(forget_name_syn)
+            self.Load.save_file(clips_syn, self.nickname+".clips_syn_forgetting.p")
+        else:
+            grammar_df_syn = pd.read_csv(forget_name_syn, index_col = 0)
+            clips_syn = self.Load.load_file(self.nickname+".clips_syn_forgetting.p")
+                
+        print(grammar_df_syn)
             
+        #Forgetting for full grammar
+        forget_name_full = os.path.join(self.out_dir, self.nickname + ".full.grammar_forgetting.csv")
+        if not os.path.exists(forget_name_full):
+            grammar_df_full, clips_full = self.forget_constructions(grammar_df_full.loc[:,"Chunk"], input_data, threshold = 1, adjustment = 0.20, 
+                                                            rounds = forgetting_rounds, increment_size = increments, name = "full", clips = clips_full, temp_grammar = grammar_df_full)
+            grammar_df_full.to_csv(forget_name_full)
+            self.Load.save_file(clips_full, self.nickname+".clips_full_forgetting.p")
+        else:
+            grammar_df_full = pd.read_csv(forget_name_full, index_col = 0)
+            clips_full = self.Load.load_file(self.nickname+".clips_full_forgetting.p")
+                
+        print(grammar_df_full)
+        
+        #Clustering lexical constructions
+        lex_cluster_examples_file = self.nickname + ".grammar_lex_clusters_examples.txt"
+            
+        if not os.path.exists(os.path.join(self.out_dir, lex_cluster_examples_file)):
+            print("Starting to cluster lexical constructions.")
+                
+            lex_clusters_constructions_df = self.get_construction_similarity(grammar_df_lex.loc[:,"Chunk"].tolist())
+            print("\t Getting examples for token similarity.")
+            examples_dict = self.print_examples(grammar = grammar_df_lex.loc[:,"Chunk"], input_file = input_data, output = False, n = 25, send_back=True)
+            lex_cluster_df = self.get_token_similarity(lex_clusters_constructions_df, examples_dict)
+            lex_cluster_df.loc[:,"Construction"] = self.decode(lex_cluster_df.loc[:,"Chunk"].values, clips = clips_lex)
+            print(lex_cluster_df)
+            lex_cluster_df.to_csv(os.path.join(self.out_dir, self.nickname + ".grammar_lex_clusters.csv"))
+            #Save examples
+            self.print_examples_clusters(examples_dict, lex_cluster_df, clips_lex, output_file = lex_cluster_examples_file)
+       
+        #Clustering syntactic constructions
+        syn_cluster_examples_file = self.nickname + ".grammar_syn_clusters_examples.txt"
+            
+        if not os.path.exists(os.path.join(self.out_dir, syn_cluster_examples_file)):
+            print("Starting to cluster syntactic constructions.")
+                
+            syn_clusters_constructions_df = self.get_construction_similarity(grammar_df_syn.loc[:,"Chunk"].tolist())
+            print("\t Getting examples for token similarity.")
+            examples_dict = self.print_examples(grammar = grammar_df_syn.loc[:,"Chunk"], input_file = input_data, output = False, n = 25, send_back=True)
+            syn_cluster_df = self.get_token_similarity(syn_clusters_constructions_df, examples_dict)
+            syn_cluster_df.loc[:,"Construction"] = self.decode(syn_cluster_df.loc[:,"Chunk"].values, clips = clips_syn)
+            print(syn_cluster_df)
+            syn_cluster_df.to_csv(os.path.join(self.out_dir, self.nickname + ".grammar_syn_clusters.csv"))
+            #Save examples
+            self.print_examples_clusters(examples_dict, syn_cluster_df, clips_syn, output_file = syn_cluster_examples_file)
+                
+        #Clustering full constructions
+        full_cluster_examples_file = self.nickname + ".grammar_full_clusters_examples.txt"
+           
+        if not os.path.exists(os.path.join(self.out_dir, full_cluster_examples_file)):
+            print("Starting to cluster full constructions: " + str(len(grammar_df_full)))
+            
+            full_clusters_constructions_df = self.get_construction_similarity(grammar_df_full.loc[:,"Chunk"].tolist())
+            print("\t Getting examples for token similarity.")
+            examples_dict = self.print_examples(grammar = grammar_df_full.loc[:,"Chunk"], input_file = input_data, output = False, n = 25, send_back=True)
+            full_cluster_df = self.get_token_similarity(full_clusters_constructions_df, examples_dict)
+            full_cluster_df.loc[:,"Construction"] = self.decode(full_cluster_df.loc[:,"Chunk"].values, clips = clips_full)
+            print(full_cluster_df)
+            full_cluster_df.to_csv(os.path.join(self.out_dir, self.nickname + ".grammar_full_clusters.csv"))
+            #Save examples
+            self.print_examples_clusters(examples_dict, full_cluster_df, clips_full, output_file = full_cluster_examples_file)
+            
+        return lex_cluster_df, syn_cluster_df, full_cluster_df, clips_lex, clips_syn, clips_full
+     
+    #------------------------------------------------------------------
+        
     def process_grammar(self, input_data, grammar_type = "full", get_examples = True):
     
         #Lexical only
@@ -674,8 +726,8 @@ class C2xG(object):
                 results = list(ct.concat([[(i, j) for j in range(len(grammar_list))] for i in range(len(grammar_list)) if grammar_list[i] in current_search]))
             
             print("\t\tTotal of " + str(len(results)) + " pairs to check.")
-            pool_instance = mp.Pool(processes = mp.cpu_count(), maxtasksperchild = None)
-            results = pool_instance.map(partial(process_clipping, grammar_list = grammar_list), results, chunksize = 20000)
+            pool_instance = mp.Pool(processes = max(20, mp.cpu_count()), maxtasksperchild = None)
+            results = pool_instance.map(partial(process_clipping, grammar_list = grammar_list), results, chunksize = 10000)
             pool_instance.close()
             pool_instance.join()            
             
@@ -954,6 +1006,7 @@ class C2xG(object):
     def print_examples(self, grammar, input_file, n, output = False, send_back = False):
   
         output_dict = {} #For returning examples
+        n = 50
         
         #Temp file if necessary
         if output == False:
@@ -1048,8 +1101,8 @@ class C2xG(object):
         with codecs.open(output_file, "w", encoding = "utf-8") as fw:
         
             #Iterate over type clusters then token clusters
-            for cluster_type, cluster1_df in clusters_df.groupby("Type_Clusters"):
-                for cluster_token, cluster2_df in cluster1_df.groupby("Token_Clusters"):
+            for cluster_type, cluster1_df in clusters_df.groupby("Type Cluster"):
+                for cluster_token, cluster2_df in cluster1_df.groupby("Token Cluster"):
             
                     #Now look at each construction
                     for construction in cluster2_df.loc[:,"Chunk"].values:
@@ -1132,8 +1185,8 @@ class C2xG(object):
         
         #Process dataframe by row
         for row in df.itertuples():
-            word1 = row[1]
-            word2 = row[2]
+            word1 = str(row[1])
+            word2 = str(row[2])
             maximum = row[3]
             difference = row[4]
             lr = row[5]
@@ -1234,34 +1287,47 @@ class C2xG(object):
  
     #-----------------------------------------------
     
-    def get_token_similarity(self, grammar, examples_dict):
+    def get_token_similarity(self, grammar_df, examples_dict, n_chunks = 100):
     
-        #Input may be a string rather than tuple
-        grammar = [eval(chunk) if isinstance(chunk, str) else chunk for chunk in grammar]
-        
-        similarity_matrix = []
-        
-        #Build one construction at a time
-        print("\t Starting token similarity")
-        construction_pairs = list(ct.concat([[(construction1, construction2) for construction2 in grammar] for construction1 in grammar]))
-           
-        #Compare each construction with all other construction examples
-        pool_instance = mp.Pool(processes = mp.cpu_count(), maxtasksperchild = None)
-        similarity_matrix = pool_instance.map(partial(token_similarity, examples_dict = examples_dict), construction_pairs, chunksize = 10000)
-        pool_instance.close()
-        pool_instance.join()
-        
-        #Convert to right dimensions
-        similarity_matrix = list(ct.partition_all(len(grammar), similarity_matrix))
-        
-        #Convert to np matrix
-        similarity_matrix = np.array(similarity_matrix)
-        
-        print("\t Finished token similarity: " + str(similarity_matrix.shape))
-
-        #Cluster
-        cluster_df = self.Word_Classes.learn_construction_categories(grammar, similarity_matrix)
+        #Initialize results holder
+        results = []
+    
+        #Restrict the search to within type-based clusters
+        for cluster, cluster_df in grammar_df.groupby("Cluster"):
             
+            print("\t Starting token cluster " + str(cluster))
+
+            #Input may be a string rather than tuple
+            grammar = [eval(chunk) if isinstance(chunk, str) else chunk for chunk in cluster_df.loc[:,"Chunk"].tolist()]
+            
+            similarity_matrix = []
+            
+            #Build one construction at a time
+            print("\t Starting token similarity")
+            construction_pairs = list(ct.concat([[(construction1, construction2) for construction2 in grammar] for construction1 in grammar]))
+  
+            #Compare each construction with all other construction examples
+            pool_instance = mp.Pool(processes = mp.cpu_count(), maxtasksperchild = 1)
+            similarity_matrix = pool_instance.map(partial(token_similarity, examples_dict = examples_dict), construction_pairs, chunksize = n_chunks)
+            pool_instance.close()
+            pool_instance.join()
+            
+            #Convert to right dimensions
+            similarity_matrix = list(ct.partition_all(len(grammar), similarity_matrix))
+            
+            #Convert to np matrix
+            similarity_matrix = np.array(similarity_matrix)            
+            print("\t Finished token similarity: " + str(similarity_matrix.shape))
+
+            #Cluster
+            cluster_df = self.Word_Classes.learn_construction_categories(grammar, similarity_matrix, num_clusters = range(int(len(grammar)/10)+11, 10, -10))
+            cluster_df.loc[:,"Type Cluster"] = cluster
+            results.append(cluster_df)
+            
+        cluster_df = pd.concat(results)
+        cluster_df.columns = ["Chunk", "Token Cluster", "Type Cluster"]
+        cluster_df.sort_values(by = ["Type Cluster", "Token Cluster"], ascending=True, inplace=True)
+        
         return cluster_df
     
     #---------------------------------------------------
@@ -1343,6 +1409,11 @@ class C2xG(object):
                     #Get current weight and current construction
                     weight = weights[i]
                     construction = grammar[i]
+                    
+                    #Constructions from existing grammar are reduced less quickly
+                    if temp_grammar != False:
+                        if construction in temp_grammar:
+                            temp_increment = 0.17
                         
                     #Second-order are reduced at half the rate
                     if construction in clips:
@@ -1350,12 +1421,7 @@ class C2xG(object):
                     #First-order are reduced at full rate
                     else:
                         temp_increment = adjustment
-                    
-                    #Constructions from existing grammar are reduced at half the rate
-                    if temp_grammar != False:
-                        if construction in temp_grammar:
-                            temp_increment = temp_increment/2
-                            
+   
                     #Return weight to 1 if above threshold 
                     if frequencies[i] >= threshold:
                         weight = 1

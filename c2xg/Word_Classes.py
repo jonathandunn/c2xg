@@ -223,19 +223,27 @@ class Word_Classes(object):
         
     #-------------------------------------------------------------------------------#
     
-    def learn_construction_categories(self, grammar, similarity_matrix):
+    def learn_construction_categories(self, grammar, similarity_matrix, num_clusters = None):
     
         #Set range of construction clusters
-        cluster_range = range(int(len(grammar)/5), 10, -10)
+        if num_clusters == None:
+            cluster_range = range(int(len(grammar)/400)+11, 10, -10)
+        else:
+            cluster_range = num_clusters
         
         #Initialize search
         optimum_clusters = 0
         optimum_sh = 0.0
         n_turns_no_change = 0
         
+        print("\tStarting to cluster with a range of " + str(cluster_range))
         #Iterate over potential numbers of clusters
         for n_clusters in cluster_range:
-            
+        
+            #Safety check
+            if n_clusters > len(grammar):
+                n_clusters = len(grammar)-1
+                
             km = kmedoids.fasterpam(diss = similarity_matrix, 
                                 medoids = n_clusters, 
                                 max_iter=100000, 

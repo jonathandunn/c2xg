@@ -102,7 +102,11 @@ class Minimum_Description_Length(object):
         for chunk in chunks:
             
             #First, more likely constructions should cost less
-            prob = max(1, chunks[chunk]) / float(total)
+            try:
+                prob = max(1, chunks[chunk]) / float(total)
+            except:
+                prob = 0.0000001
+                
             cost = -math.log2(prob)
             chunk_cost[chunk] = {}
             chunk_cost[chunk]["Pointer"] = cost
