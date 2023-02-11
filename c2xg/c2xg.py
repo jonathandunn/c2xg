@@ -1287,7 +1287,7 @@ class C2xG(object):
  
     #-----------------------------------------------
     
-    def get_token_similarity(self, grammar_df, examples_dict, n_chunks = 100):
+    def get_token_similarity(self, grammar_df, examples_dict, n_chunks = 10000):
     
         #Initialize results holder
         results = []
