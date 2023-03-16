@@ -10,6 +10,7 @@ import multiprocessing as mp
 import cytoolz as ct
 from functools import partial
 from pathlib import Path
+from collections import defaultdict
 from gensim.models.fasttext import load_facebook_model
 from gensim.models.phrases import Phrases
 
@@ -211,7 +212,7 @@ class C2xG(object):
         
     #------------------------------------------------------------------
 
-    def learn(self, input_data, npmi_threshold = 0.75, min_count = None, cbow_range = False, sg_range = False, get_examples = True, increments = 50000, learning_rounds = 20, forgetting_rounds = 40, cluster_only = False):
+    def learn(self, input_data, npmi_threshold = 0.75, min_count = None, max_vocab = None, cbow_range = False, sg_range = False, get_examples = True, increments = 50000, learning_rounds = 20, forgetting_rounds = 40, cluster_only = False):
 
         #Adjust min_count to be 1 parts per million using max_words parameter
         if min_count == None:
@@ -232,7 +233,7 @@ class C2xG(object):
         #If lexicon and phrases don't exist
         if not os.path.exists(os.path.join(self.out_dir, lex_file)):
             print("Starting to learn: lexicon")
-            lexicon, phrases, unique_words, self.Load.full_lexicon = self.Load.get_lexicon(input_data, npmi_threshold, self.Load.min_count)
+            lexicon, phrases, unique_words, self.Load.full_lexicon = self.Load.get_lexicon(input_data, npmi_threshold, self.Load.min_count, max_vocab)
 
             n_phrases = len([x for x in lexicon.keys() if " " in x])
             print("Finished with " + str(len(lexicon)-n_phrases) + " words and " + str(n_phrases) + " phrases")
@@ -646,8 +647,12 @@ class C2xG(object):
         #Check if grammar file exists
         if not os.path.exists(grammar_file):
         
-            #Clip constructions together
-            grammar, self.Load.clips = self.clip_constructions(grammar_df, self.Load.min_count)
+            #Clip constructions together, overlap algorithm
+            # grammar, self.Load.clips = self.clip_constructions_overlap(grammar_df, self.Load.min_count)
+            
+            #Clip constructions together, adjacency algorithm
+            grammar, self.Load.clips = self.clip_constructions(grammar_df, self.Load.clips)
+            print(grammar)
             
             #Get costs for new grammar
             print("Recalculating encoding costs")
@@ -677,7 +682,135 @@ class C2xG(object):
         return grammar_df, self.Load.clips
 
     #------------------------------------------------------------------
-    def clip_constructions(self, grammar_df, min_count):
+    def clip_constructions(self, grammar_df, clips):
+    
+        grammar = []
+        clips = {}
+        
+        #Iterate over grammar to get constructions and frequency
+        for row in grammar_df.itertuples():
+            chunk = row[1]
+            freq = row[2]
+
+            #Input may be a string rather than tuple
+            if isinstance(chunk, str):
+                chunk = eval(chunk)
+                grammar.append(chunk)
+                
+        #Only check each potential clipping once
+        stop_list = []
+        
+        #Loop until no more clippings to find
+        while True:
+        
+            #Get indexes of matches for all constructions
+            print("\t Starting to parse " + str(len(self.Load.data)) + " lines")
+            construction_list, indexes_list, matches_list = self.Parse.parse_clipping(lines = self.Load.data, grammar = grammar)
+
+            print("\t Now clipping with " + str(len(grammar)) + " constructions")
+            
+            intersections = []
+            adjacents = []
+            frequencies = defaultdict(int)
+            
+            #Look for clipping line by line
+            for line in indexes_list:
+            
+                #Each 'line' is made up of construction matches with indexes for that line of input
+                for i in range(len(line)):
+                    
+                    #Get the current construction match
+                    current_construction = line[i]
+                    
+                    #Compare with all other matches
+                    for j in range(len(line)):
+
+                        #Define the comparison
+                        comparison_construction = line[j]
+                        
+                        #Make sure different constructions
+                        if comparison_construction[0] != current_construction[0]:
+                        
+                            #Check if i comes before j
+                            if current_construction[1][-1] == comparison_construction[1][0]-1:
+
+                                #Get constructions from the list
+                                con1 = construction_list[current_construction[0]]
+                                con2 = construction_list[comparison_construction[0]]
+                                #Merge them
+                                new_construction = con1 + con2
+                                
+                                #Save and update frequency
+                                frequencies[new_construction] += 1
+                                
+                                if new_construction not in stop_list:
+                                    if new_construction not in adjacents:
+                                        adjacents.append(new_construction)
+                                        stop_list.append(new_construction)
+                                        clips[new_construction] = len(con1)
+                            
+                            #Check if i intersects with j
+                            if current_construction[1][-1] == comparison_construction[1][0]:
+
+                                #Get constructions from the list
+                                con1 = construction_list[current_construction[0]]
+                                con2 = construction_list[comparison_construction[0]]
+                                #Merge them
+                                new_construction = con1 + con2[1:]
+                                
+                                #Save and update frequency
+                                frequencies[new_construction] += 1
+                                if new_construction not in stop_list:
+                                    if new_construction not in intersections:
+                                        intersections.append(new_construction)
+                                        stop_list.append(new_construction)
+                                        clips[new_construction] = len(con1)
+                
+            #Finished with this iteration
+            print("\t\tFinished round with " + str(len(intersections)) + " intersections and " + str(len(adjacents)) + " adjacent clippings.")
+            
+            #Check frequency threshold
+            threshold = lambda x: x > (self.Load.min_count/2)
+            frequencies = ct.valfilter(threshold, frequencies)
+            
+            #Reduce infrequent examples
+            intersections = [x for x in intersections if x in frequencies]
+            adjacents = [x for x in adjacents if x in frequencies]
+            
+            #Clean clips
+            to_pop = []
+            for key in clips:
+                if key not in frequencies:
+                    to_pop.append(key)
+            for key in to_pop:
+                clips.pop(key)
+                    
+            print("\t\tAfter pruning with " + str(len(intersections)) + " intersections and " + str(len(adjacents)) + " adjacent clippings.")
+            
+            #Add new constructions to grammar
+            grammar += intersections
+            grammar += adjacents
+            
+            total_added = len(intersections) + len(adjacents)
+            
+            if total_added < 3:
+                break
+                
+        print("\t Starting to parse for frequency check" + str(len(self.Load.data)) + " lines")
+        construction_list, indexes_list, matches_list = self.Parse.parse_clipping(lines = self.Load.data, grammar = grammar)
+        
+        #Return dictionary with construction frequencies
+        new_grammar = {}
+        for i in range(len(construction_list)):
+            construction = construction_list[i]
+            frequency = matches_list[i]
+            new_grammar[construction] = frequency
+            
+        
+        return new_grammar, clips  
+    
+    #------------------------------------------------------------------
+    def clip_constructions_overlap(self, grammar_df, min_count):
     
         #First generate all possible merged constructions, recursively
         grammar = {}

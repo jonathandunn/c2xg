@@ -141,6 +141,8 @@ class Loader(object):
     #---------------------------------------------------------------#
     def get_unk(self, word, type = "cbow"):
 
+        word = str(word)
+        
         if type == "cbow":
             vector = self.cbow_model.wv[word]
             centroids = [self.cbow_centroids[x] for x in sorted(self.cbow_centroids.keys())]
@@ -541,7 +543,7 @@ class Loader(object):
     
     #---------------------------------------------------------------------------#
 
-    def get_lexicon(self, input_data, npmi_threshold = 0.75, min_count = 1):
+    def get_lexicon(self, input_data, npmi_threshold = 0.75, min_count = 1, max_vocab = None):
 
         if isinstance(input_data, str):
             
@@ -606,7 +608,12 @@ class Loader(object):
                     remove_list.append(key)
             for key in remove_list:
                 lexicon.pop(key)
-
+                
+            #Reduce to max vocab
+            if max_vocab != None:
+                lexicon = dict(sorted(lexicon.items(), key=lambda x: x[1], reverse=True)[:max_vocab])
+                print("REDUCED ", len(lexicon))
+            
             return lexicon, phrases, unique_words, full_lexicon_df
 
     #---------------------------------------------------------------------------#

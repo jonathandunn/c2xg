@@ -136,8 +136,8 @@ class Word_Classes(object):
             else:
                 n_turns_no_change += 1
                 
-            if n_turns_no_change > 2:
-                print("No change for 3 iterations, stopping now.")
+            if n_turns_no_change > 0:
+                print("No change for 1 iterations, stopping now.")
                 break
         
         results = []

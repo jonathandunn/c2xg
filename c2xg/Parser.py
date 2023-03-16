@@ -99,6 +99,53 @@ def parse_mdl_support(construction, lines):
 
 #--------------------------------------------------------------#
 
+def parse_clipping_support(line, constructions):
+
+    indexes = [-1]
+    matches = 0
+    
+    #Iterate over input constructions in current line
+    for k in range(len(constructions)):
+    
+        construction = constructions[k]
+    
+        #Iterate over line from left to right
+        for i in range(len(line)):
+            
+            unit = line[i]
+
+            #Check if the first unit matches, to merit further consideration
+            if construction[0][1] == unit[construction[0][0]-1]:
+                            
+                match = True    #Initiate match flag to True
+
+                #Check each future unit in candidate
+                for j in range(1, len(construction)):
+                                
+                    #If we reach the padded part of the construction, break it off
+                    if construction[j] == (0,0):
+                        break
+                                
+                    #If this unit doesn't match, stop looking
+                    if i+j < len(line):
+                        if line[i+j][construction[j][0] - 1] != construction[j][1]:
+                                            
+                            match = False
+                            break
+                            
+                    #This construction is longer than the remaining line
+                    else:
+                        match = False
+                        break
+
+                #Done with candidate
+                if match == True:
+                    matches += 1
+                    indexes.append(tuple((k, list(range(i, i + len(construction))))))    #Save indexes covered by construction match
+          
+    return indexes[1:], matches
+
+#--------------------------------------------------------------#
 def _get_candidates( unit, grammar ) : 
         
     # Check for: if construction[0][1] == unit[construction[0][0]-1]:
@@ -316,4 +363,31 @@ class Parser(object):
     
         #results contains a tuple for each construction in the grammar (indexes[list], matches[int])
         return construction_list, indexes_list, np.array(matches_list), vector_list
+        
+    #---------------------------------------------------------------#
+    
+    def parse_clipping(self, lines, grammar):
+        
+        #Chunk array for workers
+        total_count = len(lines)
+    
+        #Multi-process by construction
+        pool_instance = mp.Pool(processes = mp.cpu_count(), maxtasksperchild = None)
+        results = pool_instance.map(partial(parse_clipping_support, constructions = grammar), lines, chunksize = 10)
+        pool_instance.close()
+        pool_instance.join()
+        
+        #Initialize lists
+        construction_list = grammar
+        indexes_list = []
+        matches_list = []
+        
+        #Create fixed-length arrays
+        for i in range(len(results)):
+            indexes, matches = results[i]
+            matches_list.append(matches)
+            indexes_list.append(indexes)
+    
+        #results contains a tuple for each construction in the grammar (indexes[list], matches[int])
+        return construction_list, indexes_list, np.array(matches_list)
     
