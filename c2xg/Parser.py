@@ -102,12 +102,13 @@ def parse_mdl_support(construction, lines):
 def parse_clipping_support(line, constructions):
 
     indexes = [-1]
-    matches = 0
+    matches = []
     
     #Iterate over input constructions in current line
     for k in range(len(constructions)):
     
         construction = constructions[k]
+        current_matches = 0
     
         #Iterate over line from left to right
         for i in range(len(line)):
@@ -140,9 +141,12 @@ def parse_clipping_support(line, constructions):
 
                 #Done with candidate
                 if match == True:
-                    matches += 1
+                    current_matches += 1
                     indexes.append(tuple((k, list(range(i, i + len(construction))))))    #Save indexes covered by construction match
-          
+        
+        #Add frequency of this construction
+        matches.append(current_matches)
+        
     return indexes[1:], matches
 
 #--------------------------------------------------------------#
@@ -387,7 +391,10 @@ class Parser(object):
             indexes, matches = results[i]
             matches_list.append(matches)
             indexes_list.append(indexes)
+          
+        matches_list = np.array(matches_list)
+        matches_list = np.sum(matches_list, axis = 0)
     
         #results contains a tuple for each construction in the grammar (indexes[list], matches[int])
-        return construction_list, indexes_list, np.array(matches_list)
+        return construction_list, indexes_list, matches_list
     

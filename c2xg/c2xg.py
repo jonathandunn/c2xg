@@ -652,7 +652,6 @@ class C2xG(object):
             
             #Clip constructions together, adjacency algorithm
             grammar, self.Load.clips = self.clip_constructions(grammar_df, self.Load.clips)
-            print(grammar)
             
             #Get costs for new grammar
             print("Recalculating encoding costs")
@@ -660,11 +659,12 @@ class C2xG(object):
             grammar_cost, grammar_df = mdl.get_grammar_cost(grammar)
             grammar_df.loc[:,"Construction"] = self.decode(grammar_df.loc[:,"Chunk"].values)
             slot_df = mdl.cost_df
-            
+            print(grammar_df)
+  
             #Save
             grammar_df.to_csv(grammar_file)
             self.Load.save_file(self.Load.clips, self.nickname + "." + grammar_type + ".grammar_clipping_indexes.p")
-        
+
         #Load grammar
         else:
             print("Loading clipped grammar")
@@ -672,7 +672,6 @@ class C2xG(object):
             self.Load.clips = self.Load.load_file(self.nickname + "." + grammar_type + ".grammar_clipping_indexes.p")
             
         print(grammar_df)
-
         #Get examples if requested
         if get_examples == True:
             example_file = os.path.join(self.out_dir, self.nickname + "." + grammar_type + ".examples.txt")
@@ -685,7 +684,9 @@ class C2xG(object):
     def clip_constructions(self, grammar_df, clips):
     
         grammar = []
-        clips = {}
+        
+        if clips == None:
+            clips = {}
         
         #Iterate over grammar to get constructions and frequency
         for row in grammar_df.itertuples():
@@ -695,7 +696,7 @@ class C2xG(object):
             #Input may be a string rather than tuple
             if isinstance(chunk, str):
                 chunk = eval(chunk)
-                grammar.append(chunk)
+            grammar.append(chunk)
                 
         #Only check each potential clipping once
         stop_list = []
@@ -747,7 +748,21 @@ class C2xG(object):
                                     if new_construction not in adjacents:
                                         adjacents.append(new_construction)
                                         stop_list.append(new_construction)
-                                        clips[new_construction] = len(con1)
+                                        
+                                        #Set clip info for readable constructions
+                                        clips[new_construction] = {}
+                                        clips[new_construction][len(con1)-1] = "ADJACENT"
+                                        
+                                        #Add previous clips, which do not need to be adjusted
+                                        if con1 in clips:
+                                            for index in clips[con1]:
+                                                clips[new_construction][index] = clips[con1][index]
+                                        #Add following clips, which do need to be adjusted
+                                        if con2 in clips:
+                                            for index in clips[con2]:
+                                                clips[new_construction][index+len(con1)] = clips[con2][index]
+                                                
+                                        #print(new_construction, clips[new_construction])
                             
                             #Check if i intersects with j
                             if current_construction[1][-1] == comparison_construction[1][0]:
@@ -764,13 +779,27 @@ class C2xG(object):
                                     if new_construction not in intersections:
                                         intersections.append(new_construction)
                                         stop_list.append(new_construction)
-                                        clips[new_construction] = len(con1)
+                                        
+                                        #Set clip info for readable constructions
+                                        clips[new_construction] = {}
+                                        clips[new_construction][len(con1)] = "INTERSECTION"
+                                        
+                                        #Add previous clips, which do not need to be adjusted
+                                        if con1 in clips:
+                                            for index in clips[con1]:
+                                                clips[new_construction][index] = clips[con1][index]
+                                        #Add following clips, which do need to be adjusted
+                                        if con2 in clips:
+                                            for index in clips[con2]:
+                                                clips[new_construction][index+len(con1)] = clips[con2][index]
+                                                
+                                        #print(new_construction, clips[new_construction])
                 
             #Finished with this iteration
             print("\t\tFinished round with " + str(len(intersections)) + " intersections and " + str(len(adjacents)) + " adjacent clippings.")
             
             #Check frequency threshold
-            threshold = lambda x: x > (self.Load.min_count/2)
+            threshold = lambda x: x > (self.Load.min_count/2.5)
             frequencies = ct.valfilter(threshold, frequencies)
             
             #Reduce infrequent examples
@@ -790,15 +819,16 @@ class C2xG(object):
             #Add new constructions to grammar
             grammar += intersections
             grammar += adjacents
+            print("\t\t\t Total grammar size " + str(len(grammar)))
             
             total_added = len(intersections) + len(adjacents)
             
             if total_added < 3:
                 break
                 
-        print("\t Starting to parse for frequency check" + str(len(self.Load.data)) + " lines")
+        print("\t Starting to parse for frequency check  " + str(len(self.Load.data)) + " lines")
         construction_list, indexes_list, matches_list = self.Parse.parse_clipping(lines = self.Load.data, grammar = grammar)
-        
+
         #Return dictionary with construction frequencies
         new_grammar = {}
         for i in range(len(construction_list)):
@@ -806,7 +836,8 @@ class C2xG(object):
             frequency = matches_list[i]
             new_grammar[construction] = frequency
             
-        
+        print("\t\t\t Total grammar size " + str(len(new_grammar)))
+  
         return new_grammar, clips  
     
     #------------------------------------------------------------------

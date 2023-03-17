@@ -219,13 +219,13 @@ class Loader(object):
             clips = self.clips
 
         #Initialize empty string
-        construction_string = ""
+        construction_string = "[ "
         clip_index = False
         
         #Check for clipping info
         if clips != None:
             if construction in clips:
-                clip_index = clips[construction]
+                clip_index = True
             else:
                 clip_index = False
 
@@ -255,8 +255,8 @@ class Loader(object):
             if i+1 < len(construction):
             
                 #Add clip notation if necessary
-                if clip_index != False and clip_index == i:
-                    transition = " --CLIP-- "
+                if clip_index == True and i in clips[construction]:
+                    transition = " ] " + clips[construction][i] + " [ "
                 
                 #Get transition symbol if no clipping
                 else:
@@ -284,7 +284,9 @@ class Loader(object):
                         
                 #Add transition to construction
                 construction_string += transition
-                    
+          
+        construction_string += " ]"
+        
         return construction_string
         
     #---------------------------------------------------------------------------#
