@@ -229,7 +229,7 @@ class C2xG(object):
         phrase_file = self.nickname + ".phrases.p"
         unique_file = os.path.join(self.out_dir, self.nickname + ".unique_words.csv")
         self.Load.min_count = min_count
-        
+ 
         #If lexicon and phrases don't exist
         if not os.path.exists(os.path.join(self.out_dir, lex_file)):
             print("Starting to learn: lexicon")
@@ -312,14 +312,14 @@ class C2xG(object):
             #First round doesn't merge or update lexicon
             if learning_round == 0:
             
-                grammar_df_lex, grammar_df_syn, grammar_df_full, clips_lex, clips_syn, clips_full = self.learn_streaming(input_data, get_examples, forgetting_rounds, increments)
+                grammar_df_lex, grammar_df_syn, grammar_df_full, clips_lex, clips_syn, clips_full = self.learn_streaming(input_data, forgetting_rounds, increments, get_examples)
                 
             #Otherwise merge with existing
             else:
             
                 #Increment starting index, including for the data used for forgetting
                 self.Load.starting_index += self.max_words + (forgetting_rounds * increments)
-            
+
                 #Load new data
                 lexicon, phrases, unique_words, full_lexicon = self.Load.get_lexicon(input_data, npmi_threshold, min_count)
                 
@@ -346,9 +346,9 @@ class C2xG(object):
 
                 print("\t Expanding lexicon from " + str(start_size) + " to " + str(len(self.Load.lexicon)))
                 self.Load.add_categories(self.Load.cbow_df, self.Load.sg_df, self.Load.lexicon, self.Load.phrases.phrasegrams, full_lexicon, unique_words, update = True)
-                
+
                 #Get new and merged grammars
-                grammar_df_lex, grammar_df_syn, grammar_df_full, clips_lex, clips_syn, clips_full = self.learn_streaming(input_data, get_examples, forgetting_rounds, increments, 
+                grammar_df_lex, grammar_df_syn, grammar_df_full, clips_lex, clips_syn, clips_full = self.learn_streaming(input_data, forgetting_rounds, increments, get_examples,
                                                                                                                             grammar_df_lex, grammar_df_syn, grammar_df_full, 
                                                                                                                             clips_lex, clips_syn, clips_full)
                 
@@ -375,7 +375,7 @@ class C2xG(object):
     def learn_streaming(self, input_data, forgetting_rounds, increments, get_examples = False,
                             temp_grammar_df_lex = [], temp_grammar_df_syn = [], temp_grammar_df_full = [], 
                             temp_clips_lex = None, temp_clips_syn = None, temp_clips_full = None):
-        
+       
         #Now that we have clusters, enrich input data and save
         if not os.path.exists(os.path.join(self.out_dir, self.nickname+".input_enriched.p")):
             print("Enriching input using syntactic and semantic categories")
@@ -436,9 +436,12 @@ class C2xG(object):
         #Check if forgetting is desired
         if increments != False:
         
+            print("\tSTARTING THE FORGETTING ROUND.\t")
+
             #Forgetting for lexical grammar
             forget_name_lex = os.path.join(self.out_dir, self.nickname + ".lex.grammar_forgetting.csv")
             if not os.path.exists(forget_name_lex):
+                
                 grammar_df_lex, clips_lex = self.forget_constructions(grammar_df_lex.loc[:,"Chunk"], input_data, threshold = 1, adjustment = 0.20, 
                                                                 rounds = forgetting_rounds, increment_size = increments, name = "lex", clips = clips_lex, temp_grammar = temp_grammar_df_lex)
                 grammar_df_lex.to_csv(forget_name_lex)
@@ -474,7 +477,7 @@ class C2xG(object):
                 clips_full = self.Load.load_file(self.nickname+".clips_full_forgetting.p")
                 
             print(grammar_df_full)
-        
+
         #Combine grammars
         print("Merging scaffolded grammars")
         grammar_df_lex.loc[:,"Type"] = "Lexical-Only"
@@ -799,7 +802,7 @@ class C2xG(object):
             print("\t\tFinished round with " + str(len(intersections)) + " intersections and " + str(len(adjacents)) + " adjacent clippings.")
             
             #Check frequency threshold
-            threshold = lambda x: x > (self.Load.min_count/2.5)
+            threshold = lambda x: x > (self.Load.min_count/2)
             frequencies = ct.valfilter(threshold, frequencies)
             
             #Reduce infrequent examples
@@ -1519,7 +1522,6 @@ class C2xG(object):
 
         #Input may be a string rather than tuple
         grammar = [eval(chunk) if isinstance(chunk, str) else chunk for chunk in grammar]
-        #grammar = [str(constraints)
         
         #Prepare existing grammar for reduced weight reduction
         if len(temp_grammar) > 5:
@@ -1529,7 +1531,7 @@ class C2xG(object):
             
         #Clipped constructions decay at half the rate
         adjustment_clips = adjustment/2
-            
+
         #Initialize round counter and construction weights
         print("Starting to prune grammar with construction forgetting.")
         round = 0
