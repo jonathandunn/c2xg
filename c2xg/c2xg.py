@@ -24,7 +24,89 @@ from .MDL import Minimum_Description_Length
 from .Word_Classes import Word_Classes
 
 #----------------------------------------------------------
-    
+
+def process_clipping(line, construction_list):
+
+    #Initialize
+    clips = {}
+    frequencies = defaultdict(int)
+    adjacents = []
+    intersections = []
+
+    #Each 'line' is made up of construction matches with indexes for that line of input
+    for i in range(len(line)):
+                    
+        #Get the current construction match
+        current_construction = line[i]
+                    
+        #Compare with all other matches
+        for j in range(len(line)):
+
+            #Define the comparison
+            comparison_construction = line[j]
+                        
+            #Make sure different constructions
+            if comparison_construction[0] != current_construction[0]:
+                        
+                #Check if i comes before j
+                if current_construction[1][-1] == comparison_construction[1][0]-1:
+
+                    #Get constructions from the list
+                    con1 = construction_list[current_construction[0]]
+                    con2 = construction_list[comparison_construction[0]]
+                    #Merge them
+                    new_construction = con1 + con2
+                                
+                    #Save and update frequency
+                    frequencies[new_construction] += 1
+                                
+                    if new_construction not in adjacents:
+                        adjacents.append(new_construction)
+                                        
+                        #Set clip info for readable constructions
+                        clips[new_construction] = {}
+                        clips[new_construction][len(con1)-1] = "ADJACENT"
+                                        
+                        #Add previous clips, which do not need to be adjusted
+                        if con1 in clips:
+                            for index in clips[con1]:
+                                clips[new_construction][index] = clips[con1][index]
+                       #Add following clips, which do need to be adjusted
+                        if con2 in clips:
+                            for index in clips[con2]:
+                                clips[new_construction][index+len(con1)] = clips[con2][index]
+
+                            
+            #Check if i intersects with j
+            if current_construction[1][-1] == comparison_construction[1][0]:
+
+                #Get constructions from the list
+                con1 = construction_list[current_construction[0]]
+                con2 = construction_list[comparison_construction[0]]
+                #Merge them
+                new_construction = con1 + con2[1:]
+                                
+                #Save and update frequency
+                frequencies[new_construction] += 1
+                if new_construction not in intersections:
+                        intersections.append(new_construction)
+                                        
+                        #Set clip info for readable constructions
+                        clips[new_construction] = {}
+                        clips[new_construction][len(con1)] = "INTERSECTION"
+                                        
+                        #Add previous clips, which do not need to be adjusted
+                        if con1 in clips:
+                            for index in clips[con1]:
+                                clips[new_construction][index] = clips[con1][index]
+                        #Add following clips, which do need to be adjusted
+                        if con2 in clips:
+                            for index in clips[con2]:
+                                clips[new_construction][index+len(con1)] = clips[con2][index]
+                           
+    return adjacents, intersections, frequencies, clips
+
+#-----------------------------------------------------------------------------------------------------------    
 def token_similarity(input_tuple, examples_dict):
     
     #Process input tuple
@@ -69,7 +151,7 @@ def token_similarity(input_tuple, examples_dict):
              
 #------------------------------------------------------------------
     
-def process_clipping(input_tuple, grammar_list):
+def process_clipping_overlap(input_tuple, grammar_list):
     
     #For multi-processing
     i = input_tuple[0]
@@ -712,92 +794,27 @@ class C2xG(object):
             construction_list, indexes_list, matches_list = self.Parse.parse_clipping(lines = self.Load.data, grammar = grammar)
 
             print("\t Now clipping with " + str(len(grammar)) + " constructions")
-            
-            intersections = []
+            pool_instance = mp.Pool(processes = mp.cpu_count(), maxtasksperchild = None)
+            results = pool_instance.map(partial(process_clipping, construction_list = construction_list), indexes_list, chunksize = 100)
+            pool_instance.close()
+            pool_instance.join()
+
+            #Merge results
             adjacents = []
-            frequencies = defaultdict(int)
+            intersections = []
+            frequencies = {}
             
-            #Look for clipping line by line
-            for line in indexes_list:
-            
-                #Each 'line' is made up of construction matches with indexes for that line of input
-                for i in range(len(line)):
-                    
-                    #Get the current construction match
-                    current_construction = line[i]
-                    
-                    #Compare with all other matches
-                    for j in range(len(line)):
+            for i in range(len(results)):
+                intersections += results[i][1]
+                adjacents += results[i][0]
+                frequencies = ct.merge_with(sum, frequencies, results[i][2])
+                for key in results[i][3]:
+                    if key not in clips:
+                        clips[key] = results[i][3][key]
+            del results
+            intersections = list(set(intersections))
+            adjacents = list(set(adjacents))
 
-                        #Define the comparison
-                        comparison_construction = line[j]
-                        
-                        #Make sure different constructions
-                        if comparison_construction[0] != current_construction[0]:
-                        
-                            #Check if i comes before j
-                            if current_construction[1][-1] == comparison_construction[1][0]-1:
-
-                                #Get constructions from the list
-                                con1 = construction_list[current_construction[0]]
-                                con2 = construction_list[comparison_construction[0]]
-                                #Merge them
-                                new_construction = con1 + con2
-                                
-                                #Save and update frequency
-                                frequencies[new_construction] += 1
-                                
-                                if new_construction not in stop_list:
-                                    if new_construction not in adjacents:
-                                        adjacents.append(new_construction)
-                                        stop_list.append(new_construction)
-                                        
-                                        #Set clip info for readable constructions
-                                        clips[new_construction] = {}
-                                        clips[new_construction][len(con1)-1] = "ADJACENT"
-                                        
-                                        #Add previous clips, which do not need to be adjusted
-                                        if con1 in clips:
-                                            for index in clips[con1]:
-                                                clips[new_construction][index] = clips[con1][index]
-                                        #Add following clips, which do need to be adjusted
-                                        if con2 in clips:
-                                            for index in clips[con2]:
-                                                clips[new_construction][index+len(con1)] = clips[con2][index]
-                                                
-                                        #print(new_construction, clips[new_construction])
-                            
-                            #Check if i intersects with j
-                            if current_construction[1][-1] == comparison_construction[1][0]:
-
-                                #Get constructions from the list
-                                con1 = construction_list[current_construction[0]]
-                                con2 = construction_list[comparison_construction[0]]
-                                #Merge them
-                                new_construction = con1 + con2[1:]
-                                
-                                #Save and update frequency
-                                frequencies[new_construction] += 1
-                                if new_construction not in stop_list:
-                                    if new_construction not in intersections:
-                                        intersections.append(new_construction)
-                                        stop_list.append(new_construction)
-                                        
-                                        #Set clip info for readable constructions
-                                        clips[new_construction] = {}
-                                        clips[new_construction][len(con1)] = "INTERSECTION"
-                                        
-                                        #Add previous clips, which do not need to be adjusted
-                                        if con1 in clips:
-                                            for index in clips[con1]:
-                                                clips[new_construction][index] = clips[con1][index]
-                                        #Add following clips, which do need to be adjusted
-                                        if con2 in clips:
-                                            for index in clips[con2]:
-                                                clips[new_construction][index+len(con1)] = clips[con2][index]
-                                                
-                                        #print(new_construction, clips[new_construction])
-                
             #Finished with this iteration
             print("\t\tFinished round with " + str(len(intersections)) + " intersections and " + str(len(adjacents)) + " adjacent clippings.")
             
@@ -807,7 +824,9 @@ class C2xG(object):
             
             #Reduce infrequent examples
             intersections = [x for x in intersections if x in frequencies]
+            intersections = [x for x in intersections if x not in grammar]
             adjacents = [x for x in adjacents if x in frequencies]
+            adjacents = [x for x in adjacents if x not in grammar]
             
             #Clean clips
             to_pop = []
