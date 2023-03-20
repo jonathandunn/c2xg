@@ -46,35 +46,35 @@ def process_clipping(line, construction_list):
             comparison_construction = line[j]
                         
             #Make sure different constructions
-            if comparison_construction[0] != current_construction[0]:
+            # if comparison_construction[0] != current_construction[0]:
                         
-                #Check if i comes before j
-                if current_construction[1][-1] == comparison_construction[1][0]-1:
+                # #Check if i comes before j
+                # if current_construction[1][-1] == comparison_construction[1][0]-1:
 
-                    #Get constructions from the list
-                    con1 = construction_list[current_construction[0]]
-                    con2 = construction_list[comparison_construction[0]]
-                    #Merge them
-                    new_construction = con1 + con2
+                    # #Get constructions from the list
+                    # con1 = construction_list[current_construction[0]]
+                    # con2 = construction_list[comparison_construction[0]]
+                    # #Merge them
+                    # new_construction = con1 + con2
                                 
-                    #Save and update frequency
-                    frequencies[new_construction] += 1
+                    # #Save and update frequency
+                    # frequencies[new_construction] += 1
                                 
-                    if new_construction not in adjacents:
-                        adjacents.append(new_construction)
+                    # if new_construction not in adjacents:
+                        # adjacents.append(new_construction)
                                         
-                        #Set clip info for readable constructions
-                        clips[new_construction] = {}
-                        clips[new_construction][len(con1)-1] = "ADJACENT"
+                        # #Set clip info for readable constructions
+                        # clips[new_construction] = {}
+                        # clips[new_construction][len(con1)-1] = "ADJACENT"
                                         
-                        #Add previous clips, which do not need to be adjusted
-                        if con1 in clips:
-                            for index in clips[con1]:
-                                clips[new_construction][index] = clips[con1][index]
-                       #Add following clips, which do need to be adjusted
-                        if con2 in clips:
-                            for index in clips[con2]:
-                                clips[new_construction][index+len(con1)] = clips[con2][index]
+                        # #Add previous clips, which do not need to be adjusted
+                        # if con1 in clips:
+                            # for index in clips[con1]:
+                                # clips[new_construction][index] = clips[con1][index]
+                       # #Add following clips, which do need to be adjusted
+                        # if con2 in clips:
+                            # for index in clips[con2]:
+                                # clips[new_construction][index+len(con1)] = clips[con2][index]
 
                             
             #Check if i intersects with j
@@ -782,15 +782,12 @@ class C2xG(object):
             if isinstance(chunk, str):
                 chunk = eval(chunk)
             grammar.append(chunk)
-                
-        #Only check each potential clipping once
-        stop_list = []
         
         #Loop until no more clippings to find
         while True:
         
             #Get indexes of matches for all constructions
-            print("\t Starting to parse " + str(len(self.Load.data)) + " lines")
+            print("\t Starting to parse " + str(len(self.Load.data)) + " lines (min_count = " + str(self.Load.min_count) + ")")
             construction_list, indexes_list, matches_list = self.Parse.parse_clipping(lines = self.Load.data, grammar = grammar)
 
             print("\t Now clipping with " + str(len(grammar)) + " constructions")
@@ -799,53 +796,83 @@ class C2xG(object):
             pool_instance.close()
             pool_instance.join()
 
+            print("\t\tMerging results")
             #Merge results
-            adjacents = []
-            intersections = []
-            frequencies = {}
+            #adjacents = []
+            #intersections = []
+            frequencies = defaultdict(int)
             
+            #Merge clips
+            #intersections = list(set(ct.concat([results[i][1] for i in range(len(results))])))
+            #adjacents = list(set(ct.concat([results[i][0] for i in range(len(results))])))
+            
+            #Merge counts (dictionaries)
             for i in range(len(results)):
-                intersections += results[i][1]
-                adjacents += results[i][0]
-                frequencies = ct.merge_with(sum, frequencies, results[i][2])
+                for key in results[i][2]:
+                    frequencies[key] += results[i][2][key]
+                    
                 for key in results[i][3]:
-                    if key not in clips:
-                        clips[key] = results[i][3][key]
+                    clips[key] = results[i][3][key]           
+
             del results
-            intersections = list(set(intersections))
-            adjacents = list(set(adjacents))
 
             #Finished with this iteration
-            print("\t\tFinished round with " + str(len(intersections)) + " intersections and " + str(len(adjacents)) + " adjacent clippings.")
+            print("\t\tFinished round with " + str(len(frequencies)) + " intersections ") # + str(len(adjacents)) + " adjacent clippings.")
             
-            #Check frequency threshold
-            threshold = lambda x: x > (self.Load.min_count/2)
-            frequencies = ct.valfilter(threshold, frequencies)
+            #Set temporary threshold
+            frequency_threshold = self.Load.min_count
+            round = 0
             
-            #Reduce infrequent examples
-            intersections = [x for x in intersections if x in frequencies]
-            intersections = [x for x in intersections if x not in grammar]
-            adjacents = [x for x in adjacents if x in frequencies]
-            adjacents = [x for x in adjacents if x not in grammar]
-            
-            #Clean clips
-            to_pop = []
-            for key in clips:
-                if key not in frequencies:
-                    to_pop.append(key)
-            for key in to_pop:
-                clips.pop(key)
+            #Loop until a reasonable number of potential clippings is considered
+            while True:
+                
+                print("\t\tPruning with min_freq = " + str(frequency_threshold), end="\n")
+                start = time.time()
+                #Check frequency threshold
+                threshold = lambda x: x > (frequency_threshold)
+                frequencies = ct.valfilter(threshold, frequencies)
+                print("\t\t\tPruned to " + str(len(frequencies)) + " in " + str(time.time()-start), end="\n")
+                
+                #Reduce infrequent examples (only need to check in current grammar the first loop)
+                if round == 0:
+                    start = time.time()
+                    to_pop = []
+                    for key in frequencies:
+                        if key in grammar:
+                            to_pop.append(key)
+                    for key in to_pop:
+                        frequencies.pop(key)
+                    print("\t\t\tReduced to " + str(len(frequencies)) + " in " + str(time.time()-start), end="\n")
+                    round += 1
+                
+                #Clean clips
+                start = time.time()
+                to_pop = []
+                for key in clips:
+                    if key not in frequencies:
+                        to_pop.append(key)
+                for key in to_pop:
+                    clips.pop(key)
+                print("\t\t\tCleaned in " + str(time.time() - start))
                     
-            print("\t\tAfter pruning with " + str(len(intersections)) + " intersections and " + str(len(adjacents)) + " adjacent clippings.")
+                #Increase threshold if too many clippings
+                if len(frequencies) > 10000:
+                    frequency_threshold = frequency_threshold + 1
+                    
+                else:
+                    break
+                    
+            print("\t\tAfter pruning with " + str(len(frequencies)) + " intersections ") #+ str(len(adjacents)) + " adjacent clippings.")
             
             #Add new constructions to grammar
-            grammar += intersections
-            grammar += adjacents
+            grammar += frequencies.keys()
+            #grammar += adjacents
+            grammar = list(set(grammar))
             print("\t\t\t Total grammar size " + str(len(grammar)))
             
-            total_added = len(intersections) + len(adjacents)
+            total_added = len(frequencies) #+ len(adjacents)
             
-            if total_added < 3:
+            if total_added < 50 or len(grammar) > 40000:
                 break
                 
         print("\t Starting to parse for frequency check  " + str(len(self.Load.data)) + " lines")
@@ -856,7 +883,9 @@ class C2xG(object):
         for i in range(len(construction_list)):
             construction = construction_list[i]
             frequency = matches_list[i]
-            new_grammar[construction] = frequency
+            #Check frequency threshold
+            if frequency >= self.Load.min_count:
+                new_grammar[construction] = frequency
             
         print("\t\t\t Total grammar size " + str(len(new_grammar)))
   
