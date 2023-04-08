@@ -11,6 +11,7 @@ import cytoolz as ct
 from functools import partial
 from pathlib import Path
 from collections import defaultdict
+from scipy import sparse
 from gensim.models.fasttext import load_facebook_model
 from gensim.models.phrases import Phrases
 
@@ -634,6 +635,9 @@ class C2xG(object):
             lex_cluster_df.to_csv(os.path.join(self.out_dir, self.nickname + ".grammar_lex_clusters.csv"))
             #Save examples
             self.print_examples_clusters(examples_dict, lex_cluster_df, clips_lex, output_file = lex_cluster_examples_file)
+        else:
+            lex_cluster_df = pd.read_csv(os.path.join(self.out_dir, self.nickname + ".grammar_lex_clusters.csv"), index_col = 0)
+            print("Loaded lex_cluster_df")
        
         #Clustering syntactic constructions
         syn_cluster_examples_file = self.nickname + ".grammar_syn_clusters_examples.txt"
@@ -650,6 +654,9 @@ class C2xG(object):
             syn_cluster_df.to_csv(os.path.join(self.out_dir, self.nickname + ".grammar_syn_clusters.csv"))
             #Save examples
             self.print_examples_clusters(examples_dict, syn_cluster_df, clips_syn, output_file = syn_cluster_examples_file)
+        else:
+            syn_cluster_df = pd.read_csv(os.path.join(self.out_dir, self.nickname + ".grammar_syn_clusters.csv"), index_col = 0)
+            print("Loaded syn_cluster_df")
                 
         #Clustering full constructions
         full_cluster_examples_file = self.nickname + ".grammar_full_clusters_examples.txt"
@@ -666,6 +673,9 @@ class C2xG(object):
             full_cluster_df.to_csv(os.path.join(self.out_dir, self.nickname + ".grammar_full_clusters.csv"))
             #Save examples
             self.print_examples_clusters(examples_dict, full_cluster_df, clips_full, output_file = full_cluster_examples_file)
+        else:
+            full_cluster_df = pd.read_csv(os.path.join(self.out_dir, self.nickname + ".grammar_full_clusters.csv"), index_col = 0)
+            print("Loaded full_cluster_df")
             
         return lex_cluster_df, syn_cluster_df, full_cluster_df, clips_lex, clips_syn, clips_full
      
@@ -856,7 +866,7 @@ class C2xG(object):
                 print("\t\t\tCleaned in " + str(time.time() - start))
                     
                 #Increase threshold if too many clippings
-                if len(frequencies) > 10000:
+                if len(frequencies) > 6000:
                     frequency_threshold = frequency_threshold + 1
                     
                 else:
@@ -872,7 +882,7 @@ class C2xG(object):
             
             total_added = len(frequencies) #+ len(adjacents)
             
-            if total_added < 50 or len(grammar) > 40000:
+            if total_added < 50 or len(grammar) > 35000:
                 break
                 
         print("\t Starting to parse for frequency check  " + str(len(self.Load.data)) + " lines")
@@ -1492,7 +1502,7 @@ class C2xG(object):
         grammar = [eval(chunk) if isinstance(chunk, str) else chunk for chunk in grammar]
         
         #Build np matrix for similarity
-        similarity_matrix = np.array([[self.construction_similarity(construction1, construction2) for construction2 in grammar] for construction1 in grammar])
+        similarity_matrix = np.array([np.array([self.construction_similarity(construction1, construction2) for construction2 in grammar]) for construction1 in grammar])
         print("\t Finished constructions similarity: " + str(similarity_matrix.shape))
         
         #Cluster

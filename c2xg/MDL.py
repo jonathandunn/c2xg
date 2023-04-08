@@ -114,7 +114,7 @@ class Minimum_Description_Length(object):
             
             #Second accumulate slot-specific constraints
             for constraint in chunk:
-            
+
                 #Lexical
                 if constraint[0] == 1:
                     add = self.cost_lex[constraint[1]]

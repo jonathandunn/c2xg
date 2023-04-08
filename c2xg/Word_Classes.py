@@ -227,7 +227,7 @@ class Word_Classes(object):
     
         #Set range of construction clusters
         if num_clusters == None:
-            cluster_range = range(int(len(grammar)/400)+11, 10, -10)
+            cluster_range = range(int(len(grammar)/200)+11, 10, -5)
         else:
             cluster_range = num_clusters
         

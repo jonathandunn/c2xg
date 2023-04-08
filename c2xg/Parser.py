@@ -376,7 +376,7 @@ class Parser(object):
         total_count = len(lines)
     
         #Multi-process by construction
-        pool_instance = mp.Pool(processes = mp.cpu_count(), maxtasksperchild = None)
+        pool_instance = mp.Pool(processes = mp.cpu_count(), maxtasksperchild = 6)
         results = pool_instance.map(partial(parse_clipping_support, constructions = grammar), lines, chunksize = 10)
         pool_instance.close()
         pool_instance.join()
