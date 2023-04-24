@@ -306,15 +306,11 @@ class Parser(object):
     
     #--------------------------------------------------------------#
     
-    def parse_stream(self, files, grammar, detailed_grammar=None):
+    def parse(self, files, grammar, length):
         
-        for line in self.Encoder.load_stream(files):
-            if not detailed_grammar is None :
-                matches = parse_fast( line, grammar = detailed_grammar, grammar_len = len( grammar ), sparse_matches=False )
-            else : 
-                matches = parse(line, grammar)
+        matches = [parse_fast(line, grammar = grammar, grammar_len = length, sparse_matches=False) for line in self.Load.load(files, mode = "lines")]
 
-            yield matches
+        return matches
                 
     #--------------------------------------------------------------#
     def parse_examples(self, construction, line):

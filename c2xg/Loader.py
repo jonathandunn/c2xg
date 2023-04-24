@@ -291,14 +291,20 @@ class Loader(object):
         
     #---------------------------------------------------------------------------#
     
-    def load(self, input_file):
+    def load(self, input_file, mode = "files"):
 
         #If only got one file, wrap in list
-        if isinstance(input_file, str):
+        #if isinstance(input_file, str):
+        #    input_file = [input_file]
+        
+        if mode == "files":
             lines = self.read_file(input_file)
             lines = [self.clean(x) for x in lines]
             
-            return lines
+        elif mode == "lines":
+            lines = [self.clean(x) for x in input_file]
+            
+        return lines
             
     #---------------------------------------------------------------------------#
     

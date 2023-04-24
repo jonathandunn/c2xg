@@ -5,7 +5,6 @@ import pandas as pd
 import pickle
 import codecs
 import difflib
-from Levenshtein import distance
 import multiprocessing as mp
 import cytoolz as ct
 from functools import partial
@@ -269,6 +268,62 @@ class C2xG(object):
         self.Association = Association(Load = self.Load, nickname = self.nickname)
         self.Parse = Parser(self.Load)
         self.Word_Classes = Word_Classes(self.Load)
+        
+        #If loading model, do so now
+        if model == "Load":
+            
+            print("Loading model: ", self.nickname)
+            #Filenames for lexicon and phrases
+            lex_file = self.nickname + ".lexicon.p"
+            phrase_file = self.nickname + ".phrases.p"
+            unique_file = os.path.join(self.out_dir, self.nickname + ".unique_words.csv")
+ 
+            print("Loading lexicon and phrases")
+            self.Load.full_lexicon = pd.read_csv(os.path.join(self.out_dir, self.nickname+".full_lexicon.csv"))
+            self.Load.lexicon = self.Load.load_file(lex_file)
+            unique_words = pd.read_csv(unique_file, index_col = 0)
+            temp_phrases = self.Load.load_file(phrase_file)
+            self.Load.phrases = Phrases(["holder"], delimiter = " ")
+            self.Load.phrases = self.Load.phrases.freeze()
+            self.Load.phrases.phrasegrams = temp_phrases
+            del temp_phrases
+
+            #Check for syntactic clusters and form them if necessary
+            cbow_df_file = os.path.join(self.out_dir, self.nickname + ".categories_cbow.csv")
+            self.Load.cbow_df = pd.read_csv(cbow_df_file)
+            self.Load.cbow_mean_dict = self.Load.load_file(self.nickname+".categories_cbow.means.p")
+        
+            #check for semantic clusters and form them in necessary
+            sg_df_file = os.path.join(self.out_dir, self.nickname + ".categories_sg.csv")
+            self.Load.sg_df = pd.read_csv(sg_df_file)
+            self.Load.sg_mean_dict = self.Load.load_file(self.nickname+".categories_sg.means.p")
+            
+            #Add clusters to loader
+            self.Load.cbow_centroids = self.Load.cbow_mean_dict
+            self.Load.sg_centroids = self.Load.sg_mean_dict
+            self.Load.add_categories(self.Load.cbow_df, self.Load.sg_df, self.Load.lexicon, self.Load.phrases.phrasegrams, self.Load.full_lexicon, unique_words)
+            
+            #Load full grammar clusters
+            self.full_grammar = pd.read_csv(os.path.join(self.out_dir, self.nickname + "_final_round.grammar_full_clusters.csv"), index_col = 0)
+            print(self.full_grammar)
+            self.full_model = [eval(x) for x in self.full_grammar.loc[:,"Chunk"].tolist()]
+            self.full_model = detail_model(self.full_model)
+            self.full_clips = self.Load.load_file(self.nickname + "_final_round.clips_full_forgetting.p")
+            
+            #Load syn grammar clusters
+            self.syn_grammar = pd.read_csv(os.path.join(self.out_dir, self.nickname + "_final_round.grammar_syn_clusters.csv"), index_col = 0)
+            print(self.syn_grammar)
+            self.syn_model = [eval(x) for x in self.syn_grammar.loc[:,"Chunk"].tolist()]
+            self.syn_model = detail_model(self.syn_model)
+            self.syn_clips = self.Load.load_file(self.nickname + "_final_round.clips_syn_forgetting.p")
+
+            #Load lex grammar clusters
+            self.lex_grammar = pd.read_csv(os.path.join(self.out_dir, self.nickname + "_final_round.grammar_lex_clusters.csv"), index_col = 0)
+            print(self.lex_grammar)
+            self.lex_model = [eval(x) for x in self.lex_grammar.loc[:,"Chunk"].tolist()]
+            self.lex_model = detail_model(self.lex_model)
+            self.lex_clips = self.Load.load_file(self.nickname + "_final_round.clips_lex_forgetting.p")
+            print("Finished loading model")
 
     #------------------------------------------------------------------
     def load_embeddings(self, model_file):
@@ -1157,56 +1212,33 @@ class C2xG(object):
             
     #------------------------------------------------------------------        
 
-    def parse_return(self, input, mode = "files", workers = None):
-            
-        #Make sure grammar is loaded
-        if self.model == None:
-            print("Unable to parse: No grammar model provided.")
-            sys.kill()
+    def parse(self, input, mode = "syn"):
             
         #Accepts str of filename or list of strs of filenames
         if isinstance(input, str):
             input = [input]
-        
-        #Text as input
-        if mode == "lines":
-            lines = self.Parse.parse_idNet(input, self.model, workers, self.detailed_model )
-            return np.array(lines)    
-                    
-        #Filenames as input
-        elif mode == "files":
-            features = self.Parse.parse_batch(input, self.model, workers, self.detailed_model )
-            return np.array(features)
+            
+        if mode == "lex":
+            model = self.lex_model
+            length = len(self.lex_grammar)
+        elif mode == "syn":
+            model = self.syn_model
+            length = len(self.syn_grammar)
+        elif mode == "full":
+            model = self.full_model
+            length = len(self.full_grammar)
+        else:
+            print("Unable to parse: No grammar model provided.")
+            sys.kill()
+
+        #Do parsing
+        features = self.Parse.parse(input, model, length)
+        return np.array(features)    
 
     #-------------------------------------------------------------------------------
 
     def parse_validate(self, input, workers = 1):
-        self.Parse.parse_validate(input, grammar = self.model, workers = workers, detailed_grammar = self.detailed_model)
-        
-    #-------------------------------------------------------------------------------
-    
-    def parse_yield(self, input, mode = "files"):
-
-        #Make sure grammar is loaded
-        if self.model == None:
-            print("Unable to parse: No grammar model provided.")
-            sys.kill()
-            
-        #Accepts str of filename or list of strs in batch/stream modes
-        if isinstance(input, str):
-            input = [input]
-        
-        #Filenames as input
-        if mode == "files":
-            for features in self.Parse.parse_stream(input, self.model, detailed_grammar = self.detailed_model):
-                yield np.array(features)
-
-        #Texts as input
-        elif mode == "lines":
-        
-            for line in input:
-                line = self.Parse.parse_line_yield(line, self.model, detailed_grammar = self.detailed_model)
-                yield np.array(line)            
+        self.Parse.parse_validate(input, grammar = self.model, workers = workers, detailed_grammar = self.detailed_model)          
             
     #-------------------------------------------------------------------------------
     def print_constructions(self):
