@@ -117,13 +117,16 @@ class Minimum_Description_Length(object):
 
                 #Lexical
                 if constraint[0] == 1:
-                    add = self.cost_lex[constraint[1]]
+                    if constraint[1] in self.cost_lex:
+                        add = self.cost_lex[constraint[1]]
                 #Syntactic
                 elif constraint[0] == 2:
-                    add = self.cost_syn[constraint[1]]
+                    if constraint[1] in self.cost_syn:
+                        add = self.cost_syn[constraint[1]]
                 #Semantic
                 elif constraint[0] == 3:
-                    add = self.cost_sem[constraint[1]]
+                    if constraint[1] in self.cost_sem:
+                        add = self.cost_sem[constraint[1]]
                 #Add to cost
                 cost += add
                 

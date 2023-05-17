@@ -215,12 +215,13 @@ def process_clipping_parsing(input_tuple, data, min_count):
 
 class C2xG(object):
     
-    def __init__(self, data_dir = None, language = "eng", nickname = "cxg", model = None, 
+    def __init__(self, data_dir = None, language = "eng", nickname = "cxg", model = None, max_sentence_length = 50,
                     normalization = True, max_words = False, starting_index = 0, cbow_file = "", sg_file = ""):
     
         #Initialize
         self.nickname = nickname
         self.workers = mp.cpu_count()
+        self.max_sentence_length = max_sentence_length
 
         if max_words != False:
             self.nickname += "." + language + "." + str(int(max_words/1000)) + "k_words" 
@@ -263,7 +264,7 @@ class C2xG(object):
             self.sg_model = False
 
         #Initialize modules
-        self.Load = Loader(in_dir, out_dir, language = self.language, max_words = max_words, nickname = self.nickname, sg_model = self.sg_model, cbow_model = self.cbow_model)
+        self.Load = Loader(in_dir, out_dir, language = self.language, max_words = max_words, nickname = self.nickname, sg_model = self.sg_model, cbow_model = self.cbow_model, max_sentence_length = self.max_sentence_length)
         self.Load.starting_index = starting_index
         self.Association = Association(Load = self.Load, nickname = self.nickname)
         self.Parse = Parser(self.Load)

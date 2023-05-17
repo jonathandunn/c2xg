@@ -20,7 +20,8 @@ class Loader(object):
 
     def __init__(self, in_dir = None, out_dir = None,
                     nickname = "", language = "eng", max_words = False, 
-                    phrases = False, sg_model = False, cbow_model = False):
+                    phrases = False, sg_model = False, cbow_model = False,
+                    max_sentence_length = 50):
     
         self.language = language
         self.max_words = max_words
@@ -36,6 +37,7 @@ class Loader(object):
         self.sg_centroids = False
         self.clips = None
         self.starting_index = 0
+        self.max_sentence_length = max_sentence_length
 
         #Check that directories exist
         if in_dir != None:
@@ -235,18 +237,27 @@ class Loader(object):
 
             #Lex
             if current_slot[0] == 1:
-                value = self.lex_decode[current_slot[1]]
-                current_slot = "lex:" + str(value)
+                if current_slot[1] in self.lex_decode:
+                    value = self.lex_decode[current_slot[1]]
+                    current_slot = "lex:" + str(value)
+                else:
+                    current_slot = "lex:" + "missing"
                 
             #Syn
             elif current_slot[0] == 2:
-                value = self.cbow_decode[current_slot[1]]
-                current_slot = "syn:" + str(current_slot[1]) + "_" + str(value)
+                if current_slot[1] in self.cbow_decode:
+                    value = self.cbow_decode[current_slot[1]]
+                    current_slot = "syn:" + str(current_slot[1]) + "_" + str(value)
+                else:
+                    current_slot = "syn:" + "missing"
                 
             #Sem
             elif current_slot[0] == 3:
-                value = self.sg_decode[current_slot[1]]
-                current_slot = "sem:" + str(current_slot[1]) + "_" + str(value)
+                if current_slot[1] in self.sg_decode:
+                    value = self.sg_decode[current_slot[1]]
+                    current_slot = "sem:" + str(current_slot[1]) + "_" + str(value)
+                else:
+                    current_slot = "sem:" + "missing"
                 
             #Add constraint to string
             construction_string += current_slot
@@ -389,7 +400,8 @@ class Loader(object):
                 #Centroids as a list where the index = the cluster id
                 self.cbow_centroids = {}
                 for i in range(len(cbow_centroids)):
-                    self.cbow_centroids[i] = cbow_centroids[i]
+                    if i in cbow_centroids:
+                        self.cbow_centroids[i] = cbow_centroids[i]
                     
             #Get centroids for each sg category for OOV words
             if self.sg_centroids == False:
@@ -405,7 +417,8 @@ class Loader(object):
                 #Centroids as a list where the index = the cluster id
                 self.sg_centroids = {}
                 for i in range(len(sg_centroids)):
-                    self.sg_centroids[i] = sg_centroids[i]
+                    if i in sg_centroids:
+                        self.sg_centroids[i] = sg_centroids[i]
                     
             #Assign OOV words to classes
             for word in full_lexicon.loc[:,"Word"].tolist():
@@ -508,6 +521,9 @@ class Loader(object):
                         )
 
         line = line.split()
+        
+        if len(line) > self.max_sentence_length:
+            line = line[:self.max_sentence_length]
 
         #If phrases have been learned, find them
         if self.phrases != False:
