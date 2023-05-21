@@ -57,7 +57,6 @@ class Association(object):
     def __init__(self, Load, nickname = "nickname"):
     
         #Initialize Ingestor
-        self.language = Load.language
         self.Load = Load
         self.nickname = nickname
         

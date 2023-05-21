@@ -26,7 +26,6 @@ class Word_Classes(object):
 
     def __init__(self, Load):
     
-        self.language = Load.language
         self.Load = Load
 
     #----------------------------------------------------------------------------------#
@@ -39,8 +38,6 @@ class Word_Classes(object):
         elif model_type == "sg":
             ws = 5
             sg = 1
-
-        name = name+"."+self.language
 
         #Pre-load text
         data = [x for x in self.Load.load(input_data)]

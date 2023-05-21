@@ -5,14 +5,16 @@ import pandas as pd
 import pickle
 import codecs
 import difflib
+import zipfile
 import multiprocessing as mp
 import cytoolz as ct
 from functools import partial
 from pathlib import Path
 from collections import defaultdict
 from scipy import sparse
-from gensim.models.fasttext import load_facebook_model
+from gensim.models.fasttext import load_facebook_vectors
 from gensim.models.phrases import Phrases
+import io
 
 from .Loader import Loader
 from .Parser import Parser
@@ -215,29 +217,44 @@ def process_clipping_parsing(input_tuple, data, min_count):
 
 class C2xG(object):
     
-    def __init__(self, data_dir = None, language = "eng", nickname = "cxg", model = None, max_sentence_length = 50,
-                    normalization = True, max_words = False, starting_index = 0, cbow_file = "", sg_file = ""):
+    def __init__(self, model = False, data_dir = None, language = "eng", nickname = "cxg", max_sentence_length = 50,
+                    normalization = True, max_words = False, cbow_file = "", sg_file = ""):
     
-        #Initialize
-        self.nickname = nickname
         self.workers = mp.cpu_count()
         self.max_sentence_length = max_sentence_length
+            
+        #Check if model is provided
+        if model == False:
+        
+            #Initialize
+            self.nickname = nickname
 
-        if max_words != False:
-            self.nickname += "." + language + "." + str(int(max_words/1000)) + "k_words" 
+            if max_words != False:
+                self.nickname += "." + language + "." + str(int(max_words/1000)) + "k_words" 
 
-        print("Current nickname: " + self.nickname)
-
-        self.data_dir = data_dir
-        self.language = language
+            print("Current nickname: " + self.nickname)
+            self.language = language
+        
+        #Otherwise, get nickname from model file
+        elif model != False:
+            if isinstance(model, str):
+                try:
+                    model_name = os.path.split(model)[1]
+                except:
+                    model_name = model
+                    
+                self.nickname = model.replace(".model.zip", "")
+                print("Current nickname: " + self.nickname)
 
         #Set data location
+        self.data_dir = data_dir
+        
         if data_dir != None:
             in_dir = os.path.join(data_dir, "IN")
             out_dir = os.path.join(data_dir, "OUT")
         else:
-            in_dir = None
-            out_dir = None
+            in_dir = "."
+            out_dir = "."
         
         #Set global variables
         self.in_dir = in_dir
@@ -246,99 +263,159 @@ class C2xG(object):
         self.normalization = normalization
         
         #Set embeddings files
-        self.cbow_file = os.path.join(self.out_dir, cbow_file)
-        self.sg_file = os.path.join(self.out_dir, sg_file)
+        if model == False:
+            self.cbow_file = os.path.join(self.out_dir, cbow_file)
+            self.sg_file = os.path.join(self.out_dir, sg_file)
         
-        #Load existing cbow embeddings
-        if os.path.exists(self.cbow_file):
+            #Load existing cbow embeddings
+            if os.path.exists(self.cbow_file):
+                print("Using for local word embeddings: ", self.cbow_file)
+                self.cbow_model = self.load_embeddings(self.cbow_file)
+            else:
+                self.cbow_model = False
+            
+            #Load existing sg embeddings
+            if os.path.exists(self.sg_file):
+                print("Using for non-local word embeddings: ", self.sg_file)
+                self.sg_model = self.load_embeddings(self.sg_file)
+            else:
+                self.sg_model = False
+                
+        #Load embeddings from model file
+        elif model != False:
+            if not os.path.exists(model):
+                model = os.path.join(self.out_dir, model)
+                
+            with zipfile.ZipFile(model, mode="r") as archive:
+                for filename in archive.namelist():
+                    if ".cbow.bin" in filename:
+                        self.cbow_file = filename
+                    elif ".sg.bin" in filename:
+                        self.sg_file = filename
+          
+            #Load cbow embeddings from model zip       
             print("Using for local word embeddings: ", self.cbow_file)
-            self.cbow_model = self.load_embeddings(self.cbow_file)
-        else:
-            self.cbow_model = False
-        
-        #Load existing sg embeddings
-        if os.path.exists(self.sg_file):
+            self.cbow_model = self.load_embeddings(self.cbow_file, archive=model)
+                
+            #Load skipgram embeddings from model zip
             print("Using for non-local word embeddings: ", self.sg_file)
-            self.sg_model = self.load_embeddings(self.sg_file)
-        else:
-            self.sg_model = False
+            self.sg_model = self.load_embeddings(self.sg_file, archive=model)
 
         #Initialize modules
-        self.Load = Loader(in_dir, out_dir, language = self.language, max_words = max_words, nickname = self.nickname, sg_model = self.sg_model, cbow_model = self.cbow_model, max_sentence_length = self.max_sentence_length)
-        self.Load.starting_index = starting_index
+        self.Load = Loader(in_dir, out_dir, max_words = max_words, nickname = self.nickname, sg_model = self.sg_model, cbow_model = self.cbow_model, max_sentence_length = self.max_sentence_length)
         self.Association = Association(Load = self.Load, nickname = self.nickname)
         self.Parse = Parser(self.Load)
         self.Word_Classes = Word_Classes(self.Load)
-        
+
         #If loading model, do so now
-        if model == "Load":
+        if model != False:
             
-            print("Loading model: ", self.nickname)
-            #Filenames for lexicon and phrases
-            lex_file = self.nickname + ".lexicon.p"
-            phrase_file = self.nickname + ".phrases.p"
-            unique_file = os.path.join(self.out_dir, self.nickname + ".unique_words.csv")
- 
-            print("Loading lexicon and phrases")
-            self.Load.full_lexicon = pd.read_csv(os.path.join(self.out_dir, self.nickname+".full_lexicon.csv"))
-            self.Load.lexicon = self.Load.load_file(lex_file)
-            unique_words = pd.read_csv(unique_file, index_col = 0)
-            temp_phrases = self.Load.load_file(phrase_file)
-            self.Load.phrases = Phrases(["holder"], delimiter = " ")
-            self.Load.phrases = self.Load.phrases.freeze()
-            self.Load.phrases.phrasegrams = temp_phrases
-            del temp_phrases
+            print("Loading model: ", model)
+            with zipfile.ZipFile(model) as archive:
+            
+                #Filenames for lexicon and phrases
+                lex_file = [x for x in archive.namelist() if ".lexicon.p" in x][0]
+                phrase_file = [x for x in archive.namelist() if ".phrases.p" in x][0]
+                unique_file = [x for x in archive.namelist() if ".unique_words.csv" in x][0]
+                full_lexicon_file = [x for x in archive.namelist() if ".full_lexicon.csv" in x][0]
+     
+                print("Loading lexicon and phrases")
+                with archive.open(full_lexicon_file) as current_file:
+                    self.Load.full_lexicon = pd.read_csv(io.BytesIO(current_file.read()))
 
-            #Check for syntactic clusters and form them if necessary
-            cbow_df_file = os.path.join(self.out_dir, self.nickname + ".categories_cbow.csv")
-            self.Load.cbow_df = pd.read_csv(cbow_df_file)
-            self.Load.cbow_mean_dict = self.Load.load_file(self.nickname+".categories_cbow.means.p")
-        
-            #check for semantic clusters and form them in necessary
-            sg_df_file = os.path.join(self.out_dir, self.nickname + ".categories_sg.csv")
-            self.Load.sg_df = pd.read_csv(sg_df_file)
-            self.Load.sg_mean_dict = self.Load.load_file(self.nickname+".categories_sg.means.p")
+                with archive.open(lex_file) as current_file:
+                    self.Load.lexicon = pickle.load(io.BytesIO(current_file.read()))
+                
+                with archive.open(unique_file) as current_file:
+                    unique_words = pd.read_csv(io.BytesIO(current_file.read()), index_col = 0)
+                    
+                with archive.open(phrase_file) as current_file:
+                    temp_phrases = pickle.load(io.BytesIO(current_file.read()))
+                    
+                self.Load.phrases = Phrases(["holder"], delimiter = " ")
+                self.Load.phrases = self.Load.phrases.freeze()
+                self.Load.phrases.phrasegrams = temp_phrases
+                
+                #Syntactic clusters
+                cbow_df_file = [x for x in archive.namelist() if ".categories_cbow.csv" in x][0]
+                cbow_means_file = [x for x in archive.namelist() if ".categories_cbow.means.p" in x][0]
+                
+                with archive.open(cbow_df_file) as current_file:
+                    self.Load.cbow_df = pd.read_csv(io.BytesIO(current_file.read()))
+                    
+                with archive.open(cbow_means_file) as current_file:
+                    self.Load.cbow_mean_dict = pickle.load(io.BytesIO(current_file.read()))
             
-            #Add clusters to loader
-            self.Load.cbow_centroids = self.Load.cbow_mean_dict
-            self.Load.sg_centroids = self.Load.sg_mean_dict
-            self.Load.add_categories(self.Load.cbow_df, self.Load.sg_df, self.Load.lexicon, self.Load.phrases.phrasegrams, self.Load.full_lexicon, unique_words)
-            
-            #Load full grammar clusters
-            self.full_grammar = pd.read_csv(os.path.join(self.out_dir, self.nickname + "_final_round.grammar_full_clusters.csv"), index_col = 0)
-            print(self.full_grammar)
-            self.full_model = [eval(x) for x in self.full_grammar.loc[:,"Chunk"].tolist()]
-            self.full_model = detail_model(self.full_model)
-            self.full_clips = self.Load.load_file(self.nickname + "_final_round.clips_full_forgetting.p")
-            
-            #Load syn grammar clusters
-            self.syn_grammar = pd.read_csv(os.path.join(self.out_dir, self.nickname + "_final_round.grammar_syn_clusters.csv"), index_col = 0)
-            print(self.syn_grammar)
-            self.syn_model = [eval(x) for x in self.syn_grammar.loc[:,"Chunk"].tolist()]
-            self.syn_model = detail_model(self.syn_model)
-            self.syn_clips = self.Load.load_file(self.nickname + "_final_round.clips_syn_forgetting.p")
+                #Semantic clusters
+                sg_df_file = [x for x in archive.namelist() if ".categories_sg.csv" in x][0]
+                sg_means_file = [x for x in archive.namelist() if ".categories_sg.means.p" in x][0]
+                
+                with archive.open(sg_df_file) as current_file:
+                    self.Load.sg_df = pd.read_csv(io.BytesIO(current_file.read()))
+                    
+                with archive.open(sg_means_file) as current_file:
+                    self.Load.sg_mean_dict = pickle.load(io.BytesIO(current_file.read()))
+                
+                #Add clusters to loader
+                self.Load.cbow_centroids = self.Load.cbow_mean_dict
+                self.Load.sg_centroids = self.Load.sg_mean_dict
+                self.Load.add_categories(self.Load.cbow_df, self.Load.sg_df, self.Load.lexicon, self.Load.phrases.phrasegrams, self.Load.full_lexicon, unique_words)
 
-            #Load lex grammar clusters
-            self.lex_grammar = pd.read_csv(os.path.join(self.out_dir, self.nickname + "_final_round.grammar_lex_clusters.csv"), index_col = 0)
-            print(self.lex_grammar)
-            self.lex_model = [eval(x) for x in self.lex_grammar.loc[:,"Chunk"].tolist()]
-            self.lex_model = detail_model(self.lex_model)
-            self.lex_clips = self.Load.load_file(self.nickname + "_final_round.clips_lex_forgetting.p")
-            print("Finished loading model")
+                #Load full grammar clusters
+                full_grammar_file = [x for x in archive.namelist() if "_final_round.grammar_full_clusters.csv" in x][0]
+                full_clip_file = [x for x in archive.namelist() if "_final_round.clips_full_forgetting.p" in x][0]
+                
+                with archive.open(full_grammar_file) as current_file:
+                    self.full_grammar = pd.read_csv(io.BytesIO(current_file.read()), index_col = 0)
+                self.full_model = [eval(x) for x in self.full_grammar.loc[:,"Chunk"].tolist()]
+                self.full_model = detail_model(self.full_model)
+                
+                with archive.open(full_clip_file) as current_file:
+                    self.full_clips = pickle.load(io.BytesIO(current_file.read()))
+                
+                #Load syn grammar clusters
+                syn_grammar_file = [x for x in archive.namelist() if "_final_round.grammar_syn_clusters.csv" in x][0]
+                syn_clip_file = [x for x in archive.namelist() if "_final_round.clips_syn_forgetting.p" in x][0]
+                
+                with archive.open(syn_grammar_file) as current_file:
+                    self.syn_grammar = pd.read_csv(io.BytesIO(current_file.read()), index_col = 0)
+                self.syn_model = [eval(x) for x in self.syn_grammar.loc[:,"Chunk"].tolist()]
+                self.syn_model = detail_model(self.syn_model)
+                
+                with archive.open(syn_clip_file) as current_file:
+                    self.syn_clips = pickle.load(io.BytesIO(current_file.read()))
+
+                #Load lex grammar clusters
+                lex_grammar_file = [x for x in archive.namelist() if "_final_round.grammar_lex_clusters.csv" in x][0]
+                lex_clip_file = [x for x in archive.namelist() if "_final_round.clips_lex_forgetting.p" in x][0]
+                
+                with archive.open(lex_grammar_file) as current_file:
+                    self.lex_grammar = pd.read_csv(io.BytesIO(current_file.read()), index_col = 0)
+                self.lex_model = [eval(x) for x in self.lex_grammar.loc[:,"Chunk"].tolist()]
+                self.lex_model = detail_model(self.lex_model)
+                
+                with archive.open(lex_clip_file) as current_file:
+                    self.lex_clips = pickle.load(io.BytesIO(current_file.read()))
+                    
+                print("Finished loading model")
 
     #------------------------------------------------------------------
-    def load_embeddings(self, model_file):
+    def load_embeddings(self, model_file, archive = False):
     
         #Load and prep word embeddings
-        if isinstance(model_file, str):
+        if isinstance(model_file, str) and archive == False:
             if os.path.exists(model_file):  
-                model = load_facebook_model(model_file)                
+                model = load_facebook_vectors(model_file)                
                 return model     
 
-            else:
-                print("Error: model doesn't exist. Use learn_embeddings.")
-                print(model_file)
-                return None
+        elif archive != False:       
+            with zipfile.ZipFile(archive) as zip_ref:
+                with zip_ref.open(model_file) as current_file:
+                    temp_name = zip_ref.extract(model_file)
+                    model = load_facebook_vectors(temp_name)
+                    os.remove(temp_name)
+
+        return model
             
     #-----------------------------------------------------------------
     def learn_embeddings(self, input_data, name="embeddings"):
@@ -351,8 +428,11 @@ class C2xG(object):
         
     #------------------------------------------------------------------
 
-    def learn(self, input_data, npmi_threshold = 0.75, min_count = None, max_vocab = None, cbow_range = False, sg_range = False, get_examples = True, increments = 50000, learning_rounds = 20, forgetting_rounds = 40, cluster_only = False):
+    def learn(self, input_data, npmi_threshold = 0.75, starting_index = None, min_count = None, max_vocab = None, cbow_range = False, sg_range = False, get_examples = True, increments = 50000, learning_rounds = 20, forgetting_rounds = 40, cluster_only = False):
 
+        #Set starting_index if skipping parts of input
+        self.Load.starting_index = starting_index
+        
         #Adjust min_count to be 1 parts per million using max_words parameter
         if min_count == None:
             if self.max_words == None:
@@ -506,6 +586,7 @@ class C2xG(object):
         print(grammar_df_lex)
         print(grammar_df_syn)
         print(grammar_df_full)
+        self.package_model()
         print("Finished!")
         
         return grammar_df_lex, grammar_df_syn, grammar_df_full
@@ -1723,4 +1804,29 @@ class C2xG(object):
         print("\t\tValidating: grammar and clips: " + str(len(grammar_df)) + " and " + str(len(new_clips)))
 
         return grammar_df, new_clips
+        
+    #-------------------------------------------
+    def package_model(self):
+
+        if os.path.exists(os.path.join(self.out_dir, self.nickname + "_final_round.grammar_full_clusters_examples.txt")):
+        
+            print("Starting to package model for ", self.nickname)
+            files_to_save = []
+            
+            #Get list of files for the current model
+            for file in os.listdir(self.out_dir):
+                if self.nickname in file:
+                    files_to_save.append(file)
+                    
+            #Add the necessary embedding files
+            files_to_save.append(self.cbow_file)
+            files_to_save.append(self.sg_file)
+
+            #Create zip file
+            with zipfile.ZipFile(os.path.join(self.out_dir, self.nickname+".model.zip"), mode="w") as archive:
+                for filename in files_to_save:
+                    print("\t Adding ", filename)
+                    if self.out_dir not in filename:
+                        filename = os.path.join(self.out_dir, filename)
+                    archive.write(filename, os.path.split(filename)[1])
     #-----------------------------------------------

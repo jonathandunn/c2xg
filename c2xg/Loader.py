@@ -19,11 +19,10 @@ from sklearn.metrics import pairwise_distances
 class Loader(object):
 
     def __init__(self, in_dir = None, out_dir = None,
-                    nickname = "", language = "eng", max_words = False, 
+                    nickname = "", max_words = False, 
                     phrases = False, sg_model = False, cbow_model = False,
                     max_sentence_length = 50):
     
-        self.language = language
         self.max_words = max_words
         self.in_dir = in_dir
         self.out_dir = out_dir

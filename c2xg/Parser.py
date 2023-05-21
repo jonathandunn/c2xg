@@ -297,13 +297,9 @@ class Parser(object):
 
     def __init__(self, Load = None):
     
-        #Initialize Parser
-        if Load != None:
-            self.language = Load.language
-        
+        #Initialize Parser    
         if Load != None:
             self.Load = Load
-    
     #--------------------------------------------------------------#
     
     def parse(self, files, grammar, length):
