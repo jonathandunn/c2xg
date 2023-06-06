@@ -428,7 +428,7 @@ class C2xG(object):
         
     #------------------------------------------------------------------
 
-    def learn(self, input_data, npmi_threshold = 0.75, starting_index = None, min_count = None, max_vocab = None, cbow_range = False, sg_range = False, get_examples = True, increments = 50000, learning_rounds = 20, forgetting_rounds = 40, cluster_only = False):
+    def learn(self, input_data, npmi_threshold = 0.75, starting_index = 0, min_count = None, max_vocab = None, cbow_range = False, sg_range = False, get_examples = True, increments = 50000, learning_rounds = 20, forgetting_rounds = 40, cluster_only = False):
 
         #Set starting_index if skipping parts of input
         self.Load.starting_index = starting_index
@@ -586,6 +586,7 @@ class C2xG(object):
         print(grammar_df_lex)
         print(grammar_df_syn)
         print(grammar_df_full)
+        print("Packing")
         self.package_model()
         print("Finished!")
         
@@ -937,9 +938,9 @@ class C2xG(object):
             print("\t Starting to parse " + str(len(self.Load.data)) + " lines (min_count = " + str(self.Load.min_count) + ")")
             construction_list, indexes_list, matches_list = self.Parse.parse_clipping(lines = self.Load.data, grammar = grammar)
 
-            print("\t Now clipping with " + str(len(grammar)) + " constructions")
+            print("\t Now clipping with " + str(len(grammar)) + " constructions here")
             pool_instance = mp.Pool(processes = mp.cpu_count(), maxtasksperchild = None)
-            results = pool_instance.map(partial(process_clipping, construction_list = construction_list), indexes_list, chunksize = 100)
+            results = pool_instance.map(partial(process_clipping, construction_list = construction_list), indexes_list, chunksize = 25)
             pool_instance.close()
             pool_instance.join()
 

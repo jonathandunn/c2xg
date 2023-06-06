@@ -90,7 +90,7 @@ class Word_Classes(object):
         #Get word vectors only for vocab
         vectors = []
         for word in word_list:
-            vector = model.wv[word]
+            vector = model[word]
             vectors.append(vector)      
         vectors = np.vstack(vectors)
 
@@ -156,16 +156,16 @@ class Word_Classes(object):
         for category, category_df in cluster_df.groupby("Cluster"):
 
             #First, get proto-type structure of the cluster
-            ranks = model.wv.rank_by_centrality(words=category_df.loc[:,"Word"], use_norm=True)
+            ranks = model.rank_by_centrality(words=category_df.loc[:,"Word"], use_norm=True)
             ranks = pd.DataFrame(ranks, columns = ["Rank", "Word"])
             ranks.loc[:,"Category"] = category            
 
             #Second, get the best example of the category
-            mean_vector = model.wv.get_mean_vector(keys=ranks.loc[:,"Word"], weights=ranks.loc[:,"Rank"], pre_normalize=True, post_normalize=True)
+            mean_vector = model.get_mean_vector(keys=ranks.loc[:,"Word"], weights=ranks.loc[:,"Rank"], pre_normalize=True, post_normalize=True)
             mean_dict[category] = mean_vector
 
             #Third, filter the best examples to reflect this particular lexicon
-            exemplars = model.wv.similar_by_vector(mean_vector, topn=10000)
+            exemplars = model.similar_by_vector(mean_vector, topn=10000)
             exemplars = [x for x,y in exemplars if x in vocab.keys()]
             exemplars = [x for x in exemplars if x in word_list]
 
@@ -189,7 +189,7 @@ class Word_Classes(object):
         phrase_results = []
 
         for phrase in phrase_list:
-            vector = model.wv[phrase]
+            vector = model[phrase]
             distances = pairwise_distances(vector.reshape(1, -1), list(mean_dict.values()), metric="cosine", n_jobs=mp.cpu_count())
             phrase_cluster = np.argmin(distances)
             phrase_cluster_name = "_".join(name_dict[phrase_cluster])

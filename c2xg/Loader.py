@@ -145,14 +145,14 @@ class Loader(object):
         word = str(word)
         
         if type == "cbow":
-            vector = self.cbow_model.wv[word]
+            vector = self.cbow_model[word]
             centroids = [self.cbow_centroids[x] for x in sorted(self.cbow_centroids.keys())]
             distances = pairwise_distances(vector.reshape(1, -1), centroids, metric="cosine", n_jobs=1) 
             index = np.argmin(distances)
             self.cbow_encode[word] = index
             
         elif type == "sg":
-            vector = self.sg_model.wv[word]
+            vector = self.sg_model[word]
             centroids = [self.sg_centroids[x] for x in sorted(self.sg_centroids.keys())]
             distances = pairwise_distances(vector.reshape(1, -1), centroids, metric="cosine", n_jobs=1)
             index = np.argmin(distances)
@@ -394,7 +394,7 @@ class Loader(object):
                     if "unique" not in category_name:
                         words = category_df.loc[:,"Category"].tolist()
                         ranks = category_df.loc[:,"Rank"].tolist()
-                        current_centroid =  self.cbow_model.wv.get_mean_vector(keys=words, weights=ranks, pre_normalize=True, post_normalize=False)
+                        current_centroid =  self.cbow_model.get_mean_vector(keys=words, weights=ranks, pre_normalize=True, post_normalize=False)
                         cbow_centroids[category] = current_centroid
                 #Centroids as a list where the index = the cluster id
                 self.cbow_centroids = {}
@@ -411,7 +411,7 @@ class Loader(object):
                     if "unique" not in category_name:
                         words = category_df.loc[:,"Category"].tolist()
                         ranks = category_df.loc[:,"Rank"].tolist()
-                        current_centroid =  self.sg_model.wv.get_mean_vector(keys=words, weights=ranks, pre_normalize=True, post_normalize=False)
+                        current_centroid =  self.sg_model.get_mean_vector(keys=words, weights=ranks, pre_normalize=True, post_normalize=False)
                         sg_centroids[category] = current_centroid
                 #Centroids as a list where the index = the cluster id
                 self.sg_centroids = {}
@@ -523,6 +523,7 @@ class Loader(object):
         
         if len(line) > self.max_sentence_length:
             line = line[:self.max_sentence_length]
+            
 
         #If phrases have been learned, find them
         if self.phrases != False:
