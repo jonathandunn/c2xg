@@ -946,13 +946,7 @@ class C2xG(object):
 
             print("\t\tMerging results")
             #Merge results
-            #adjacents = []
-            #intersections = []
             frequencies = defaultdict(int)
-            
-            #Merge clips
-            #intersections = list(set(ct.concat([results[i][1] for i in range(len(results))])))
-            #adjacents = list(set(ct.concat([results[i][0] for i in range(len(results))])))
             
             #Merge counts (dictionaries)
             for i in range(len(results)):
@@ -1004,7 +998,7 @@ class C2xG(object):
                 print("\t\t\tCleaned in " + str(time.time() - start))
                     
                 #Increase threshold if too many clippings
-                if len(frequencies) > 6000:
+                if len(frequencies) > 15000:
                     frequency_threshold = frequency_threshold + 1
                     
                 else:
@@ -1014,13 +1008,12 @@ class C2xG(object):
             
             #Add new constructions to grammar
             grammar += frequencies.keys()
-            #grammar += adjacents
             grammar = list(set(grammar))
             print("\t\t\t Total grammar size " + str(len(grammar)))
             
             total_added = len(frequencies) #+ len(adjacents)
             
-            if total_added < 50 or len(grammar) > 35000:
+            if total_added < 50 or len(grammar) > 30000:
                 break
                 
         print("\t Starting to parse for frequency check  " + str(len(self.Load.data)) + " lines")
