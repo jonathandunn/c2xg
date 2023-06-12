@@ -35,7 +35,7 @@ def process_clipping(line, construction_list):
     adjacents = []
     intersections = []
 
-    #Each 'line' is made up of construction matches with indexes for that line of input
+    #Each 'line' is made up of construction matches with indexes for that portion of input
     for i in range(len(line)):
                     
         #Get the current construction match
@@ -47,38 +47,6 @@ def process_clipping(line, construction_list):
             #Define the comparison
             comparison_construction = line[j]
                         
-            #Make sure different constructions
-            # if comparison_construction[0] != current_construction[0]:
-                        
-                # #Check if i comes before j
-                # if current_construction[1][-1] == comparison_construction[1][0]-1:
-
-                    # #Get constructions from the list
-                    # con1 = construction_list[current_construction[0]]
-                    # con2 = construction_list[comparison_construction[0]]
-                    # #Merge them
-                    # new_construction = con1 + con2
-                                
-                    # #Save and update frequency
-                    # frequencies[new_construction] += 1
-                                
-                    # if new_construction not in adjacents:
-                        # adjacents.append(new_construction)
-                                        
-                        # #Set clip info for readable constructions
-                        # clips[new_construction] = {}
-                        # clips[new_construction][len(con1)-1] = "ADJACENT"
-                                        
-                        # #Add previous clips, which do not need to be adjusted
-                        # if con1 in clips:
-                            # for index in clips[con1]:
-                                # clips[new_construction][index] = clips[con1][index]
-                       # #Add following clips, which do need to be adjusted
-                        # if con2 in clips:
-                            # for index in clips[con2]:
-                                # clips[new_construction][index+len(con1)] = clips[con2][index]
-
-                            
             #Check if i intersects with j
             if current_construction[1][-1] == comparison_construction[1][0]:
 
@@ -151,36 +119,6 @@ def token_similarity(input_tuple, examples_dict):
         #Only process the entire cycle if no close matches are found
         return 1.0
              
-#------------------------------------------------------------------
-    
-def process_clipping_overlap(input_tuple, grammar_list):
-    
-    #For multi-processing
-    i = input_tuple[0]
-    j = input_tuple[1]
-
-    construction1 = grammar_list[i]
-    construction2 = grammar_list[j]
-    new_construction = False
-                            
-    #Check for 1-2 overlap
-    if construction1[-1] == construction2[0]:
-        new_construction = construction1 + construction2[1:]
-        clip_index = len(construction1)
-                            
-    #Check for 2-1 overlap
-    elif construction2[-1] == construction1[0]:
-        new_construction = construction2 + construction1[1:]
-        clip_index = len(construction2)
-                                
-    #Evaluate potential clipping
-    if new_construction != False:
-                            
-        #Length check
-        if len(new_construction) < 10:
-            if new_construction not in grammar_list:
-                return (new_construction, clip_index)
- 
 #-------------------------------------------------------------------------------
 
 def process_clipping_parsing(input_tuple, data, min_count):
@@ -1031,120 +969,6 @@ class C2xG(object):
         print("\t\t\t Total grammar size " + str(len(new_grammar)))
   
         return new_grammar, clips  
-    
-    #------------------------------------------------------------------
-    def clip_constructions_overlap(self, grammar_df, min_count):
-    
-        #First generate all possible merged constructions, recursively
-        grammar = {}
-        print("Preparing for clipping search")
-        
-        #Iterate over grammar to get constructions and frequency
-        for row in grammar_df.itertuples():
-            chunk = row[1]
-            freq = row[2]
-
-            #Input may be a string rather than tuple
-            if isinstance(chunk, str):
-                chunk = eval(chunk)
-            
-            #Add to dict
-            grammar[chunk] = freq
-
-        #Get starting size
-        starting_size = len(grammar)
-        
-        #Dictionary for saving clip index
-        clips = {}
-        reject_list = []
-        current_search = False
-        
-        #Continue merging until no new constructions
-        while True:
-            
-            #Initialize for new clipped constructions
-            round_counter = 0
-            new_constructions = {}
-            candidate_pool = []
-            clip_pool = []
-            
-            #Double loop for comparing constructions
-            grammar_list = list(grammar.keys())
-            
-            #Multi-process by construction
-            starting = time.time()
-            
-            if current_search == False:
-                print("\t\tChecking that there are no duplicates (a full grammar search)")
-                results = list(ct.concat([[(i, j) for j in range(len(grammar_list)) if j < i] for i in range(len(grammar_list))]))
-            else:
-                print("\t\tChecking in current search with " + str(len(current_search)))
-                results = list(ct.concat([[(i, j) for j in range(len(grammar_list))] for i in range(len(grammar_list)) if grammar_list[i] in current_search]))
-            
-            print("\t\tTotal of " + str(len(results)) + " pairs to check.")
-            pool_instance = mp.Pool(processes = max(20, mp.cpu_count()), maxtasksperchild = None)
-            results = pool_instance.map(partial(process_clipping, grammar_list = grammar_list), results, chunksize = 10000)
-            pool_instance.close()
-            pool_instance.join()            
-            
-            print("\t\tNow Reducing. Size of results: " + str(len(results)) + " and size of grammar: " + str(len(grammar_list)))
-            results = [x for x in results if x != None]
-            results = list(set(results))
-            
-            print("\t\tMerging " + str(len(results)) + " search results.")
-            #Separate into candidates and clip indexes
-            candidate_pool = [x[0] for x in results]
-            clip_pool = [x[1] for x in results]
-            del results
-            print("\t\tDone in total: " + str(time.time() - starting))
-            
-            #Done with loop; now keep only observed second-order constructions
-            #Parse candidates in data
-            starting = time.time()
-            print("\t\tFinished generating clips; now parsing " + str(len(candidate_pool)) + " possible clips.")
-            candidate_pool = list(ct.partition_all(20000, candidate_pool))
-            clip_pool = list(ct.partition_all(20000, clip_pool))
-            
-            #Reformat for multi-processing
-            input_tuples = []
-            for i in range(len(candidate_pool)):
-                input_tuples.append((candidate_pool[i], clip_pool[i]))
-                
-            del candidate_pool
-            del clip_pool
-            
-            pool_instance = mp.Pool(processes = min(15, mp.cpu_count()), maxtasksperchild = 1)
-            output = pool_instance.map(partial(process_clipping_parsing, data = self.Load.data, min_count = min_count), input_tuples, chunksize = 1)
-            pool_instance.close()
-            pool_instance.join()   
-            
-            del input_tuples
-            
-            #Combine from multi-processing
-            for i in range(len(output)):
-                temp_new_constructions = output[i][0]
-                temp_clips = output[i][1]
-                new_constructions = ct.merge(new_constructions, temp_new_constructions)
-                clips = ct.merge(clips, temp_clips)
-                
-            del output
-            
-            #Count new constructions
-            round_counter = len(new_constructions)    
-            print("\t\tDone in total: " + str(time.time() - starting))
-            
-            #Merge and display results
-            print("\t\t New clipped constructions this round: " + str(round_counter))
-            grammar = ct.merge(grammar, new_constructions)
-            current_search = list(new_constructions.keys())
-            
-            #End loop check
-            if round_counter == 0:
-                break
-                    
-        print("Finished clipping constructions, from " + str(starting_size) + " to " + str(len(grammar)))
-
-        return grammar, clips
     
     #------------------------------------------------------------------
     def decode(self, constructions, clips = None):
