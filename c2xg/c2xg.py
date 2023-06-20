@@ -11,6 +11,7 @@ import cytoolz as ct
 from functools import partial
 from pathlib import Path
 from collections import defaultdict
+from collections import Counter
 from scipy import sparse
 from gensim.models.fasttext import load_facebook_vectors
 from gensim.models.phrases import Phrases
@@ -705,6 +706,7 @@ class C2xG(object):
             lex_clusters_constructions_df = self.get_construction_similarity(grammar_df_lex.loc[:,"Chunk"].tolist())
             print("\t Getting examples for token similarity.")
             examples_dict = self.print_examples(grammar = grammar_df_lex.loc[:,"Chunk"], input_file = input_data, output = False, n = 25, send_back=True)
+
             lex_cluster_df = self.get_token_similarity(lex_clusters_constructions_df, examples_dict)
             lex_cluster_df.loc[:,"Construction"] = self.decode(lex_cluster_df.loc[:,"Chunk"].values, clips = clips_lex)
             print(lex_cluster_df)
@@ -724,6 +726,7 @@ class C2xG(object):
             syn_clusters_constructions_df = self.get_construction_similarity(grammar_df_syn.loc[:,"Chunk"].tolist())
             print("\t Getting examples for token similarity.")
             examples_dict = self.print_examples(grammar = grammar_df_syn.loc[:,"Chunk"], input_file = input_data, output = False, n = 25, send_back=True)
+            
             syn_cluster_df = self.get_token_similarity(syn_clusters_constructions_df, examples_dict)
             syn_cluster_df.loc[:,"Construction"] = self.decode(syn_cluster_df.loc[:,"Chunk"].values, clips = clips_syn)
             print(syn_cluster_df)
@@ -743,6 +746,10 @@ class C2xG(object):
             full_clusters_constructions_df = self.get_construction_similarity(grammar_df_full.loc[:,"Chunk"].tolist())
             print("\t Getting examples for token similarity.")
             examples_dict = self.print_examples(grammar = grammar_df_full.loc[:,"Chunk"], input_file = input_data, output = False, n = 25, send_back=True)
+            
+            #First, prune redundant constructions that have the same set of tokens
+            full_clusters_constructions_df = self.prune_redundant_constructions(full_clusters_constructions_df, examples_dict)
+            
             full_cluster_df = self.get_token_similarity(full_clusters_constructions_df, examples_dict)
             full_cluster_df.loc[:,"Construction"] = self.decode(full_cluster_df.loc[:,"Chunk"].values, clips = clips_full)
             print(full_cluster_df)
@@ -1443,6 +1450,34 @@ class C2xG(object):
         return cluster_df
  
     #-----------------------------------------------
+    def prune_redundant_constructions(self, cluster_df, examples_dict):
+    
+        constructions = cluster_df.loc[:,"Chunk"].values
+        to_remove = []
+        starting_length = len(cluster_df)
+        
+        #Iterate over constructions within the current cluster
+        for i in range(len(constructions)):
+            for j in range(len(constructions)):
+            
+                #Only check each pair once
+                if j > i:
+                
+                    #Get the list of strings for each construction
+                    examples1 = examples_dict[constructions[i]]
+                    examples2 = examples_dict[constructions[j]]
+
+                    #Find redundant / fully-overlapping pairs
+                    if Counter(examples1) == Counter(examples2):
+                        to_remove.append(j)
+                        
+        #Remove redundant constructions and return the df
+        cluster_df = cluster_df.drop(cluster_df.index[to_remove])
+            
+        print("\tPruning redundant constructions: from " + str(starting_length) + " to " + str(len(cluster_df)))
+        
+        return cluster_df
+    #-----------------------------------------------  
     
     def get_token_similarity(self, grammar_df, examples_dict, n_chunks = 10000):
     
@@ -1453,7 +1488,7 @@ class C2xG(object):
         for cluster, cluster_df in grammar_df.groupby("Cluster"):
             
             print("\t Starting token cluster " + str(cluster))
-
+            
             #Input may be a string rather than tuple
             grammar = [eval(chunk) if isinstance(chunk, str) else chunk for chunk in cluster_df.loc[:,"Chunk"].tolist()]
             
@@ -1479,12 +1514,28 @@ class C2xG(object):
             #Cluster
             cluster_df = self.Word_Classes.learn_construction_categories(grammar, similarity_matrix, num_clusters = range(int(len(grammar)/10)+11, 10, -10))
             cluster_df.loc[:,"Type Cluster"] = cluster
+            
+            #Now merge micro-clusters with insufficient members
+            update_clusters = []
+            cluster_counter = 1
+
+            #Get cluster numbers to be merged
+            new_clusters = [x+1 for x in cluster_df.loc[:,"Cluster"].values]
+            cluster_df["Cluster"] = new_clusters
+            
+            for temp_number, temp_df in cluster_df.groupby("Cluster"):
+                #Not enough to keep
+                if len(temp_df) < 3:
+                    update_clusters.append(temp_number)
+                    
+            #Now save token clusters
+            cluster_df = cluster_df.replace(update_clusters, 0)
             results.append(cluster_df)
             
         cluster_df = pd.concat(results)
         cluster_df.columns = ["Chunk", "Token Cluster", "Type Cluster"]
         cluster_df.sort_values(by = ["Type Cluster", "Token Cluster"], ascending=True, inplace=True)
-        
+        print(cluster_df)
         return cluster_df
     
     #---------------------------------------------------

@@ -519,6 +519,7 @@ class Loader(object):
                         replace_with_currency_symbol = "<CUR>"
                         )
 
+        line = line.replace("nbsp"," ").strip()
         line = line.split()
         
         if len(line) > self.max_sentence_length:
