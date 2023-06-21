@@ -233,7 +233,7 @@ class Loader(object):
         #Iterate over slots
         for i in range(len(construction)):
             current_slot = construction[i]
-
+            
             #Lex
             if current_slot[0] == 1:
                 if current_slot[1] in self.lex_decode:

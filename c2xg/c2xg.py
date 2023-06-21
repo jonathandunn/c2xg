@@ -1142,6 +1142,35 @@ class C2xG(object):
         features = self.Parse.parse(input, model, length)
         return np.array(features)    
 
+    #------------------------------------------------------------------------------- 
+
+    def parse_types(self, input, mode = "syn"):
+            
+        #Accepts str of filename or list of strs of filenames
+        if isinstance(input, str):
+            input = [input]
+            
+        if mode == "lex":
+            model = self.lex_grammar
+        elif mode == "syn":
+            model = self.syn_grammar
+        elif mode == "full":
+            model = self.full_grammar
+        else:
+            print("Unable to parse: No grammar model provided.")
+            sys.kill()
+
+        #Get examples
+        examples_dict = self.print_examples(model.loc[:,"Chunk"].values, input_file = input, n = len(input), output = False, send_back = True)
+        types = []
+        
+        #Get number of examples (types) per construction
+        for key in model.loc[:,"Chunk"].values:
+            examples = examples_dict[eval(key)]
+            types.append(len(examples))
+            
+        return np.array(types)    
+
     #-------------------------------------------------------------------------------
 
     def parse_validate(self, input, workers = 1):
@@ -1167,10 +1196,9 @@ class C2xG(object):
 
         return return_list
     #-------------------------------------------------------------------------------
-    def print_examples(self, grammar, input_file, n, output = False, send_back = False):
+    def print_examples(self, grammar, input_file, n = 50, output = False, send_back = False):
   
         output_dict = {} #For returning examples
-        n = 50
         
         #Temp file if necessary
         if output == False:
@@ -1183,8 +1211,11 @@ class C2xG(object):
         if isinstance(input_file, str):
             #Get text and enriched text
             lines_text = self.Load.read_file(input_file)
-            lines_text = [self.Load.clean(x, encode = False) for x in lines_text]
-            lines_enriched = [[self.Load.enrich(x) for x in y] for y in lines_text]
+        else:
+            lines_text = input_file
+        #Regardless of source, prepare input
+        lines_text = [self.Load.clean(x, encode = False) for x in lines_text]
+        lines_enriched = [[self.Load.enrich(x) for x in y] for y in lines_text]
 
         #Open write file
         with codecs.open(output_file, "w", encoding = "utf-8") as fw:
@@ -1198,7 +1229,7 @@ class C2xG(object):
                 #Input may be a string rather than tuple
                 if isinstance(x, str):
                     x = eval(x)
-                    
+  
                 #Prune to actual constraints
                 construction = self.Load.decode_construction(x)
 
