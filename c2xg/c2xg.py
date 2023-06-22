@@ -741,14 +741,16 @@ class C2xG(object):
         full_cluster_examples_file = self.nickname + ".grammar_full_clusters_examples.txt"
            
         if not os.path.exists(os.path.join(self.out_dir, full_cluster_examples_file)):
-            print("Starting to cluster full constructions: " + str(len(grammar_df_full)))
             
-            full_clusters_constructions_df = self.get_construction_similarity(grammar_df_full.loc[:,"Chunk"].tolist())
             print("\t Getting examples for token similarity.")
             examples_dict = self.print_examples(grammar = grammar_df_full.loc[:,"Chunk"], input_file = input_data, output = False, n = 25, send_back=True)
-            
+            print(grammar_df_full)
+            print("grammar_df_full")
             #First, prune redundant constructions that have the same set of tokens
-            full_clusters_constructions_df = self.prune_redundant_constructions(full_clusters_constructions_df, examples_dict)
+            full_clusters_constructions_df = self.prune_redundant_constructions(grammar_df_full, examples_dict)
+            
+            print("Starting to cluster full constructions: " + str(len(grammar_df_full)))
+            full_clusters_constructions_df = self.get_construction_similarity(full_clusters_constructions_df.loc[:,"Chunk"].tolist())
             
             full_cluster_df = self.get_token_similarity(full_clusters_constructions_df, examples_dict)
             full_cluster_df.loc[:,"Construction"] = self.decode(full_cluster_df.loc[:,"Chunk"].values, clips = clips_full)
@@ -1119,7 +1121,7 @@ class C2xG(object):
             
     #------------------------------------------------------------------        
 
-    def parse(self, input, mode = "syn"):
+    def parse(self, input, mode = "syn", third_order = False):
             
         #Accepts str of filename or list of strs of filenames
         if isinstance(input, str):
@@ -1128,51 +1130,168 @@ class C2xG(object):
         if mode == "lex":
             model = self.lex_model
             length = len(self.lex_grammar)
+            grammar = self.lex_grammar
         elif mode == "syn":
             model = self.syn_model
             length = len(self.syn_grammar)
+            grammar = self.syn_grammar
         elif mode == "full":
             model = self.full_model
             length = len(self.full_grammar)
+            grammar = self.full_grammar
         else:
             print("Unable to parse: No grammar model provided.")
             sys.kill()
 
         #Do parsing
         features = self.Parse.parse(input, model, length)
-        return np.array(features)    
+        features = np.array(features)
+        names = grammar["Construction"].values.tolist()
+        
+        #Add third-order constructions if necessary
+        if third_order == True:
+            
+            new_names = []
+            new_values = []
+            
+            #Iterate over macro-clusters
+            for type_cluster, type_cluster_df in grammar.groupby("Type Cluster"):
+            
+                #Get the features specifically for this cluster
+                indexes = type_cluster_df.index
+                frequencies = features[:, indexes]
+                
+                #Sum all constructions within the cluster
+                frequencies = np.sum(frequencies, axis = 1)
+
+                #Add
+                new_names.append("Type_"+str(type_cluster))
+                new_values.append(frequencies)
+                
+                for token_cluster, token_cluster_df in type_cluster_df.groupby("Token Cluster"):
+                    
+                    #Get the features specifically for this cluster
+                    indexes = token_cluster_df.index
+                    frequencies = features[:, indexes]
+                    
+                    #Sum all constructions within the cluster
+                    frequencies = np.sum(frequencies, axis = 1)
+
+                    #Add
+                    new_names.append("Type_"+str(type_cluster)+"_Token_"+str(token_cluster))
+                    new_values.append(frequencies)
+                
+            #Now merge the third-order values in
+            names += new_names
+            
+            new_values = np.array(new_values)
+            new_values = np.transpose(new_values)
+            features = np.hstack([features, new_values])
+
+        #Create dataframe to return
+        features_df = pd.DataFrame(features)
+        features_df.columns = names
+            
+        return features_df
 
     #------------------------------------------------------------------------------- 
 
-    def parse_types(self, input, mode = "syn"):
+    def parse_types(self, input, mode = "syn", third_order = False):
             
         #Accepts str of filename or list of strs of filenames
         if isinstance(input, str):
             input = [input]
             
         if mode == "lex":
-            model = self.lex_grammar
+            grammar = self.lex_grammar
         elif mode == "syn":
-            model = self.syn_grammar
+            grammar = self.syn_grammar
         elif mode == "full":
-            model = self.full_grammar
+            grammar = self.full_grammar
         else:
             print("Unable to parse: No grammar model provided.")
             sys.kill()
 
         #Get examples
-        examples_dict = self.print_examples(model.loc[:,"Chunk"].values, input_file = input, n = len(input), output = False, send_back = True)
+        examples_dict = self.print_examples(grammar.loc[:,"Chunk"].values, input_file = input, n = len(input), output = False, send_back = True)
         types = []
         
         #Get number of examples (types) per construction
-        for key in model.loc[:,"Chunk"].values:
+        for key in grammar.loc[:,"Chunk"].values:
             examples = examples_dict[eval(key)]
             types.append(len(examples))
             
-        return np.array(types)    
+        features = np.array(types) 
+        names = grammar["Construction"].values.tolist()
+        
+        #Add third-order constructions if necessary
+        if third_order == True:
+            
+            new_names = []
+            new_values = []
+            
+            #Iterate over macro-clusters
+            for type_cluster, type_cluster_df in grammar.groupby("Type Cluster"):
+            
+                #Get the features specifically for this cluster
+                indexes = type_cluster_df.index
+                frequencies = features[indexes]
+
+                #Sum all constructions within the cluster
+                frequencies = np.sum(frequencies)
+
+                #Add
+                new_names.append("Type_"+str(type_cluster))
+                new_values.append(frequencies)
+                
+                for token_cluster, token_cluster_df in type_cluster_df.groupby("Token Cluster"):
+                    
+                    #Get the features specifically for this cluster
+                    indexes = token_cluster_df.index
+                    frequencies = features[indexes]
+                    
+                    #Sum all constructions within the cluster
+                    frequencies = np.sum(frequencies)
+                    frequencies = np.sum(frequencies, axis = 0)
+
+                    #Add
+                    new_names.append("Type_"+str(type_cluster)+"_Token_"+str(token_cluster))
+                    new_values.append(frequencies)
+                
+            #Now merge the third-order values in
+            names += new_names
+            new_values = np.array(new_values)
+            features = np.hstack([features, new_values])
+
+        #Create dataframe to return
+        features_df = pd.DataFrame(features)
+        features_df.index = names
+
+        return features_df
 
     #-------------------------------------------------------------------------------
+    
+    def get_type_token_ratio(self, input_data, mode = "syn", third_order = False):
+    
+        #Get token frequencies
+        features_tokens = self.parse(input_data, mode = mode, third_order = third_order)
+        features_tokens = pd.DataFrame(features_tokens).sum() 
+        
+        #Get type frequencies
+        features_types = self.parse_types(input_data, mode = mode, third_order = third_order)       
+        features_types = pd.DataFrame(features_types)
 
+        #Merge into one dataframe
+        features = pd.concat([features_tokens, features_types], axis = 1)
+        features.columns = ["Tokens", "Types"]
+        
+        #Get ratio
+        features.loc[:,"Ratio"] = features.loc[:,"Types"].div(features.loc[:,"Tokens"])
+        
+        return features
+
+#-------------------------------------------------------------------------------
+            
     def parse_validate(self, input, workers = 1):
         self.Parse.parse_validate(input, grammar = self.model, workers = workers, detailed_grammar = self.detailed_model)          
             
@@ -1484,6 +1603,9 @@ class C2xG(object):
     def prune_redundant_constructions(self, cluster_df, examples_dict):
     
         constructions = cluster_df.loc[:,"Chunk"].values
+        #Input may be a string rather than tuple
+        constructions = [eval(chunk) if isinstance(chunk, str) else chunk for chunk in constructions]
+        
         to_remove = []
         starting_length = len(cluster_df)
         
