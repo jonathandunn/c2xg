@@ -744,8 +744,7 @@ class C2xG(object):
             
             print("\t Getting examples for token similarity.")
             examples_dict = self.print_examples(grammar = grammar_df_full.loc[:,"Chunk"], input_file = input_data, output = False, n = 25, send_back=True)
-            print(grammar_df_full)
-            print("grammar_df_full")
+
             #First, prune redundant constructions that have the same set of tokens
             full_clusters_constructions_df = self.prune_redundant_constructions(grammar_df_full, examples_dict)
             
@@ -1213,7 +1212,7 @@ class C2xG(object):
             sys.kill()
 
         #Get examples
-        examples_dict = self.print_examples(grammar.loc[:,"Chunk"].values, input_file = input, n = len(input), output = False, send_back = True)
+        examples_dict = self.print_examples(grammar.loc[:,"Chunk"].values, input_file = input, n = len(input)*5, output = False, send_back = True)
         types = []
         
         #Get number of examples (types) per construction
