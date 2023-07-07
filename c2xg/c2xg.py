@@ -1138,6 +1138,26 @@ class C2xG(object):
             model = self.full_model
             length = len(self.full_grammar)
             grammar = self.full_grammar
+        elif mode == "all":
+        
+            #Add type prefixes to clusters
+            lex_grammar = self.lex_grammar.copy(deep=True)
+            lex_grammar["Type Cluster"] = "LEX_" + lex_grammar["Type Cluster"].astype(str)
+            
+            syn_grammar = self.syn_grammar.copy(deep=True)
+            syn_grammar["Type Cluster"] = "SYN_" + syn_grammar["Type Cluster"].astype(str)
+            
+            full_grammar = self.full_grammar.copy(deep=True)
+            full_grammar["Type Cluster"] = "FULL_" + full_grammar["Type Cluster"].astype(str)
+            
+            #Merge all grammars
+            grammar = pd.concat([lex_grammar, syn_grammar, full_grammar], axis = 0)
+            length = len(grammar)
+
+            #Create model for fast parsing
+            model = [eval(x) for x in grammar.loc[:,"Chunk"].tolist()]
+            model = detail_model(model)
+
         else:
             print("Unable to parse: No grammar model provided.")
             sys.kill()
@@ -1207,6 +1227,25 @@ class C2xG(object):
             grammar = self.syn_grammar
         elif mode == "full":
             grammar = self.full_grammar
+        elif mode == "all":
+        
+            #Add type prefixes to clusters
+            lex_grammar = self.lex_grammar.copy(deep=True)
+            lex_grammar["Type Cluster"] = "LEX_" + lex_grammar["Type Cluster"].astype(str)
+            
+            syn_grammar = self.syn_grammar.copy(deep=True)
+            syn_grammar["Type Cluster"] = "SYN_" + syn_grammar["Type Cluster"].astype(str)
+            
+            full_grammar = self.full_grammar.copy(deep=True)
+            full_grammar["Type Cluster"] = "FULL_" + full_grammar["Type Cluster"].astype(str)
+            
+            #Merge all grammars
+            grammar = pd.concat([lex_grammar, syn_grammar, full_grammar], axis = 0)
+            length = len(grammar)
+
+            #Create model for fast parsing
+            model = [eval(x) for x in grammar.loc[:,"Chunk"].tolist()]
+            model = detail_model(model)
         else:
             print("Unable to parse: No grammar model provided.")
             sys.kill()
@@ -1275,14 +1314,19 @@ class C2xG(object):
         #Get token frequencies
         features_tokens = self.parse(input_data, mode = mode, third_order = third_order)
         features_tokens = pd.DataFrame(features_tokens).sum() 
+        features_tokens = features_tokens.reset_index()
+        features_tokens.columns = ["Construction", "Tokens"]
         
         #Get type frequencies
         features_types = self.parse_types(input_data, mode = mode, third_order = third_order)       
         features_types = pd.DataFrame(features_types)
+        features_types = features_types.reset_index()
+        features_types.columns = ["Construction1", "Types"]
 
         #Merge into one dataframe
         features = pd.concat([features_tokens, features_types], axis = 1)
-        features.columns = ["Tokens", "Types"]
+        features = features.loc[:,["Construction", "Tokens", "Types"]]
+
         
         #Get ratio
         features.loc[:,"Ratio"] = features.loc[:,"Types"].div(features.loc[:,"Tokens"])
@@ -1537,7 +1581,7 @@ class C2xG(object):
   
     #-------------------------------------------------------------------------------
     
-    def fuzzy_jaccard(self, grammar1, grammar2, threshold = 0.70, workers = 2):
+    def get_grammar_similarity(self, grammar1, grammar2, threshold = 0.70, weighted = False):
 
         umbrella = set(grammar1 + grammar2)
         

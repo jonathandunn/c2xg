@@ -340,7 +340,10 @@ class Parser(object):
         pool_instance.join()
 
         #Find fixed max value for match indexes
-        max_matches = max([len(indexes) for construction, indexes, matches in results])
+        try:
+            max_matches = max([len(indexes) for construction, indexes, matches in results])
+        except:
+            max_matches = 1
         
         #Initialize lists
         construction_list = []

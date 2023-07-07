@@ -16,7 +16,6 @@ setup(
 	keywords = "grammar induction, syntax, cxg, unsupervised learning, natural language processing, computational linguistics, construction grammar, cognitive linguistics, usage-based grammar",
 	url = "http://www.c2xg.io",
 	packages = find_packages(exclude=["*.pyc", "__pycache__"]),
-	package_data={'': ['c2xg.data.*']},
 	install_requires=["cytoolz",
 						"gensim",
 						"numexpr",
