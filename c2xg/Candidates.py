@@ -1,16 +1,16 @@
 import time
-import operator
-import os
+#import operator
+#import os
 import numpy as np
-import pandas as pd
+#import pandas as pd
 import cytoolz as ct
 import multiprocessing as mp
 from functools import partial
 from collections import defaultdict
-from collections import deque
-import operator
-import difflib
-import copy
+#from collections import deque
+#import operator
+#import difflib
+#import copy
 
 from .Parser import Parser
 

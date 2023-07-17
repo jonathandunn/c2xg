@@ -1,16 +1,16 @@
 import os
-import time
-import codecs
-import random
+#import time
+#import codecs
+#import random
 import numpy as np
 import pandas as pd
 import multiprocessing as mp
-from functools import partial
+#from functools import partial
 
 from gensim.models import FastText
-from gensim.models.fasttext import load_facebook_model
+#from gensim.models.fasttext import load_facebook_model
 from gensim.models.fasttext import save_facebook_model
-from scipy.stats import mode
+from scipy.stats import mode # -> commented out on line 173? 
 import kmedoids
 
 try:
