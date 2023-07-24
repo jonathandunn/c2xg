@@ -8,18 +8,15 @@ import difflib
 import zipfile
 import multiprocessing as mp
 import cytoolz as ct
+import io
 from functools import partial
-from pathlib import Path # follow up about this vs. os.path.x
 from collections import defaultdict
 from collections import Counter
-#from scipy import sparse
 from gensim.models.fasttext import load_facebook_vectors
 from gensim.models.phrases import Phrases
-import io
 
 from .Loader import Loader
 from .Parser import Parser
-#from .Parser import parse_fast
 from .Parser import detail_model
 from .Association import Association
 from .Candidates import Candidates

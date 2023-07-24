@@ -1,14 +1,7 @@
 import math
 import time
-#import itertools
-#import random
-#import copy
-#from collections import deque
 import cytoolz as ct
-#import numpy as np
 import pandas as pd
-#import multiprocessing as mp
-#from functools import partial
                       
 #---------------------------------------------------------------------------
     

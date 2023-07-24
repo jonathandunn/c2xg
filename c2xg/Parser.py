@@ -1,7 +1,4 @@
-#import time
-#import copy
 import numpy as np
-#import cytoolz as ct
 import multiprocessing as mp
 from functools import partial
 from scipy import sparse

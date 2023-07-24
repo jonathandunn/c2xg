@@ -1,14 +1,8 @@
 import os
-#import time
-#import codecs
-#import random
 import numpy as np
 import pandas as pd
 import multiprocessing as mp
-#from functools import partial
-
 from gensim.models import FastText
-#from gensim.models.fasttext import load_facebook_model
 from gensim.models.fasttext import save_facebook_model
 from scipy.stats import mode # -> commented out on line 173? 
 import kmedoids
@@ -168,11 +162,6 @@ class Word_Classes(object):
             exemplars = model.similar_by_vector(mean_vector, topn=10000)
             exemplars = [x for x,y in exemplars if x in vocab.keys()]
             exemplars = [x for x in exemplars if x in word_list]
-
-            #Make sure exemplars are relatively common words
-            #mode_val = mode(list(vocab.values()))[0]
-            #thresh_freq = mode_val * 3
-            #exemplars = [x for x in exemplars if vocab[x] > thresh_freq]
             
             #If there are no exemplars, just use the first ones
             if len(exemplars) < 2:
