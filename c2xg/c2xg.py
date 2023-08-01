@@ -9,6 +9,7 @@ import zipfile
 import multiprocessing as mp
 import cytoolz as ct
 import io
+import urllib.request
 from functools import partial
 from collections import defaultdict
 from collections import Counter
@@ -151,9 +152,86 @@ def process_clipping_parsing(input_tuple, data, min_count):
 
 #-------------------------------------------------------------------------------
 
+def download_model(model = False, data_dir = None, out_dir = None):
+
+    #First set the data directories
+    #If no directories set, use default
+    if data_dir == None and in_dir == None:
+        data_dir = "data"
+        in_dir = os.path.join(data_dir, "IN")
+        out_dir = os.path.join(data_dir, "OUT")
+            
+    #Set data location and use default in/out directories
+    elif data_dir != None:
+        in_dir = os.path.join(data_dir, "IN")
+        out_dir = os.path.join(data_dir, "OUT")
+       
+    #Otherwise separately set the input and output directories
+    else:
+        data_dir = ""
+        
+    print("Saving models to " + out_dir)
+    
+    #Second, define the list of possible models
+    model_list = {
+    "cxg_corpus_blogs_final_v2.eng.1000k_words.model.zip": "https://www.dropbox.com/scl/fi/l28898p3b0keasm295ikd/cxg_corpus_blogs_final_v2.eng.1000k_words.model.zip?rlkey=oahjzjfgat6v2im3skfbmspn5&dl=1",
+    "cxg_corpus_comments_final_v2.eng.1000k_words.model.zip": "https://www.dropbox.com/scl/fi/dl175kjcsaz8abd18fmy2/cxg_corpus_comments_final_v2.eng.1000k_words.model.zip?rlkey=dmev9412wbbi96q64breb77l1&dl=1",
+    "cxg_corpus_eu_final_v2.eng.1000k_words.model.zip": "https://www.dropbox.com/scl/fi/v8d0l4z8um10jaed5dj8x/cxg_corpus_eu_final_v2.eng.1000k_words.model.zip?rlkey=2cv880qigdgqkoxptq10upp3t&dl=1",
+    "cxg_corpus_pg_final_v2.eng.1000k_words.model.zip": "https://www.dropbox.com/scl/fi/kdf187ub6m9el9x7zpbxe/cxg_corpus_pg_final_v2.eng.1000k_words.model.zip?rlkey=t1fiidnvbybk7utefrgrhny8p&dl=1",
+    "cxg_corpus_reviews_final_v2.eng.1000k_words.model.zip": "https://www.dropbox.com/scl/fi/22vszzf235e0kgjyoc1b5/cxg_corpus_reviews_final_v2.eng.1000k_words.model.zip?rlkey=7o6y431ighqq9at1t8byc4zvp&dl=1",
+    "cxg_corpus_subs_final_v2.eng.1000k_words.model.zip": "https://www.dropbox.com/scl/fi/wkjqomey8sh51cfampq18/cxg_corpus_subs_final_v2.eng.1000k_words.model.zip?rlkey=eng3tzhtkc8t23gnc8o19bz80&dl=1",
+    "cxg_corpus_tw_final_v2.eng.1000k_words.model.zip": "https://www.dropbox.com/scl/fi/hhc8lzyl5stspoz70vhdj/cxg_corpus_tw_final_v2.eng.1000k_words.model.zip?rlkey=hwlejh9ewb1oofsht1uti30i5&dl=1",
+    "cxg_corpus_wiki_final_v2.eng.1000k_words.model.zip": "https://www.dropbox.com/scl/fi/o2v07fme9npnmf57s0591/cxg_corpus_wiki_final_v2.eng.1000k_words.model.zip?rlkey=gqcsgd0lz5gio9o24924cp0dp&dl=1",
+    "cxg_multi_v02.ara.1000k_words.model.zip": "https://www.dropbox.com/scl/fi/w7thiv0ilaayjq0dz2zmm/cxg_multi_v02.ara.1000k_words.model.zip?rlkey=6zqj8ocmr9y3a09tv374a6qvk&dl=1",
+    "cxg_multi_v02.dan.1000k_words.model.zip": "https://www.dropbox.com/scl/fi/ftgempum9dkwne481spod/cxg_multi_v02.dan.1000k_words.model.zip?rlkey=ydxwnyzke1teg73kja4i51mtx&dl=1",
+    "cxg_multi_v02.deu.1000k_words.model.zip": "https://www.dropbox.com/scl/fi/ba2dyit5nute0f5qn2rr8/cxg_multi_v02.deu.1000k_words.model.zip?rlkey=c1w2vqvao9i66sdcwhdr8k2xn&dl=1",
+    "cxg_multi_v02.ell.1000k_words.model.zip": "https://www.dropbox.com/scl/fi/wk7zt0h8nf2t78dgxkpvz/cxg_multi_v02.ell.1000k_words.model.zip?rlkey=jrvlwladezepgyirvxj2t6gto&dl=1",
+    "cxg_multi_v02.eng.1000k_words.model.zip": "https://www.dropbox.com/scl/fi/85p0qvhczf8fha1p9ofmu/cxg_multi_v02.eng.1000k_words.model.zip?rlkey=nst9fou7nioq8d3ox4z6x7ruh&dl=1",
+    }
+    
+    #Third define a list of shortcuts
+    shortcuts = {
+    "blogs": "cxg_corpus_blogs_final_v2.eng.1000k_words.model.zip",
+    "comments": "cxg_corpus_comments_final_v2.eng.1000k_words.model.zip",
+    "eu": "cxg_corpus_eu_final_v2.eng.1000k_words.model.zip",
+    "pg": "cxg_corpus_pg_final_v2.eng.1000k_words.model.zip",
+    "reviews": "cxg_corpus_reviews_final_v2.eng.1000k_words.model.zip",
+    "subs": "cxg_corpus_subs_final_v2.eng.1000k_words.model.zip",
+    "tw": "cxg_corpus_tw_final_v2.eng.1000k_words.model.zip",
+    "wiki": "cxg_corpus_wiki_final_v2.eng.1000k_words.model.zip",
+    "ara": "cxg_multi_v02.ara.1000k_words.model.zip",
+    "dan": "cxg_multi_v02.dan.1000k_words.model.zip",
+    "deu": "cxg_multi_v02.deu.1000k_words.model.zip",
+    "ell": "cxg_multi_v02.ell.1000k_words.model.zip",
+    "eng": "cxg_multi_v02.eng.1000k_words.model.zip",
+    }
+    
+    #Fourth, if model is a shortcut, get the name
+    if not model.endswith(".zip"):
+        try:
+            model = shortcuts[model]
+        except:
+            print("Valid models: \n")
+            print(shortcuts)
+            sys.kill()
+            
+    #Fifth, get url for download:
+    try:
+        url = model_list[model]
+    except:
+        print("Valid download files: \n")
+        print(model_list)
+        sys.kill()
+        
+    #Download to the OUT directory
+    urllib.request.urlretrieve(url, os.path.join(out_dir, model))
+    
+    print("Finished downloading ", os.path.join(out_dir, model))
+#-----------------------------------------------------------------------------------------------
+
 class C2xG(object):
     
-    def __init__(self, model = False, data_dir = None, language = "eng", nickname = "cxg", max_sentence_length = 50,
+    def __init__(self, model = False, data_dir = None, in_dir = None, out_dir = None, language = "N/A", nickname = "cxg", max_sentence_length = 50,
                     normalization = True, max_words = False, cbow_file = "", sg_file = ""):
     
         self.workers = mp.cpu_count()
@@ -181,18 +259,25 @@ class C2xG(object):
                     
                 self.nickname = model.replace(".model.zip", "")
                 print("Current nickname: " + self.nickname)
+                print("Current model file: " + model_name)
 
-        #Set data location
-        self.data_dir = data_dir
-        
-        if data_dir != None:
+        #If no directories set, use default
+        if data_dir == None and in_dir == None:
+            data_dir = "data"
             in_dir = os.path.join(data_dir, "IN")
             out_dir = os.path.join(data_dir, "OUT")
+            
+        #Set data location and use default in/out directories
+        elif data_dir != None:
+            in_dir = os.path.join(data_dir, "IN")
+            out_dir = os.path.join(data_dir, "OUT")
+        
+        #Otherwise separately set the input and output directories
         else:
-            in_dir = "."
-            out_dir = "."
+            data_dir = ""
         
         #Set global variables
+        self.data_dir = data_dir
         self.in_dir = in_dir
         self.out_dir = out_dir
         self.max_words = max_words
@@ -219,8 +304,13 @@ class C2xG(object):
                 
         #Load embeddings from model file
         elif model != False:
+        
+            #Check if model exists in the current working directory
             if not os.path.exists(model):
-                model = os.path.join(self.out_dir, model)
+            
+                #Otherwise, check the out directory
+                if os.path.exists(os.path.join(self.out_dir, model)):
+                    model = os.path.join(self.out_dir, model)
                 
             with zipfile.ZipFile(model, mode="r") as archive:
                 for filename in archive.namelist():
