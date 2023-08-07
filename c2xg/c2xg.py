@@ -275,6 +275,12 @@ class C2xG(object):
         #Otherwise separately set the input and output directories
         else:
             data_dir = ""
+            
+            #Maybe we set only one
+            if in_dir == None:
+                in_dir = os.path.join(".", "IN")
+            if out_dir == None:
+                out_dir = os.path.join(".", "OUT")
         
         #Set global variables
         self.data_dir = data_dir
