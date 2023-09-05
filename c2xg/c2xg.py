@@ -1432,13 +1432,29 @@ class C2xG(object):
         self.Parse.parse_validate(input, grammar = self.model, workers = workers, detailed_grammar = self.detailed_model)          
             
     #-------------------------------------------------------------------------------
-    def print_constructions(self):
+    def print_constructions(self, mode="lex"):
+
+         if mode == "lex":
+            model = self.lex_model
+        elif mode == "syn":
+            model = self.syn_model
+        elif mode == "full":
+            model = self.full_model
+        elif mode == "all":
+        
+            #Add type prefixes to clusters
+            lex_grammar = self.lex_model
+            syn_grammar = self.syn_model
+            full_grammar = self.full_model
+
+            #Merge all grammars
+            model = pd.concat([lex_grammar, syn_grammar, full_grammar], axis = 0)
 
         return_list = []
 
-        for i in range(len(self.model)):
+        for i in range(len(model)):
             
-            x = self.model[i]
+            x = model[i]
             printed_examples = []
 
             #Prune to actual constraints
