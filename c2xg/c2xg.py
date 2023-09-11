@@ -1434,7 +1434,7 @@ class C2xG(object):
     #-------------------------------------------------------------------------------
     def print_constructions(self, mode="lex"):
 
-         if mode == "lex":
+        if mode == "lex":
             model = self.lex_model
         elif mode == "syn":
             model = self.syn_model
