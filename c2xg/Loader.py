@@ -97,14 +97,15 @@ class Loader(object):
         elif file.endswith(".gz"):
             with gzip.open(os.path.join(self.in_dir, file), "rb") as fo:
                 lines = fo.readlines()
-        
+
         #Get data up to max words
         if iterating == False:
+
             for line in lines:
                 #Ensure utf-8 input
                 line = line.decode("utf-8", errors = "replace")
                 starting_counter += len(line.split())
-                
+
                 if starting_counter > self.starting_index:
                     #Control the amount of input data
                     if self.max_words != False:
@@ -112,7 +113,9 @@ class Loader(object):
                             if len(line) > 2:
                                 max_counter += len(line.split())
                                 clean_lines.append(line)
-                            
+                    else:
+                        clean_lines.append(line)
+
         #Get data up to max words
         elif iterating != False:
             #Define number of words to discard first and then the stopping point

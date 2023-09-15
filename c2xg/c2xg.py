@@ -1435,27 +1435,29 @@ class C2xG(object):
     def print_constructions(self, mode="lex"):
 
         if mode == "lex":
-            model = self.lex_model
+            model = self.lex_grammar.loc[:,"Chunk"].values
         elif mode == "syn":
-            model = self.syn_model
+            model = self.syn_grammar.loc[:,"Chunk"].values
         elif mode == "full":
-            model = self.full_model
+            model = self.full_grammar.loc[:,"Chunk"].values
         elif mode == "all":
         
-            #Add type prefixes to clusters
-            lex_grammar = self.lex_model
-            syn_grammar = self.syn_model
-            full_grammar = self.full_model
+            #For merge
+            lex_grammar = self.lex_grammar.loc[:,"Chunk"].values
+            syn_grammar = self.syn_grammar.loc[:,"Chunk"].values
+            full_grammar = self.full_grammar.loc[:,"Chunk"].values
 
             #Merge all grammars
             model = pd.concat([lex_grammar, syn_grammar, full_grammar], axis = 0)
 
         return_list = []
-
+        
         for i in range(len(model)):
             
             x = model[i]
-            printed_examples = []
+
+            if isinstance(x, str):
+                x = eval(x)
 
             #Prune to actual constraints
             x = [y for y in x if y[0] != 0]
@@ -1471,6 +1473,25 @@ class C2xG(object):
   
         output_dict = {} #For returning examples
         
+        if grammar == "lex":
+            model = self.lex_grammar.loc[:,"Chunk"].values
+        elif grammar == "syn":
+            model = self.syn_grammar.loc[:,"Chunk"].values
+        elif grammar == "full":
+            model = self.full_grammar.loc[:,"Chunk"].values
+        elif grammar == "all":
+        
+            #For merge
+            lex_grammar = self.lex_grammar.loc[:,"Chunk"].values
+            syn_grammar = self.syn_grammar.loc[:,"Chunk"].values
+            full_grammar = self.full_grammar.loc[:,"Chunk"].values
+
+            #Merge all grammars
+            model = pd.concat([lex_grammar, syn_grammar, full_grammar], axis = 0)
+        
+        else:
+            model = grammar
+               
         #Temp file if necessary
         if output == False:
             output = "temp.txt"
@@ -1492,9 +1513,10 @@ class C2xG(object):
         with codecs.open(output_file, "w", encoding = "utf-8") as fw:
             
             #Iterate over constructions
-            for i in range(len(grammar)):
+            for i in range(len(model)):
             
-                x = grammar[i]
+                x = model[i]
+                print(i, x)
                 printed_examples = []
                 
                 #Input may be a string rather than tuple
@@ -1595,11 +1617,22 @@ class C2xG(object):
     
     #------------------------------------------------------------------------------
 
-    def get_association(self, freq_threshold = 1, normalization = True, grammar_type = "full", lex_only = False):
+    def get_association(self, freq_threshold = 1, normalization = True, grammar_type = "full", lex_only = False, data = False):
         
+        #Check data condition
+        if data == False:
+            data = self.Load.data
+        else:
+            print("Loading data")
+            if isinstance(data, list):
+                mode = "lines"
+            else:
+                mode = "files"
+            data = self.Load.load(data, mode = mode)
+            
         #For smoothing, get discounts by constraint type
         if self.normalization == True:
-            discount_dict = self.Association.find_discounts(self.Load.data)
+            discount_dict = self.Association.find_discounts(data)
             self.Load.save_file(discount_dict, self.nickname+ "." + grammar_type + ".discounts.p")
             print(discount_dict)
             print("Discounts ", self.nickname)
@@ -1607,7 +1640,7 @@ class C2xG(object):
         else:
             discount_dict = False
 
-        ngrams = self.Association.find_ngrams(self.Load.data, lex_only = False, n_gram_threshold = 1)
+        ngrams = self.Association.find_ngrams(data, lex_only = False, n_gram_threshold = 1)
         association_dict = self.Association.calculate_association(ngrams = ngrams, normalization = self.normalization, discount_dict = discount_dict)
         
         #Reduce to bigrams
