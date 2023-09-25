@@ -467,7 +467,7 @@ class C2xG(object):
         
         #Adjust min_count to be 1 parts per million using max_words parameter
         if min_count == None:
-            if self.max_words == None:
+            if self.max_words == False:
                 min_count = 5
             elif self.max_words <= 1000000:
                 min_count = int(1000000/self.max_words * 1)
@@ -1517,7 +1517,7 @@ class C2xG(object):
             for i in range(len(model)):
             
                 x = model[i]
-                print(i, x)
+                #print(i, x)
                 printed_examples = []
                 
                 #Input may be a string rather than tuple
