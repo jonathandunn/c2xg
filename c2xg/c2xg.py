@@ -1052,7 +1052,7 @@ class C2xG(object):
             
             total_added = len(frequencies) #+ len(adjacents)
             
-            if total_added < 50 or len(grammar) > 30000:
+            if total_added < 50 or len(grammar) > 28000:
                 break
                 
         print("\t Starting to parse for frequency check  " + str(len(self.Load.data)) + " lines")
@@ -1473,21 +1473,22 @@ class C2xG(object):
   
         output_dict = {} #For returning examples
         
-        if grammar == "lex":
-            model = self.lex_grammar.loc[:,"Chunk"].values
-        elif grammar == "syn":
-            model = self.syn_grammar.loc[:,"Chunk"].values
-        elif grammar == "full":
-            model = self.full_grammar.loc[:,"Chunk"].values
-        elif grammar == "all":
-        
-            #For merge
-            lex_grammar = self.lex_grammar.loc[:,"Chunk"].values
-            syn_grammar = self.syn_grammar.loc[:,"Chunk"].values
-            full_grammar = self.full_grammar.loc[:,"Chunk"].values
+        if isinstance(grammar, str):
+            if grammar == "lex":
+                model = self.lex_grammar.loc[:,"Chunk"].values
+            elif grammar == "syn":
+                model = self.syn_grammar.loc[:,"Chunk"].values
+            elif grammar == "full":
+                model = self.full_grammar.loc[:,"Chunk"].values
+            elif grammar == "all":
+            
+                #For merge
+                lex_grammar = self.lex_grammar.loc[:,"Chunk"].values
+                syn_grammar = self.syn_grammar.loc[:,"Chunk"].values
+                full_grammar = self.full_grammar.loc[:,"Chunk"].values
 
-            #Merge all grammars
-            model = pd.concat([lex_grammar, syn_grammar, full_grammar], axis = 0)
+                #Merge all grammars
+                model = pd.concat([lex_grammar, syn_grammar, full_grammar], axis = 0)
         
         else:
             model = grammar
