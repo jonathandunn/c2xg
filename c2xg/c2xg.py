@@ -291,21 +291,28 @@ class C2xG(object):
         
         #Set embeddings files
         if model == False:
-            self.cbow_file = os.path.join(self.out_dir, cbow_file)
-            self.sg_file = os.path.join(self.out_dir, sg_file)
         
-            #Load existing cbow embeddings
-            if os.path.exists(self.cbow_file):
-                print("Using for local word embeddings: ", self.cbow_file)
-                self.cbow_model = self.load_embeddings(self.cbow_file)
+            if cbow_file != "":
+                self.cbow_file = os.path.join(self.out_dir, cbow_file)
+                self.sg_file = os.path.join(self.out_dir, sg_file)
+            
+                #Load existing cbow embeddings
+                if os.path.exists(self.cbow_file):
+                    print("Using for local word embeddings: ", self.cbow_file)
+                    self.cbow_model = self.load_embeddings(self.cbow_file)
+                else:
+                    self.cbow_model = False
+                
+                #Load existing sg embeddings
+                if os.path.exists(self.sg_file):
+                    print("Using for non-local word embeddings: ", self.sg_file)
+                    self.sg_model = self.load_embeddings(self.sg_file)
+                else:
+                    self.sg_model = False
+                    
+            #No embeddings yet
             else:
                 self.cbow_model = False
-            
-            #Load existing sg embeddings
-            if os.path.exists(self.sg_file):
-                print("Using for non-local word embeddings: ", self.sg_file)
-                self.sg_model = self.load_embeddings(self.sg_file)
-            else:
                 self.sg_model = False
                 
         #Load embeddings from model file
