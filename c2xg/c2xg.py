@@ -1221,7 +1221,26 @@ class C2xG(object):
     #------------------------------------------------------------------        
 
     def parse(self, input, mode = "syn", third_order = False):
-            
+        '''
+	    Returns a dataframe with construction token counts for each input file.
+
+	    Note: 'parse()' parses all input files separately, unlike 'parse_types()'
+
+		Parameters
+		----------
+		input : str or list of str
+			A filename or list of filenames to be parsed, sourced from 'in' directory.
+		mode : str, default "syn"
+			The type(s) of representations to be parsed ("lex", "syn", "full", or "all").
+		third_order : False or else, default False
+			Whether third-order constructions are used, no by default.
+
+		Returns
+		----------
+		features_df : pandas.core.frame.DataFrame
+			A pandas dataframe with constructions and their token counts for each file.
+
+	    '''    
         #Accepts str of filename or list of strs of filenames
         if isinstance(input, str):
             input = [input]
@@ -1316,7 +1335,26 @@ class C2xG(object):
     #------------------------------------------------------------------------------- 
 
     def parse_types(self, input, mode = "syn", third_order = False):
-            
+        '''
+	    Returns a dataframe with construction type counts over all input files.
+
+	    Note: 'parse_types()' parses all input files together, unlike 'parse()'
+
+		Parameters
+		----------
+		input : str or list of str
+			A filename or list of filenames to be parsed, sourced from 'in' directory.
+		mode : str, default "syn"
+			The type(s) of representations to be parsed ("lex", "syn", "full", or "all").
+		third_order : False or else, default False
+			Whether third-order constructions are used, no by default.
+
+		Returns
+		----------
+		features_df : pandas.core.frame.DataFrame
+			A pandas dataframe with constructions and their type counts.
+
+	    '''
         #Accepts str of filename or list of strs of filenames
         if isinstance(input, str):
             input = [input]
@@ -1410,7 +1448,24 @@ class C2xG(object):
     #-------------------------------------------------------------------------------
     
     def get_type_token_ratio(self, input_data, mode = "syn", third_order = False):
-    
+        '''
+	    Returns a dataframe containing the token & type counts and the ratio thereof for each construction.
+
+		Parameters
+		----------
+		input : str or list of str
+			A filename or list of filenames to be parsed, sourced from 'in' directory.
+		mode : str, default "syn"
+			The type(s) of representations to be parsed ("lex", "syn", "full", or "all").
+		third_order : False or else, default False
+			Whether third-order constructions are used, no by default.
+
+		Returns
+		----------
+		features : pandas.core.frame.DataFrame
+			A Pandas dataframe with constructions, their token count, type count, and type/token ratio.
+
+	    '''
         #Get token frequencies
         features_tokens = self.parse(input_data, mode = mode, third_order = third_order)
         features_tokens = pd.DataFrame(features_tokens).sum() 
@@ -1440,7 +1495,20 @@ class C2xG(object):
             
     #-------------------------------------------------------------------------------
     def print_constructions(self, mode="lex"):
+	    '''
+	    Returns, prints, and creates a .txt file with a list of constructions in the loaded model.
 
+		Parameters
+		----------
+		mode : str, default "lex"
+			The type(s) of constructions to be printed ("lex", "syn", "full", or "all").
+
+		Returns
+		----------
+		return_list :
+			A list of selected constructions.
+
+	    '''
         if mode == "lex":
             model = self.lex_grammar.loc[:,"Chunk"].values
         elif mode == "syn":
@@ -1477,7 +1545,29 @@ class C2xG(object):
         return return_list
     #-------------------------------------------------------------------------------
     def print_examples(self, grammar, input_file, n = 50, output = False, send_back = False):
-  
+        '''
+	    Creates a .txt file with constructions and examples thereof in a given file.
+
+		Parameters
+		----------
+		grammar : str or grammar
+			The type of grammar to gather examples from ("lex", "syn", "full", "all", or grammar).
+			Note: grammars can be obtained with: 'C2xG.{type}_grammar.loc[:,"Chunk"].values'.
+		input_file : str or list of str
+			A filename or list of strings/sentences to be examined. Files sources from 'in' directory.
+		n : int, default 50
+			Limit of examples per construction.
+		output : False or else, default False 
+			Whether to print examples, no by default.
+		send_back : False or else, default False
+			Whether to return examples, no by default.
+
+		Returns
+		----------
+		return_list (if 'send_back' not False) : 
+			A list of constructions with examples.
+
+	    '''
         output_dict = {} #For returning examples
         
         if isinstance(grammar, str):
@@ -1626,7 +1716,31 @@ class C2xG(object):
     #------------------------------------------------------------------------------
 
     def get_association(self, freq_threshold = 1, normalization = True, grammar_type = "full", lex_only = False, data = False):
-        
+        '''
+	    Returns a dataframe with association measures for word pairs in a given file or files. 
+	    It also creates a .txt file with the list of constructions.
+
+	    Note: more info about these measures can be found on https://arxiv.org/abs/2104.01297
+
+		Parameters
+		----------
+		freq_threshold : int, default 1
+			NOTE: Could be removed?
+		normalization : True or else, default True
+			Normalise frequency by ngram type and frequency strata, yes by default.
+		grammar_type : str, default "full"
+			Suffix for pickle file name for file containing discounts
+		lex_only : False or else, default False
+			Limit n-grams examined to lexical entries only, no by default.
+		data : False, str, or list of str
+			A filename or list of filenames to be parsed, sourced from 'in' directory.
+
+		Returns
+		----------
+		df : pandas.core.frame.DataFrame
+			A pandas dataframe with association measure statistics for a given word pair.
+
+	    '''
         #Check data condition
         if data == False:
             data = self.Load.data
