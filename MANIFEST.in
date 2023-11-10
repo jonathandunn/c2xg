@@ -4,5 +4,3 @@ include README.md
 include setup.py
 include setup.cfg
 include MANIFEST.in
-
-graft c2xg/data

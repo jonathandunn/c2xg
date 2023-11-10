@@ -1,13 +1,13 @@
-c2xg 1.0
+c2xg 2.0
 =============
 
-Computational Construction Grammar, or c2xg, is a Python package for learning of CxGs and working with CxGs. 
+Computational Construction Grammar, or *c2xg*, is a Python package for learning and working with construction grammars. 
 
 Why CxG? Constructions are grammatical entities that support a straight-forward quantification of linguistic structure.
 
-This package currently support 35 languages: ara, bul, cat, ces, dan, deu, ell, eng, est, fas, fin, fra, glg, heb, hin, hun, ind, ita, kor, lav, nld, nor, pol, por, ron, rus, slv, spa, swe, tgl, tha, tur, ukr, urd, vie
+This package currently support 18 languages: English (eng), Arabic (ara), Danish (dan), German (deu), Greek (ell), Farsi (fas), Finnish (fin), French (fra), Hindi (hin), Indonesian (ind), Italian (ita), Dutch (nld), Polish (pol), Portuguese (por), Russian (rus), Spanish (spa), Swedish (swe), Turkish (tur)
 
-Note: Only deu, eng, fra, ita, por, spa are available on pip.
+Note: The *download()* function  must be used to install pre-trained grammars.
 
 Usage: Initializing
 ---------------------
