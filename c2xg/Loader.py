@@ -197,7 +197,6 @@ class Loader(object):
                 except Exception as e:
                     value = self.get_unk(word, "sg")
                     value = self.sg_decode[value]
-                    print("165", e)
                     
                 value = "sem:" + str(index) + "_" + str(value)
           

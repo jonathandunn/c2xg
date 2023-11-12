@@ -187,23 +187,49 @@ def download_model(model = False, data_dir = None, out_dir = None):
     "cxg_multi_v02.deu.1000k_words.model.zip": "https://www.dropbox.com/scl/fi/ba2dyit5nute0f5qn2rr8/cxg_multi_v02.deu.1000k_words.model.zip?rlkey=c1w2vqvao9i66sdcwhdr8k2xn&dl=1",
     "cxg_multi_v02.ell.1000k_words.model.zip": "https://www.dropbox.com/scl/fi/wk7zt0h8nf2t78dgxkpvz/cxg_multi_v02.ell.1000k_words.model.zip?rlkey=jrvlwladezepgyirvxj2t6gto&dl=1",
     "cxg_multi_v02.eng.1000k_words.model.zip": "https://www.dropbox.com/scl/fi/85p0qvhczf8fha1p9ofmu/cxg_multi_v02.eng.1000k_words.model.zip?rlkey=nst9fou7nioq8d3ox4z6x7ruh&dl=1",
+    "cxg_multi_v02.fas.1000k_words.model.zip": "https://www.dropbox.com/scl/fi/niz9wegjt6t0on7vhzws0/cxg_multi_v02.fas.1000k_words.model.zip?rlkey=p06a1fn6kf0laa59g875u5mf5&dl=0",
+    "cxg_multi_v02.fin.1000k_words.model.zip": "https://www.dropbox.com/scl/fi/17u9o71jjv4c37un0d59l/cxg_multi_v02.fin.1000k_words.model.zip?rlkey=1buactvpte4jjkubvwjo16gcv&dl=0",
+    "cxg_multi_v02.fra.1000k_words.model.zip": "https://www.dropbox.com/scl/fi/itvnmt6kuil8fclat98vm/cxg_multi_v02.fra.1000k_words.model.zip?rlkey=xcpthkzewnokk05nywtft2w3g&dl=0",
+    "cxg_multi_v02.hin.1000k_words.model.zip": "https://www.dropbox.com/scl/fi/fl73gzqgx1x5wdw72kqvb/cxg_multi_v02.hin.1000k_words.model.zip?rlkey=sxl78srkokqbyqlwbs2hjizko&dl=0",
+    "cxg_multi_v02.ind.1000k_words.model.zip": "https://www.dropbox.com/scl/fi/guez7m4rdi3xql5wstr7g/cxg_multi_v02.ind.1000k_words.model.zip?rlkey=i23dyfx56tljkhb2pr5rlv88p&dl=0",
+    "cxg_multi_v02.ita.1000k_words.model.zip": "https://www.dropbox.com/scl/fi/3snvw5hqbvk8o2wakhyzj/cxg_multi_v02.ita.1000k_words.model.zip?rlkey=9y7twsgsnl9wb0mbisdp2n3pl&dl=0",
+    "cxg_multi_v02.nld.1000k_words.model.zip": "https://www.dropbox.com/scl/fi/kq1d339gm1zdd89qpzsl1/cxg_multi_v02.nld.1000k_words.model.zip?rlkey=zn0o36qfomsgp5z98qo2ufxmt&dl=0",
+    "cxg_multi_v02.pol.1000k_words.model.zip": "https://www.dropbox.com/scl/fi/siha35ub9m7asb5ccoq2s/cxg_multi_v02.pol.1000k_words.model.zip?rlkey=qif2ux53sfhc7nagvi2cvew9s&dl=0",
+    "cxg_multi_v02.por.1000k_words.model.zip": "https://www.dropbox.com/scl/fi/d758n67l3ugcdnsrpmxo0/cxg_multi_v02.por.1000k_words.model.zip?rlkey=hdlyuv33toc02vknzoakfk2ak&dl=0",
+    "cxg_multi_v02.rus.1000k_words.model.zip": "https://www.dropbox.com/scl/fi/0dccch51vn5hl8051r942/cxg_multi_v02.rus.1000k_words.model.zip?rlkey=vrkar9gjszeepv30avqhs419d&dl=0",
+    "cxg_multi_v02.spa.1000k_words.model.zip": "https://www.dropbox.com/scl/fi/jbpmx8l8ohpb1qj738v2i/cxg_multi_v02.spa.1000k_words.model.zip?rlkey=kgyk2h5r9mr64co6kbol18lxx&dl=0",
+    "cxg_multi_v02.swe.1000k_words.model.zip": "https://www.dropbox.com/scl/fi/0g0wlkyxsdyxo3kza2udc/cxg_multi_v02.swe.1000k_words.model.zip?rlkey=gt2hxk7gl84i31o9mxwd8lee8&dl=0",
+    "cxg_multi_v02.tur.1000k_words.model.zip": "https://www.dropbox.com/scl/fi/k0yaovzhn863d2jytlc6w/cxg_multi_v02.tur.1000k_words.model.zip?rlkey=pgli9vgkhsfg4ynpa1du7kea6&dl=0",
     }
     
     #Third define a list of shortcuts
     shortcuts = {
-    "blogs": "cxg_corpus_blogs_final_v2.eng.1000k_words.model.zip",
-    "comments": "cxg_corpus_comments_final_v2.eng.1000k_words.model.zip",
-    "eu": "cxg_corpus_eu_final_v2.eng.1000k_words.model.zip",
-    "pg": "cxg_corpus_pg_final_v2.eng.1000k_words.model.zip",
-    "reviews": "cxg_corpus_reviews_final_v2.eng.1000k_words.model.zip",
-    "subs": "cxg_corpus_subs_final_v2.eng.1000k_words.model.zip",
-    "tw": "cxg_corpus_tw_final_v2.eng.1000k_words.model.zip",
-    "wiki": "cxg_corpus_wiki_final_v2.eng.1000k_words.model.zip",
+    "BL": "cxg_corpus_blogs_final_v2.eng.1000k_words.model.zip",
+    "NC": "cxg_corpus_comments_final_v2.eng.1000k_words.model.zip",
+    "EU": "cxg_corpus_eu_final_v2.eng.1000k_words.model.zip",
+    "PG": "cxg_corpus_pg_final_v2.eng.1000k_words.model.zip",
+    "PR": "cxg_corpus_reviews_final_v2.eng.1000k_words.model.zip",
+    "OS": "cxg_corpus_subs_final_v2.eng.1000k_words.model.zip",
+    "TW": "cxg_corpus_tw_final_v2.eng.1000k_words.model.zip",
+    "WK": "cxg_corpus_wiki_final_v2.eng.1000k_words.model.zip",
     "ara": "cxg_multi_v02.ara.1000k_words.model.zip",
     "dan": "cxg_multi_v02.dan.1000k_words.model.zip",
     "deu": "cxg_multi_v02.deu.1000k_words.model.zip",
     "ell": "cxg_multi_v02.ell.1000k_words.model.zip",
     "eng": "cxg_multi_v02.eng.1000k_words.model.zip",
+    "fas": "cxg_multi_v02.fas.1000k_words.model.zip",
+    "fin": "cxg_multi_v02.fin.1000k_words.model.zip",
+    "fra": "cxg_multi_v02.fra.1000k_words.model.zip",
+    "hin": "cxg_multi_v02.hin.1000k_words.model.zip",
+    "ind": "cxg_multi_v02.ind.1000k_words.model.zip",
+    "ita": "cxg_multi_v02.ita.1000k_words.model.zip",
+    "nld": "cxg_multi_v02.nld.1000k_words.model.zip",
+    "pol": "cxg_multi_v02.pol.1000k_words.model.zip",
+    "por": "cxg_multi_v02.por.1000k_words.model.zip",
+    "rus": "cxg_multi_v02.rus.1000k_words.model.zip",
+    "spa": "cxg_multi_v02.spa.1000k_words.model.zip",
+    "swe": "cxg_multi_v02.swe.1000k_words.model.zip",
+    "tur": "cxg_multi_v02.tur.1000k_words.model.zip",
     }
     
     #Fourth, if model is a shortcut, get the name
@@ -236,6 +262,36 @@ class C2xG(object):
     
         self.workers = mp.cpu_count()
         self.max_sentence_length = max_sentence_length
+        
+        #Define shortcuts
+        shortcuts = {
+            "BL": "cxg_corpus_blogs_final_v2.eng.1000k_words.model.zip",
+            "NC": "cxg_corpus_comments_final_v2.eng.1000k_words.model.zip",
+            "EU": "cxg_corpus_eu_final_v2.eng.1000k_words.model.zip",
+            "PG": "cxg_corpus_pg_final_v2.eng.1000k_words.model.zip",
+            "PR": "cxg_corpus_reviews_final_v2.eng.1000k_words.model.zip",
+            "OS": "cxg_corpus_subs_final_v2.eng.1000k_words.model.zip",
+            "TW": "cxg_corpus_tw_final_v2.eng.1000k_words.model.zip",
+            "WK": "cxg_corpus_wiki_final_v2.eng.1000k_words.model.zip",
+            "ara": "cxg_multi_v02.ara.1000k_words.model.zip",
+            "dan": "cxg_multi_v02.dan.1000k_words.model.zip",
+            "deu": "cxg_multi_v02.deu.1000k_words.model.zip",
+            "ell": "cxg_multi_v02.ell.1000k_words.model.zip",
+            "eng": "cxg_multi_v02.eng.1000k_words.model.zip",
+            "fas": "cxg_multi_v02.fas.1000k_words.model.zip",
+            "fin": "cxg_multi_v02.fin.1000k_words.model.zip",
+            "fra": "cxg_multi_v02.fra.1000k_words.model.zip",
+            "hin": "cxg_multi_v02.hin.1000k_words.model.zip",
+            "ind": "cxg_multi_v02.ind.1000k_words.model.zip",
+            "ita": "cxg_multi_v02.ita.1000k_words.model.zip",
+            "nld": "cxg_multi_v02.nld.1000k_words.model.zip",
+            "pol": "cxg_multi_v02.pol.1000k_words.model.zip",
+            "por": "cxg_multi_v02.por.1000k_words.model.zip",
+            "rus": "cxg_multi_v02.rus.1000k_words.model.zip",
+            "spa": "cxg_multi_v02.spa.1000k_words.model.zip",
+            "swe": "cxg_multi_v02.swe.1000k_words.model.zip",
+            "tur": "cxg_multi_v02.tur.1000k_words.model.zip",
+            }
             
         #Check if model is provided
         if model == False:
@@ -252,6 +308,12 @@ class C2xG(object):
         #Otherwise, get nickname from model file
         elif model != False:
             if isinstance(model, str):
+            
+                #Check for model shortcuts
+                if model in shortcuts:
+                    model_name = shortcuts[model]
+                    model = model_name
+                    
                 try:
                     model_name = os.path.split(model)[1]
                 except:
@@ -1220,7 +1282,7 @@ class C2xG(object):
             
     #------------------------------------------------------------------        
 
-    def parse(self, input, mode = "syn", third_order = False):
+    def parse(self, input, input_type = "files", mode = "syn", third_order = False):
         '''
 	    Returns a dataframe with construction token counts for each input file.
 
@@ -1230,6 +1292,8 @@ class C2xG(object):
 		----------
 		input : str or list of str
 			A filename or list of filenames to be parsed, sourced from 'in' directory.
+        input_type: str
+            "files" if input contains filenames or "lines" if input contains data
 		mode : str, default "syn"
 			The type(s) of representations to be parsed ("lex", "syn", "full", or "all").
 		third_order : False or else, default False
@@ -1242,8 +1306,9 @@ class C2xG(object):
 
 	    '''    
         #Accepts str of filename or list of strs of filenames
-        if isinstance(input, str):
-            input = [input]
+        if input_type == "lines":
+            if isinstance(input, str):
+                input = [input]
             
         if mode == "lex":
             model = self.lex_model
@@ -1282,7 +1347,7 @@ class C2xG(object):
             sys.kill()
 
         #Do parsing
-        features = self.Parse.parse(input, model, length)
+        features = self.Parse.parse(input, model, length, mode=input_type)
         features = np.array(features)
         names = grammar["Construction"].values.tolist()
         
@@ -1334,8 +1399,8 @@ class C2xG(object):
 
     #------------------------------------------------------------------------------- 
 
-    def parse_types(self, input, mode = "syn", third_order = False):
-        '''
+    def parse_types(self, input, input_type = "files", mode = "syn", third_order = False):
+        """
 	    Returns a dataframe with construction type counts over all input files.
 
 	    Note: 'parse_types()' parses all input files together, unlike 'parse()'
@@ -1344,6 +1409,8 @@ class C2xG(object):
 		----------
 		input : str or list of str
 			A filename or list of filenames to be parsed, sourced from 'in' directory.
+        input_type : str
+            Accepts "files" if input is one or more filenames and "lines" if input is corpus text
 		mode : str, default "syn"
 			The type(s) of representations to be parsed ("lex", "syn", "full", or "all").
 		third_order : False or else, default False
@@ -1354,10 +1421,12 @@ class C2xG(object):
 		features_df : pandas.core.frame.DataFrame
 			A pandas dataframe with constructions and their type counts.
 
-	    '''
+	    """
+        
         #Accepts str of filename or list of strs of filenames
-        if isinstance(input, str):
-            input = [input]
+        if input_type == "lines":
+            if isinstance(input, str):
+                input = [input]
             
         if mode == "lex":
             grammar = self.lex_grammar
@@ -1447,7 +1516,7 @@ class C2xG(object):
 
     #-------------------------------------------------------------------------------
     
-    def get_type_token_ratio(self, input_data, mode = "syn", third_order = False):
+    def get_type_token_ratio(self, input_data, input_type, mode = "syn", third_order = False):
         '''
 	    Returns a dataframe containing the token & type counts and the ratio thereof for each construction.
 
@@ -1455,6 +1524,8 @@ class C2xG(object):
 		----------
 		input : str or list of str
 			A filename or list of filenames to be parsed, sourced from 'in' directory.
+        input_type : str
+            "files" if input is one or more filenames, otherwise "lines" if input is text
 		mode : str, default "syn"
 			The type(s) of representations to be parsed ("lex", "syn", "full", or "all").
 		third_order : False or else, default False
@@ -1467,13 +1538,13 @@ class C2xG(object):
 
 	    '''
         #Get token frequencies
-        features_tokens = self.parse(input_data, mode = mode, third_order = third_order)
+        features_tokens = self.parse(input_data, input_type = input_type, mode = mode, third_order = third_order)
         features_tokens = pd.DataFrame(features_tokens).sum() 
         features_tokens = features_tokens.reset_index()
         features_tokens.columns = ["Construction", "Tokens"]
         
         #Get type frequencies
-        features_types = self.parse_types(input_data, mode = mode, third_order = third_order)       
+        features_types = self.parse_types(input_data, input_type = input_type, mode = mode, third_order = third_order)       
         features_types = pd.DataFrame(features_types)
         features_types = features_types.reset_index()
         features_types.columns = ["Construction1", "Types"]
@@ -1495,7 +1566,7 @@ class C2xG(object):
             
     #-------------------------------------------------------------------------------
     def print_constructions(self, mode="lex"):
-	    '''
+        """
 	    Returns, prints, and creates a .txt file with a list of constructions in the loaded model.
 
 		Parameters
@@ -1507,8 +1578,8 @@ class C2xG(object):
 		----------
 		return_list :
 			A list of selected constructions.
-
-	    '''
+        """
+        
         if mode == "lex":
             model = self.lex_grammar.loc[:,"Chunk"].values
         elif mode == "syn":
@@ -1725,7 +1796,7 @@ class C2xG(object):
 		Parameters
 		----------
 		freq_threshold : int, default 1
-			NOTE: Could be removed?
+			Only consider bigrams above this frequency threshold
 		normalization : True or else, default True
 			Normalise frequency by ngram type and frequency strata, yes by default.
 		grammar_type : str, default "full"
@@ -1766,7 +1837,7 @@ class C2xG(object):
         association_dict = self.Association.calculate_association(ngrams = ngrams, normalization = self.normalization, discount_dict = discount_dict)
         
         #Reduce to bigrams
-        keepable = lambda x: len(x) > 1
+        keepable = lambda x: len(x) > freq_threshold
         all_ngrams = ct.keyfilter(keepable, association_dict)
 
         #Convert to readable CSV

@@ -299,9 +299,12 @@ class Parser(object):
             self.Load = Load
     #--------------------------------------------------------------#
     
-    def parse(self, files, grammar, length):
+    def parse(self, files, grammar, length, mode):
         
-        matches = [parse_fast(line, grammar = grammar, grammar_len = length, sparse_matches=False) for line in self.Load.load(files, mode = "lines")]
+        if mode == "lines":
+            matches = [parse_fast(line, grammar = grammar, grammar_len = length, sparse_matches=False) for line in self.Load.load(files, mode = "lines")]
+        elif mode == "files":
+            matches = [parse_fast(line, grammar = grammar, grammar_len = length, sparse_matches=False) for line in self.Load.load(files, mode = "files")]
 
         return matches
                 
