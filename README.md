@@ -7,7 +7,16 @@ Why CxG? Constructions are grammatical entities that support a straight-forward 
 
 This package currently support 18 languages: English (eng), Arabic (ara), Danish (dan), German (deu), Greek (ell), Farsi (fas), Finnish (fin), French (fra), Hindi (hin), Indonesian (ind), Italian (ita), Dutch (nld), Polish (pol), Portuguese (por), Russian (rus), Spanish (spa), Swedish (swe), Turkish (tur)
 
-Note: The *download()* function  must be used to install pre-trained grammars.
+Note: The *download_model()* function  must be used to install pre-trained grammars.
+
+Further Documentation
+-----------------------
+
+More detailed linguistic documentation is available in the draft book *Computational Construction Grammar: A Usage-Based Approach* available at https://www.jdunn.name/cxg
+
+Usage examples in a working environment are available at https://doi.org/10.24433/CO.9944630.v1
+
+Detailed descriptions of each pre-trained grammar are available at https://doi.org/10.17605/OSF.IO/SA6R3
 
 Usage: Initializing
 ---------------------
