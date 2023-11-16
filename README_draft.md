@@ -1,5 +1,5 @@
-## c2xg 2.0
-=============
+# c2xg 2.0
+-----------------------
 
 Computational Construction Grammar, or *c2xg*, is a Python package for learning and working with construction grammars. 
 
