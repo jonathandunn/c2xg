@@ -1673,12 +1673,13 @@ class C2xG(object):
         elif mode == "all":
         
             #For merge
-            lex_grammar = self.lex_grammar.loc[:,"Chunk"].values
-            syn_grammar = self.syn_grammar.loc[:,"Chunk"].values
-            full_grammar = self.full_grammar.loc[:,"Chunk"].values
+            lex_grammar = self.lex_grammar.loc[:,"Chunk"]
+            syn_grammar = self.syn_grammar.loc[:,"Chunk"]
+            full_grammar = self.full_grammar.loc[:,"Chunk"]
 
             #Merge all grammars
             model = pd.concat([lex_grammar, syn_grammar, full_grammar], axis = 0)
+            model = model.values
 
         return_list = []
         
