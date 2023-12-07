@@ -260,38 +260,38 @@ class C2xG(object):
     def __init__(self, model = False, data_dir = None, in_dir = None, out_dir = None, language = "N/A", nickname = "cxg", max_sentence_length = 50,
                     normalization = True, max_words = False, cbow_file = "", sg_file = ""):
     
-    '''
-	Initialise C2xG for use. 
+        '''
+        Initialise C2xG for use. 
 
-	Parameters
-	----------
-	model : str (default = False)
-		The string for a model file in the out directory, or corresponding shortcut.
-	data_dir : str (default = None)
-		The working directory, creates './data' if none given.
-	in_dir : str (default = None)
-		The input directory name, creates 'IN' in 'data_dir' if none given.
-	out_dir : str (default = None)
-		The output directory name, creates 'OUT' in 'data_dir' if none given.
-	language : str (default = "N/A") 
-		The language for filenames, default 'N/A'.
-	nickname : str (default = "cxg") 
-		The nickname for filenames, default 'cxg'.
-	max_sentence_length = 50,
-		The cutoff length for loading a sentence, 50 by default.
-	normalization : True or else (default = True) 
-		Normalise frequency by ngram type and frequency strata, yes by default.
-	max_words : False or else (default = False) 
-		Limit the number of words when reading input data.
-	cbow_file : str (default = "")
-		Name of cbow file to load or create.
-	sg_file : str (default = "")
-		Name of skip-gram file to load or create.
+        Parameters
+        ----------
+        model : str (default = False)
+            The string for a model file in the out directory, or corresponding shortcut.
+        data_dir : str (default = None)
+            The working directory, creates './data' if none given.
+        in_dir : str (default = None)
+            The input directory name, creates 'IN' in 'data_dir' if none given.
+        out_dir : str (default = None)
+            The output directory name, creates 'OUT' in 'data_dir' if none given.
+        language : str (default = "N/A") 
+            The language for filenames, default 'N/A'.
+        nickname : str (default = "cxg") 
+            The nickname for filenames, default 'cxg'.
+        max_sentence_length = 50,
+            The cutoff length for loading a sentence, 50 by default.
+        normalization : True or else (default = True) 
+            Normalise frequency by ngram type and frequency strata, yes by default.
+        max_words : False or else (default = False) 
+            Limit the number of words when reading input data.
+        cbow_file : str (default = "")
+            Name of cbow file to load or create.
+        sg_file : str (default = "")
+            Name of skip-gram file to load or create.
 
-	Returns
-	----------
-	None : Initialisation finished.
-	'''
+        Returns
+        ----------
+        None : Initialisation finished.
+        '''
         self.workers = mp.cpu_count()
         self.max_sentence_length = max_sentence_length
         
@@ -552,20 +552,20 @@ class C2xG(object):
             
     #-----------------------------------------------------------------
     def learn_embeddings(self, input_data, name="embeddings"):
-	'''
-	Generates new cbow and skip-gram embeddings on input data.
+        '''
+        Generates new cbow and skip-gram embeddings on input data.
 
-	Parameters
-	----------
-	input_data : str or list of str
-		A filename or list of strings/sentences to be examined. Files sources from 'in' directory.
-	name : str (default = "embeddings")
-		The nickname to use when saving models, 'embeddings' by default.
+        Parameters
+        ----------
+        input_data : str or list of str
+            A filename or list of strings/sentences to be examined. Files sources from 'in' directory.
+        name : str (default = "embeddings")
+            The nickname to use when saving models, 'embeddings' by default.
 
-	Returns
-	----------
-	None : saved in class as 'self.cbow_model' and 'self.sg_model'.
-	'''
+        Returns
+        ----------
+        None : saved in class as 'self.cbow_model' and 'self.sg_model'.
+        '''
         print("Starting local embeddings (cbow)")
         self.cbow_model = self.Word_Classes.learn_embeddings(input_data, model_type="cbow", name=name)
 
@@ -575,46 +575,46 @@ class C2xG(object):
     #------------------------------------------------------------------
 
     def learn(self, input_data, npmi_threshold = 0.75, starting_index = 0, min_count = None, max_vocab = None, cbow_range = False, sg_range = False, get_examples = True, increments = 50000, learning_rounds = 20, forgetting_rounds = 40, cluster_only = False):
-	'''
-	Generates a new grammar model using input data. 
+        '''
+        Generates a new grammar model using input data. 
 
-	Parameters
-	----------
-	input_data : str or list of str
-		A filename or list of strings/sentences to be examined. Files sources from 'in' directory.
-	npmi_threshold : int (default = 0.75)
-		Normalised pointwise mutual information threshold value for use with 'gensim.Phrases'.
-		See: https://radimrehurek.com/gensim/models/phrases.html
-	starting_index : int (default = 0)
-		Index in input to begin learning, if not the beginning.
-	min_count : int or None (default = None)
-		Minimum ngram token count to maintain. If none, derived from 'max_words' during initialisation.
-	max_vocab : int or False (default = False)
-		Maximum size for returned vocabulary.
-	cbow_range : int or False (default = False)
-		Maximum cbow clusters. If False, use default of 250.
-	sg_range : int or False (default = False)
-		Maximum skip-gram clusters. If False, use default of 2500.
-	get_examples : True or else (default = True)
-		If true, run 'get_examples()' also. Use 'help(C2xG.get_examples)' for more.
-	increments : int (default = 50000)
-		Defines both the number of words to discard and where to stop.
-	learning_rounds : int (default = 20)
-		Number of learning rounds to build/refine vocabulary.
-	forgetting_rounds : int (default = 40)
-		Number of forgetting rounds to prune vocabulary.
-	cluster_only False or else (default = False)
-		Only use clusters from embedding models.
+        Parameters
+        ----------
+        input_data : str or list of str
+            A filename or list of strings/sentences to be examined. Files sources from 'in' directory.
+        npmi_threshold : int (default = 0.75)
+            Normalised pointwise mutual information threshold value for use with 'gensim.Phrases'.
+            See: https://radimrehurek.com/gensim/models/phrases.html
+        starting_index : int (default = 0)
+            Index in input to begin learning, if not the beginning.
+        min_count : int or None (default = None)
+            Minimum ngram token count to maintain. If none, derived from 'max_words' during initialisation.
+        max_vocab : int or False (default = False)
+            Maximum size for returned vocabulary.
+        cbow_range : int or False (default = False)
+            Maximum cbow clusters. If False, use default of 250.
+        sg_range : int or False (default = False)
+            Maximum skip-gram clusters. If False, use default of 2500.
+        get_examples : True or else (default = True)
+            If true, run 'get_examples()' also. Use 'help(C2xG.get_examples)' for more.
+        increments : int (default = 50000)
+            Defines both the number of words to discard and where to stop.
+        learning_rounds : int (default = 20)
+            Number of learning rounds to build/refine vocabulary.
+        forgetting_rounds : int (default = 40)
+            Number of forgetting rounds to prune vocabulary.
+        cluster_only False or else (default = False)
+            Only use clusters from embedding models.
 
-	Returns
-	----------
-	grammar_df_lex : pandas.core.frame.DataFrame
-		A pandas dataframe with lexical grammar.
-	grammar_df_syn : pandas.core.frame.DataFrame
-		A pandas dataframe with syntactic grammar. 
-	grammar_df_full : pandas.core.frame.DataFrame
-		A pandas dataframe with full grammar.
-	'''
+        Returns
+        ----------
+        grammar_df_lex : pandas.core.frame.DataFrame
+            A pandas dataframe with lexical grammar.
+        grammar_df_syn : pandas.core.frame.DataFrame
+            A pandas dataframe with syntactic grammar. 
+        grammar_df_full : pandas.core.frame.DataFrame
+            A pandas dataframe with full grammar.
+        '''
         #Set starting_index if skipping parts of input
         self.Load.starting_index = starting_index
         
