@@ -617,6 +617,7 @@ class C2xG(object):
         '''
         #Set starting_index if skipping parts of input
         self.Load.starting_index = starting_index
+        self.max_words = max_vocab
         
         #Adjust min_count to be 1 parts per million using max_words parameter
         if min_count == None:

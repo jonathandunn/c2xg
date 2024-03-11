@@ -269,9 +269,24 @@ For example, to create a simple model with only two rounds, eight rounds of forg
  							learning_rounds = 2, forgetting_rounds = 8, 
 							cbow_range = 50, sg_range = 500)
 
+***Example of using CxG.learn()***
+
+Below is a simple example that shows the code necessary to learn a new grammar with an existing set of embeddings. In this example, the input corpus is the file "corpus.blogs.gz" and it is contained in DATA > IN. The embedding files are passed using the *cbow_file* and *sg_file* parameters. Their expected location is in DATA > OUT. These are the default locations; it is also possible to specify different locations when initializing the C2xG class.
+
+    cxg = c2xg.C2xG(data_dir = "DATA", 
+                    cbow_file = "training_corpus.01.cbow.bin",
+                    sg_file = "training_corpus.01.sg.bin",
+                    )
+
+    cxg.learn(input_data = "corpus.blogs.gz", max_vocab = 10000)
+
+This example will first cluster the sg and cbow embeddings to form the categories needed to formulate slot constraints. It will then proceed to learning the grammar itself.
+
 ***CxG.learn_embeddings()***
 
 The *learn_embeddings()* function creates new cbow and skip-gram embeddings using input data. The _learn()_ function will do this automatically by default, but this function generates them in isolation. 
+
+For quality assurance, it is best when possible to learn and examine the embeddings directly, for instance using Gensim.
 
 _note:_ Embeddings are stored in the class as 'self.cbow_model' and 'self.sg_model'.
 
