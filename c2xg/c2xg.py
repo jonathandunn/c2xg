@@ -156,7 +156,7 @@ def download_model(model = False, data_dir = None, out_dir = None):
 
     #First set the data directories
     #If no directories set, use default
-    if data_dir == None and in_dir == None:
+    if data_dir == None and out_dir == None:
         data_dir = "data"
         in_dir = os.path.join(data_dir, "IN")
         out_dir = os.path.join(data_dir, "OUT")
@@ -169,37 +169,43 @@ def download_model(model = False, data_dir = None, out_dir = None):
     #Otherwise separately set the input and output directories
     else:
         data_dir = ""
+
+    #Make dirs if necessary
+    if not os.path.exists(data_dir):
+        os.mkdir(data_dir)
+        os.mkdir(in_dir)
+        os.mkdir(out_dir)
         
     print("Saving models to " + out_dir)
     
     #Second, define the list of possible models
     model_list = {
-    "cxg_corpus_blogs_final_v2.eng.1000k_words.model.zip": "https://www.dropbox.com/scl/fi/l28898p3b0keasm295ikd/cxg_corpus_blogs_final_v2.eng.1000k_words.model.zip?rlkey=oahjzjfgat6v2im3skfbmspn5&dl=1",
-    "cxg_corpus_comments_final_v2.eng.1000k_words.model.zip": "https://www.dropbox.com/scl/fi/dl175kjcsaz8abd18fmy2/cxg_corpus_comments_final_v2.eng.1000k_words.model.zip?rlkey=dmev9412wbbi96q64breb77l1&dl=1",
-    "cxg_corpus_eu_final_v2.eng.1000k_words.model.zip": "https://www.dropbox.com/scl/fi/v8d0l4z8um10jaed5dj8x/cxg_corpus_eu_final_v2.eng.1000k_words.model.zip?rlkey=2cv880qigdgqkoxptq10upp3t&dl=1",
-    "cxg_corpus_pg_final_v2.eng.1000k_words.model.zip": "https://www.dropbox.com/scl/fi/kdf187ub6m9el9x7zpbxe/cxg_corpus_pg_final_v2.eng.1000k_words.model.zip?rlkey=t1fiidnvbybk7utefrgrhny8p&dl=1",
-    "cxg_corpus_reviews_final_v2.eng.1000k_words.model.zip": "https://www.dropbox.com/scl/fi/22vszzf235e0kgjyoc1b5/cxg_corpus_reviews_final_v2.eng.1000k_words.model.zip?rlkey=7o6y431ighqq9at1t8byc4zvp&dl=1",
-    "cxg_corpus_subs_final_v2.eng.1000k_words.model.zip": "https://www.dropbox.com/scl/fi/wkjqomey8sh51cfampq18/cxg_corpus_subs_final_v2.eng.1000k_words.model.zip?rlkey=eng3tzhtkc8t23gnc8o19bz80&dl=1",
-    "cxg_corpus_tw_final_v2.eng.1000k_words.model.zip": "https://www.dropbox.com/scl/fi/hhc8lzyl5stspoz70vhdj/cxg_corpus_tw_final_v2.eng.1000k_words.model.zip?rlkey=hwlejh9ewb1oofsht1uti30i5&dl=1",
-    "cxg_corpus_wiki_final_v2.eng.1000k_words.model.zip": "https://www.dropbox.com/scl/fi/o2v07fme9npnmf57s0591/cxg_corpus_wiki_final_v2.eng.1000k_words.model.zip?rlkey=gqcsgd0lz5gio9o24924cp0dp&dl=1",
-    "cxg_multi_v02.ara.1000k_words.model.zip": "https://www.dropbox.com/scl/fi/w7thiv0ilaayjq0dz2zmm/cxg_multi_v02.ara.1000k_words.model.zip?rlkey=6zqj8ocmr9y3a09tv374a6qvk&dl=1",
-    "cxg_multi_v02.dan.1000k_words.model.zip": "https://www.dropbox.com/scl/fi/ftgempum9dkwne481spod/cxg_multi_v02.dan.1000k_words.model.zip?rlkey=ydxwnyzke1teg73kja4i51mtx&dl=1",
-    "cxg_multi_v02.deu.1000k_words.model.zip": "https://www.dropbox.com/scl/fi/ba2dyit5nute0f5qn2rr8/cxg_multi_v02.deu.1000k_words.model.zip?rlkey=c1w2vqvao9i66sdcwhdr8k2xn&dl=1",
-    "cxg_multi_v02.ell.1000k_words.model.zip": "https://www.dropbox.com/scl/fi/wk7zt0h8nf2t78dgxkpvz/cxg_multi_v02.ell.1000k_words.model.zip?rlkey=jrvlwladezepgyirvxj2t6gto&dl=1",
-    "cxg_multi_v02.eng.1000k_words.model.zip": "https://www.dropbox.com/scl/fi/85p0qvhczf8fha1p9ofmu/cxg_multi_v02.eng.1000k_words.model.zip?rlkey=nst9fou7nioq8d3ox4z6x7ruh&dl=1",
-    "cxg_multi_v02.fas.1000k_words.model.zip": "https://www.dropbox.com/scl/fi/niz9wegjt6t0on7vhzws0/cxg_multi_v02.fas.1000k_words.model.zip?rlkey=p06a1fn6kf0laa59g875u5mf5&dl=0",
-    "cxg_multi_v02.fin.1000k_words.model.zip": "https://www.dropbox.com/scl/fi/17u9o71jjv4c37un0d59l/cxg_multi_v02.fin.1000k_words.model.zip?rlkey=1buactvpte4jjkubvwjo16gcv&dl=0",
-    "cxg_multi_v02.fra.1000k_words.model.zip": "https://www.dropbox.com/scl/fi/itvnmt6kuil8fclat98vm/cxg_multi_v02.fra.1000k_words.model.zip?rlkey=xcpthkzewnokk05nywtft2w3g&dl=0",
-    "cxg_multi_v02.hin.1000k_words.model.zip": "https://www.dropbox.com/scl/fi/fl73gzqgx1x5wdw72kqvb/cxg_multi_v02.hin.1000k_words.model.zip?rlkey=sxl78srkokqbyqlwbs2hjizko&dl=0",
-    "cxg_multi_v02.ind.1000k_words.model.zip": "https://www.dropbox.com/scl/fi/guez7m4rdi3xql5wstr7g/cxg_multi_v02.ind.1000k_words.model.zip?rlkey=i23dyfx56tljkhb2pr5rlv88p&dl=0",
-    "cxg_multi_v02.ita.1000k_words.model.zip": "https://www.dropbox.com/scl/fi/3snvw5hqbvk8o2wakhyzj/cxg_multi_v02.ita.1000k_words.model.zip?rlkey=9y7twsgsnl9wb0mbisdp2n3pl&dl=0",
-    "cxg_multi_v02.nld.1000k_words.model.zip": "https://www.dropbox.com/scl/fi/kq1d339gm1zdd89qpzsl1/cxg_multi_v02.nld.1000k_words.model.zip?rlkey=zn0o36qfomsgp5z98qo2ufxmt&dl=0",
-    "cxg_multi_v02.pol.1000k_words.model.zip": "https://www.dropbox.com/scl/fi/siha35ub9m7asb5ccoq2s/cxg_multi_v02.pol.1000k_words.model.zip?rlkey=qif2ux53sfhc7nagvi2cvew9s&dl=0",
-    "cxg_multi_v02.por.1000k_words.model.zip": "https://www.dropbox.com/scl/fi/d758n67l3ugcdnsrpmxo0/cxg_multi_v02.por.1000k_words.model.zip?rlkey=hdlyuv33toc02vknzoakfk2ak&dl=0",
-    "cxg_multi_v02.rus.1000k_words.model.zip": "https://www.dropbox.com/scl/fi/0dccch51vn5hl8051r942/cxg_multi_v02.rus.1000k_words.model.zip?rlkey=vrkar9gjszeepv30avqhs419d&dl=0",
-    "cxg_multi_v02.spa.1000k_words.model.zip": "https://www.dropbox.com/scl/fi/jbpmx8l8ohpb1qj738v2i/cxg_multi_v02.spa.1000k_words.model.zip?rlkey=kgyk2h5r9mr64co6kbol18lxx&dl=0",
-    "cxg_multi_v02.swe.1000k_words.model.zip": "https://www.dropbox.com/scl/fi/0g0wlkyxsdyxo3kza2udc/cxg_multi_v02.swe.1000k_words.model.zip?rlkey=gt2hxk7gl84i31o9mxwd8lee8&dl=0",
-    "cxg_multi_v02.tur.1000k_words.model.zip": "https://www.dropbox.com/scl/fi/k0yaovzhn863d2jytlc6w/cxg_multi_v02.tur.1000k_words.model.zip?rlkey=pgli9vgkhsfg4ynpa1du7kea6&dl=0",
+    "cxg_corpus_blogs_final_v2.eng.1000k_words.model.zip": "https://uofi.box.com/shared/static/f2df4l9np1yxdojfx4gts6bflno31p57.zip",
+    "cxg_corpus_comments_final_v2.eng.1000k_words.model.zip": "https://uofi.box.com/shared/static/an88mzxx913xylen7y8w0y4h79y3pipj.zip",
+    "cxg_corpus_eu_final_v2.eng.1000k_words.model.zip": "https://uofi.box.com/shared/static/cxpzcflhrmthyx8h1m4vr1wrhcb7i4ju.zip",
+    "cxg_corpus_pg_final_v2.eng.1000k_words.model.zip": "https://uofi.box.com/shared/static/7jabdyj6gc3p6r28r60vgiuu2bdlstfh.zip",
+    "cxg_corpus_reviews_final_v2.eng.1000k_words.model.zip": "https://uofi.box.com/shared/static/yjggpcammwzu6l7r0ygkuo205ryv3la2.zip",
+    "cxg_corpus_subs_final_v2.eng.1000k_words.model.zip": "https://uofi.box.com/shared/static/fs8yyqypnxqett5r5ileupueiytbbl71.zip",
+    "cxg_corpus_tw_final_v2.eng.1000k_words.model.zip": "https://uofi.box.com/shared/static/fexm7o3uwr83nahh092df72n8tj4i76s.zip",
+    "cxg_corpus_wiki_final_v2.eng.1000k_words.model.zip": "https://uofi.box.com/shared/static/ymeak5y0ey2c22rj416d0rlpbbh32yml.zip",
+    "cxg_multi_v02.ara.1000k_words.model.zip": "https://uofi.box.com/shared/static/awrqiub78zr6khrvv4e1p6j0zre9ltku.zip",
+    "cxg_multi_v02.dan.1000k_words.model.zip": "https://uofi.box.com/shared/static/to89462lls71jwfcn7ny6950w03oom3z.zip",
+    "cxg_multi_v02.deu.1000k_words.model.zip": "https://uofi.box.com/shared/static/l1cgnjh7vd3bzpspqhs457i7jwwpz07k.zip",
+    "cxg_multi_v02.ell.1000k_words.model.zip": "https://uofi.box.com/shared/static/xp6jqcdw3vo2yg41xpnzjj0g0ccqabdp.zip",
+    "cxg_multi_v02.eng.1000k_words.model.zip": "https://uofi.box.com/shared/static/icqrpydw06hqqmvnonk30y3ms2ubitfz.zip",
+    "cxg_multi_v02.fas.1000k_words.model.zip": "https://uofi.box.com/shared/static/p03agwe4p3j0w10b0adj63uelu19aeh3.zip",
+    "cxg_multi_v02.fin.1000k_words.model.zip": "https://uofi.box.com/shared/static/0rm5025iwqtgitxuvwhrcmtlv9hvdi3f.zip",
+    "cxg_multi_v02.fra.1000k_words.model.zip": "https://uofi.box.com/shared/static/q8i4hxs6wylkl43xrozfcbn25a3vv32g.zip",
+    "cxg_multi_v02.hin.1000k_words.model.zip": "https://uofi.box.com/shared/static/dq91oxvg0nxdf0j9ap1sdvxd7tkxxy0w.zip",
+    "cxg_multi_v02.ind.1000k_words.model.zip": "https://uofi.box.com/shared/static/29ig0egj4pmwswhihj76cwcqwh17u082.zip",
+    "cxg_multi_v02.ita.1000k_words.model.zip": "https://uofi.box.com/shared/static/0qwl6ue8d1bi6lr1v1i1oeqn1rsahznb.zip",
+    "cxg_multi_v02.nld.1000k_words.model.zip": "https://uofi.box.com/shared/static/sey7uewrr9npm1ypcahsgey7l3yvxfqj.zip",
+    "cxg_multi_v02.pol.1000k_words.model.zip": "https://uofi.box.com/shared/static/rwedcvjltarbr6w7251jkr0xcmot3znd.zip",
+    "cxg_multi_v02.por.1000k_words.model.zip": "https://uofi.box.com/shared/static/o56qufubufvje6gikpll21921j8tweaq.zip",
+    "cxg_multi_v02.rus.1000k_words.model.zip": "https://uofi.box.com/shared/static/rab35oi89tusyvcbu3qc2aqxmk5z966s.zip",
+    "cxg_multi_v02.spa.1000k_words.model.zip": "https://uofi.box.com/shared/static/q9d49bgml50xjpqivwf9dx1s1kmazggq.zip",
+    "cxg_multi_v02.swe.1000k_words.model.zip": "https://uofi.box.com/shared/static/hjasxhz3g0hl5f06k44jq6ql5jq0xy2r.zip",
+    "cxg_multi_v02.tur.1000k_words.model.zip": "https://uofi.box.com/shared/static/n8o83kzb5adqtxidbitrpqseyvfvilw4.zip",
     }
     
     #Third define a list of shortcuts

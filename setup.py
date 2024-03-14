@@ -8,7 +8,7 @@ def read(fname):
 
 setup(
 	name = "c2xg",
-	version = "2.0",
+	version = "2.02",
 	author = "Jonathan Dunn",
 	author_email = "jedunn@illinois.edu",
 	description = ("Construction Grammars for Natural Language Processing and Computational Linguistics"),
