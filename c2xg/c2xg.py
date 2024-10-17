@@ -1929,7 +1929,7 @@ class C2xG(object):
         association_dict = self.Association.calculate_association(ngrams = ngrams, normalization = self.normalization, discount_dict = discount_dict)
         
         #Reduce to bigrams
-        keepable = lambda x: len(x) > freq_threshold
+        keepable = lambda x: len(x) > 1
         all_ngrams = ct.keyfilter(keepable, association_dict)
 
         #Convert to readable CSV
